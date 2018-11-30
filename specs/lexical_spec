@@ -1,0 +1,147 @@
+;; l-lang lexical specifications
+;;
+;; ahmad maher
+;; Oct 2018
+
+;; notes:
+;;
+;;      - Comments starts with ";;"
+;;
+;;		- <!> indicates it could be removed totally.
+;;		- <?> indicates it could be changed in the future.
+;;
+;;      - Whitespace in this grammar are insignificant.
+;;      - (..) used for sequences; ('0'..'9') indicates
+          a digit between 0 and 9.
+;;      - (.) one dot used for any valid ascii character,
+;;        our language doesn't support unicode for now.
+;;
+;;      - Single characters uses single quotes.
+;;      - String of characters uses double qoutes.
+;;      - Tokens names start with capital letter.
+;;      - Helpers start with lower letters.
+;;      - Helpers are not recognized by the scanner,
+;;        there here to help for the grammar readability.
+
+
+;; 0) Helpers
+
+digit            -> ('0'..'9')
+non_zero         -> ('1'..'9')
+bin_digit        -> ('1' | '0')
+hexa_digit       -> ('A'..'E' | 'a'..'e' | '0'..'9')
+octal_digit      -> ('0'..'7)
+alpha            -> ('a'..'z' | 'A'..'Z')
+
+
+;; 1) Numbers
+
+IntNum      -> non_zero digit*                                                  ;; numbers can't start with 0
+             | '0' 'b' bin_digit+                                               ;; binary representation
+             | '0' 'x' hexa_digit+                                              ;; hexadecimal representation
+             | '0' 'o' octal_digit+                                             ;; octal representation
+FloatNum    -> non_zero digit* '.' digit+
+             | non_zero digit* ('.' digit+)? ('e' | 'E') ('+' | '-')? digit+    ;; scientific notation
+
+;; 2) Text and Identifiers
+
+Identifier  -> ('_' | alpha) ('_' | alpha | digit)*
+String      -> '"' (. | '\' '"' | ^'\n' ) '"'                                   ;; "(?:[^"\\]|\\.)*" as a valid regex
+R_String    -> '!' '"' . '"'                                                    ;; raw strings that doesn't escape characters
+
+;; 3) Literals
+
+Nil         -> "nil"
+False       -> "false"
+True        -> "true"
+
+;; 4) Keywords
+
+Use         -> "use"
+Module      -> "module"
+Type        -> "type"
+Of          -> "of"
+Fn          -> "fn"
+Let         -> "let"
+Fin         -> "fin"
+Do          -> "do"
+End         -> "end"
+If          -> "if"
+Then        -> "then"
+elif        -> "elif"
+else        -> "else"
+For         -> "for"
+While       -> "while"
+Break       -> "break"
+Continue    -> "continue"
+Raise       -> "raise"
+Handle      -> "handle"
+Match       -> "match"
+Case        -> "case"
+Return      -> "return"
+
+;; types
+
+Num         -> "num"
+Int         -> "int"
+Float       -> "float"
+Str         -> "str"
+Bool        -> "bool"
+List        -> "list"
+
+;; temporary keywords
+
+Echo        -> "echo"
+
+;; 5) Operators
+
+And                  -> "and"
+Or                   -> "or"
+Not                  -> "not"
+			            
+In                   -> "in"   ;; iterator operator
+
+Equal                -> '='
+Dot                  -> '.'
+Dot_Dot              -? ".."   ;; range operator
+Hash             <?> -> '#'    ;; length operator on sequences (string, list .. etc)
+At               <?> -> '@'    ;; append/concatenate operator on sequences
+Colon                -> ':'    ;; for type annotation
+Equal_Great          -> "=>"   ;; match operator
+
+
+Plus                 -> '+'
+Minus                -> '-'
+Asterisk             -> '*'
+Slash                -> '/'
+Percent              -> '%'
+			    
+Pipe             <!> -> '|'
+Ampersand        <!> -> '&'          
+Caret            <!> -> '^'          
+Tilde            <!> -> '~'          
+Great_Great      <!> -> ">>"         
+Less_Less        <!> -> "<<"          
+
+Less                 -> '<'
+Great                -> '>'
+Equal_Equal          -> "=="
+Bang_Equal           -> "!="
+Less_Equal           -> "<="
+Great_Equal          -> ">="
+
+Great_Pipe       <?> -> ">|"  ;; pipe operator, pip values between functions
+
+;; 6) Punctuation
+
+Left_Paren           -> '('
+Right_Paren          -> ')'
+Left_Brace           -> '{'
+Right_Brace          -> '}'
+Left_Bracket         -> '['
+Right_Bracket        -> ']'
+Comma                -> ','
+
+;; 7) Invalid
+
+Invalid              -> <"anything else">   ;; actually different erros have different token types
