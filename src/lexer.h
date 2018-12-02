@@ -60,7 +60,7 @@ typedef enum {
     INVALID_ESCP, OCT_OUTOFR_ESCP,
     OCT_MISS_ESCP, OCT_INVL_ESCP,
     HEX_MISS_ESCP, HEX_INVL_ESCP,
-    ZERO_START,
+    ZERO_START, INVALID_SCIEN,
     EOF_TOK
 } token_type;
 
@@ -89,7 +89,7 @@ typedef struct {
      (t)->type == OCT_INVL_ESCP   ||                        \
      (t)->type == HEX_MISS_ESCP   ||                        \
      (t)->type == HEX_INVL_ESCP   ||                        \
-     (t)->type == ZERO_START)
+     (t)->type == INVALID_SCIEN)
 
 /* extract the file content to a buffer */
 extern char *scan_file(const char *file);

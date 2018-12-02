@@ -55,7 +55,7 @@ void init_lexer(char *src, const char *file) {
 #define peek_next() at_end() ? '\0' : *(current+1)
 
 /* return the last consumed character */
-#define prev_char() *(current-1);
+#define prev_char() *(current-1)
 
 /* consumes the current char if it was c 
    and returns true, else returns false */
@@ -71,7 +71,7 @@ void init_lexer(char *src, const char *file) {
     while (!at_end() &&                                 \
            peek_char() != '*' &&                        \
            peek_next() != '/') {                        \
-        if (peek_char() == '\n') line++;                \                                           \
+        if (peek_char() == '\n') line++;                \
         cons_char();                                    \
     }                                                   \
     if (at_end())                                       \
@@ -262,7 +262,7 @@ token cons_ident() {
 
 /* consumes number types */
 token cons_num() {
-    char start_ch = prev_char()
+    char start_ch = prev_char();
     bool is_float = false;
 
     /* case of hexa, octal and binary numbers */
@@ -283,9 +283,6 @@ token cons_num() {
             cons_char();
             while(is_bin_digit(peek_char())) cons_char();
             return new_token(INT);
-        default:
-            /* invalid token; regular numbers can't start with 0 */
-            return new_token(ZERO_START);
         }
     }
     
@@ -301,13 +298,19 @@ token cons_num() {
     }
 
     /* scientific notation */
-    if (peek_char() == 'e' || peek_char() == 'E'
+    if ((peek_char() == 'e' || peek_char() == 'E')
         && (isdigit(peek_next())
-            || peek_next() == '+'
-            || peek_next() == '-')) {
+            || (peek_next() == '+')
+            || (peek_next() == '-'))) {
         is_float = true;
-        cons_char();
-        cons_char();
+        
+        cons_char();  /* consume 'e/E' */
+        cons_char();  /* consume '+/-/<digit> */
+        
+        /* malformed scientific notation (ex. '1e+') */
+        if (!isdigit(prev_char()) && !isdigit(peek_char()))
+            return new_token(INVALID_SCIEN);
+        
         while (!at_end() && isdigit(peek_char()))
             cons_char();
     }
@@ -412,7 +415,9 @@ int escape(char *unescaped, char *escaped, int size, char ch) {
                     conv = strtol(digits, e, 8);
 
                     /* invalid three digits octal */
-                    if (*e == digits || *e == digits+1 || *e == digits+2) {
+                    if (*e == digits ||
+                        *e == digits+1 ||
+                        *e == digits+2) {
                         state = OCT_INVL;
                         break;
                     }
@@ -677,7 +682,7 @@ char *tok_types_str[] = {
     "INVALID_ESCP", "OCT_OUTOFR_ESCP",
     "OCT_MISS_ESCP", "OCT_INVL_ESCP",
     "HEX_MISS_ESCP", "HEX_INVL_ESCP",
-    "ZERO_START", "EOF_TOK"
+    "INVALID_SCIEN", "EOF_TOK"
 };
 
 void print_token(token *t) {
