@@ -75,7 +75,7 @@ void init_lexer(char *src, const char *file) {
         cons_char();                                    \
     }                                                   \
     if (at_end())                                       \
-        return new_token(UNTERMIN_COMM, NULL)           \
+        return new_token(UNTERMIN_COMM)                 \
     cons_char(); cons_char()
 
 static void skip_whitespace() {

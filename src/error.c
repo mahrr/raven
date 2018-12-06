@@ -31,7 +31,7 @@ extern void fatal_error(int status, const char *msg, ...) {
 
 extern void lex_error(token *tok) {
 
-    fprintf(stderr, "[%s @ %ld] syntax error:\n",
+    fprintf(stderr, "[%s@%ld] syntax error: ",
             tok->file, tok->line);
     
     switch (tok->type) {

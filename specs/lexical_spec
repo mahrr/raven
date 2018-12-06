@@ -27,27 +27,28 @@
 ;; 0) Helpers
 
 digit            -> ('0'..'9')
-non_zero         -> ('1'..'9')
 bin_digit        -> ('1' | '0')
 hexa_digit       -> ('A'..'E' | 'a'..'e' | '0'..'9')
-octal_digit      -> ('0'..'7)
+octal_digit      -> ('0'..'7')
 alpha            -> ('a'..'z' | 'A'..'Z')
 
 
 ;; 1) Numbers
 
-IntNum      -> non_zero digit*                                                  ;; numbers can't start with 0
+IntNum      -> digit+
              | '0' 'b' bin_digit+                                               ;; binary representation
              | '0' 'x' hexa_digit+                                              ;; hexadecimal representation
              | '0' 'o' octal_digit+                                             ;; octal representation
-FloatNum    -> non_zero digit* '.' digit+
-             | non_zero digit* ('.' digit+)? ('e' | 'E') ('+' | '-')? digit+    ;; scientific notation
+FloatNum    -> digit+ '.' digit+
+             | digit+ ('.' digit+)? ('e' | 'E') ('+' | '-')? digit+             ;; scientific notation
 
 ;; 2) Text and Identifiers
 
 Identifier  -> ('_' | alpha) ('_' | alpha | digit)*
-String      -> '"' (. | '\' '"' | ^'\n' ) '"'                                   ;; "(?:[^"\\]|\\.)*" as a valid regex
-R_String    -> '!' '"' . '"'                                                    ;; raw strings that doesn't escape characters
+String      -> '"' (. | '\' '"' | ^'\n' ) '"'
+             | ''' (. | '\' ''' | ^'\n' ) '''
+R_String    -> '!' '"' <any character not '"'> '"'                             ;; raw strings that doesn't escape characters
+             | '!' ''' <any character not '''> ''' 
 
 ;; 3) Literals
 
