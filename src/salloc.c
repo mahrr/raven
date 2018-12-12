@@ -6,7 +6,6 @@
 */
 
 #include <string.h>
-#include <limits.h>
 
 #include "salloc.h"
 #include "alloc.h"
@@ -116,28 +115,6 @@ char *strn(const char *s, unsigned long len) {
     p->link = buckets[shash];
     buckets[shash] = p;
     return p->s;
-}
-
-char *strd(long n) {
-    char buf[25];
-    /*from the buffer end */
-    char *s = buf + sizeof (buf);
-    /* works with unsigned because C permits different machines
-       to works with signed modulus on negative values differently */
-    unsigned long m;
-
-    if (n == LONG_MIN)
-        m = (unsigned)LONG_MAX + 1;
-    else
-        m = (n < 0) ? -n : n;
-
-    do
-        *--s = m%10 + '0';
-    while ((m/10) != 0);
-
-    if (n < 0) *--s = '-';
-
-    return strn(s, buf + sizeof (buf) - s);
 }
 
 char *str(const char *s) {

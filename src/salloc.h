@@ -38,7 +38,5 @@ extern char *str(const char *s);
 /* makes a copy from string s with length len and adds it to the string 
    table unless it's already there and return its address*/ 
 extern char *strn(const char *s, unsigned long len);
-/* convert n to a decimal representation string and returns it */
-extern char *strd(long n);
 
 #endif
