@@ -77,6 +77,13 @@ typedef struct {
     list *error_tokens;
 } token_list;
 
+typedef struct {
+    char *current;    /* the current unconsumed char in the source */
+    char *fixed;      /* the start of the current token */
+    char *file_name;  /* the source file name */
+    long line;        /* the current line number */
+} lexer;
+
 /* check if the current token is error_token */
 #define is_errtok(t)                                        \
     ((t)->type ==  UNRECOG        ||                        \
@@ -93,14 +100,19 @@ typedef struct {
 
 /* extract the file content to a buffer */
 extern char *scan_file(const char *file);
-/* initialize the lexer state */
-extern void init_lexer(char *src, const char *file);
+
+/* initialize a lexer state */
+extern void init_lexer(lexer *l, char *src, const char *file);
+
 /* consumes all tokens in the current source */
-extern token_list *cons_tokens();
+extern token_list *cons_tokens(lexer *l);
+
 /* consume token on demand */
-extern token cons_token();
-/* makes an allocated on R_FIRS copy of a token t */
-extern token *copy_token(token t);
+extern token cons_token(lexer *l);
+
+/* allocate a copy of token struct t on region reg */
+extern token *alloc_token(token t, unsigned reg);
+
 /* print tokens; just for debugging puporse */
 extern void print_token(token *t);
 

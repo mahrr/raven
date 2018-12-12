@@ -7,16 +7,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <assert.h>
 
 #include "lexer.h"
 #include "alloc.h"
 #include "salloc.h"
 #include "list.h"
 
-static char *current;     /* the current unconsumed char in the source */
-static char *fixed;       /* the start of the current token */
-static char *file_name;   /* the source file name */
-static long line;         /* the current line number */
 
 char *scan_file(const char *file) {
     FILE *f = fopen(file, "rb");
@@ -31,35 +28,37 @@ char *scan_file(const char *file) {
     return buff;
 }
 
-void init_lexer(char *src, const char *file) {
-    current = src;
-    fixed = src;
-    file_name = str(file);
-    line = 1;
+void init_lexer(lexer *l, char *src, const char *file) {
+    assert(l != NULL);
+    l->current = src;
+    l->fixed = src;
+    l->file_name = str(file);
+    l->line = 1;
 }
 
 /* initializes a new token */
-#define new_token(t) \
-    (token){t, strn(fixed, current - fixed), file_name, line}
+#define new_token(t)                                    \
+    (token){t, strn(l->fixed, l->current - l->fixed),   \
+            l->file_name, l->line}                      \
 
 /* checks if the lexer reached the end of the source */
-#define at_end() *current == '\0'
+#define at_end() *l->current == '\0'
 
 /* consumes the current char, and returns it */
-#define cons_char() at_end() ? '\0' : *current++
+#define cons_char() at_end() ? '\0' : *l->current++
 
 /* returns the current char without consuming it */
-#define peek_char() *current
+#define peek_char() *l->current
 
 /* return the next char without consuming it */
-#define peek_next() at_end() ? '\0' : *(current+1)
+#define peek_next() at_end() ? '\0' : *(l->current+1)
 
 /* return the last consumed character */
-#define prev_char() *(current-1)
+#define prev_char() *(l->current-1)
 
 /* consumes the current char if it was c 
    and returns true, else returns false */
-#define match_char(c) c == *current ? (current++, true) : false
+#define match_char(c) c == *l->current ? (l->current++, true) : false
 
 /* skips the short comments */
 #define line_comment() \
@@ -78,7 +77,7 @@ void init_lexer(char *src, const char *file) {
         return new_token(UNTERMIN_COMM)                 \
     cons_char(); cons_char()
 
-static void skip_whitespace() {
+static void skip_whitespace(lexer *l) {    
     for (;;) {
         switch (peek_char()) {
         case ' ':
@@ -87,7 +86,7 @@ static void skip_whitespace() {
             cons_char();
             break;
         case '\n':
-            line++;
+            l->line++;
             cons_char();
             break;
         case '/':
@@ -102,22 +101,20 @@ static void skip_whitespace() {
     }           
 }
 
-/*
-#define match_keyword(rest)                      \
-    (!at_end() &&                                \
-     !strncmp(rest, fixed+1, current-fixed-1) && \
-     current += (current-fixed))
-*/
-
 /* match the rest of the keyword with the rest of the token */
+#define match_keyword(rest)                                 \
+    (!at_end() && !strncmp(rest, l->fixed+1, l->current - l->fixed-1))
+
+/*
 bool match_keyword(const char *rest) {
     if (!at_end() && !strncmp(rest, fixed+1, current-fixed-1))
         return true;
     return false;
 }
+*/
 
 /* consumes keywords if matched, or identifiers */
-token cons_ident() {
+token cons_ident(lexer *l) {
     /* extract the whole token first */
     char start_ch = prev_char();
     
@@ -261,7 +258,8 @@ token cons_ident() {
     (n == '0' || n == '1')
 
 /* consumes number types */
-token cons_num() {
+token cons_num(lexer *l) {
+    
     char start_ch = prev_char();
     bool is_float = false;
 
@@ -348,7 +346,7 @@ token cons_num() {
 int escape(char *unescaped, char *escaped, int size, char ch) {
     int state = 0;    
     
-    int i, j;
+    int i, j; /* string counters */
     for (i = 0, j = 0; i < size; i++, j++) {
         if (unescaped[i] != '\\')
             escaped[j] = unescaped[i];
@@ -446,9 +444,9 @@ int escape(char *unescaped, char *escaped, int size, char ch) {
 }
 
 /* consumes escaped strings */
-token cons_str() {
+token cons_str(lexer *l) {    
     char start_ch = prev_char();
-    char *str_start = current;
+    char *str_start = l->current;
 
     /* calculate the string size and sure that the string 
        doesn't terminate in an escaped on single or double qoute */
@@ -461,7 +459,7 @@ token cons_str() {
         } else
             cons_char();
     }
-    char *str_end = current;
+    char *str_end = l->current;
     
     if (at_end() || peek_char() == '\n')
         return new_token(UNTERMIN_STR);
@@ -479,7 +477,7 @@ token cons_str() {
     */
     int state;
     int size = str_end - str_start;
-    char *escaped_str = alloc(size, R_SECN);
+    char *escaped_str = alloc(size, R_PERM);
     state = escape(str_start, escaped_str, size, start_ch);
 
     switch (state) {  
@@ -496,16 +494,16 @@ token cons_str() {
     case HEX_INVL:
         return new_token(HEX_INVL_ESCP);
     default:
-        return (token){STRING, escaped_str, file_name, line};
+        return (token){STRING, escaped_str, l->file_name, l->line};
     }
 }
 
 /* consume raw strings without any escaping */
-token cons_rstr() {
+token cons_rstr(lexer *l) {
     char start_ch = prev_char();
 
     while (!at_end() && peek_char() != start_ch) {
-        if (peek_char() == '\n') line++;
+        if (peek_char() == '\n') l->line++;
         cons_char();
     }
 
@@ -518,15 +516,15 @@ token cons_rstr() {
     return new_token(R_STRING);
 }
 
-token cons_token() {
+extern token cons_token(lexer *l) {    
     /* ignore any whitespace characters */
-    skip_whitespace();
+    skip_whitespace(l);
 
-    fixed = current;
+    l->fixed = l->current;
     char c = cons_char();
      
-    if (isalpha(c) || c == '_') return cons_ident();
-    if (isdigit(c)) return cons_num();
+    if (isalpha(c) || c == '_') return cons_ident(l);
+    if (isdigit(c)) return cons_num(l);
 
     switch(c) {      
     /* one character tokens */
@@ -603,12 +601,12 @@ token cons_token() {
             return new_token(BANG_EQUAL);
         else if (match_char('"') ||
                  match_char('\''))
-            return cons_rstr();
+            return cons_rstr(l);
         return new_token(UNRECOG);
 
     case '"':
     case '\'':
-        return cons_str();
+        return cons_str(l);
     case '\0':
     case EOF:
         return new_token(EOF_TOK);
@@ -618,8 +616,8 @@ token cons_token() {
     }       
 }
 
-extern token* copy_token(token t) {
-    token *tokp = make(tokp, R_FIRS);
+extern token* alloc_token(token t, unsigned reg) {
+    token *tokp = make(tokp, reg);
     tokp->type = t.type;
     tokp->lexeme = t.lexeme;
     tokp->file = t.file;
@@ -628,22 +626,22 @@ extern token* copy_token(token t) {
     return tokp;
 }
 
-token_list *cons_tokens() {
+extern token_list *cons_tokens(lexer *l) {
     /* initial space for the tokens list. it will shrink
        or increase depent of the final number of tokens.*/
     list *tokens = NULL;
     list *error_tokens = NULL;
     bool been_error = false;
-    token curr_tok = cons_token();
+    token curr_tok = cons_token(l);
 
     while (curr_tok.type != EOF_TOK) {
-        token *tp = copy_token(curr_tok);
+        token *tp = alloc_token(curr_tok, R_FIRS);
         if (is_errtok(tp)) {
             been_error = true;
             error_tokens = append_list(error_tokens, tp);
         }
         tokens = append_list(tokens, tp);
-        curr_tok = cons_token();
+        curr_tok = cons_token(l);
     }
 
     token_list *tl = make(tl, R_FIRS);

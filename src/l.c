@@ -18,20 +18,21 @@
 void repl() {
     char buf[MAX_LINE];
     token tok;
+    lexer *lex = make(lex, R_FIRS);
     
     for (;;) {
         fputs("#> ", stdout);
         fgets(buf, MAX_LINE, stdin);
-        init_lexer(buf, "stdin");
+        init_lexer(lex, buf, "stdin");
         
-        tok = cons_token();
+        tok = cons_token(lex);
         while (tok.type != EOF_TOK) {
             
             if (is_errtok(&tok))
                 lex_error(&tok);
             else
                 print_token(&tok);
-            tok = cons_token();
+            tok = cons_token(lex);
         }
     }
 }
@@ -43,14 +44,17 @@ int main(int argc, char **argv) {
         for (int i = 1; i < argc; i++) {
             /* load content file to src */
             char *src = scan_file(argv[i]);
+            /* initialize a lexer */
+            lexer *lex = make(lex, R_FIRS);
+            init_lexer(lex, src, argv[i]);
             /*start the lexing */
-            init_lexer(src, argv[i]);
-            token_list *tl = cons_tokens();
+            token_list *tl = cons_tokens(lex);
             
             list *toks;
             token *tok;
             if (tl->been_error) {
                 toks = tl->error_tokens;
+                /* iterate over the error tokens list */
                 while (tok = iter_list(toks))
                     lex_error(tok);
             } else {
