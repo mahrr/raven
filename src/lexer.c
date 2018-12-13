@@ -89,7 +89,7 @@ static void skip_whitespace(lexer *l) {
 
 /* match the rest of the keyword with the rest of the token */
 #define match_keyword(rest)                                 \
-    (!at_end() && !strncmp(rest, l->fixed+1, l->current - l->fixed-1))
+    (!strncmp(rest, l->fixed + 1, sizeof(rest) - 1))
 
 /* consumes keywords if matched, or identifiers */
 token cons_ident(lexer *l) {
@@ -509,8 +509,8 @@ extern token_list *cons_tokens(lexer *l) {
 /* debugging stuff */
 char *tok_types_str[] = {
     "INT", "FLOAT", "STRING",
-    "R_STRING", "FALSE", "TRUE", "OF",
-    "NIL", "MODULE", "FN", "TYPE",
+    "R_STRING", "FALSE", "TRUE", "NIL",
+    "MODULE", "FN", "TYPE", "OF",
     "RETURN", "LET", "FIN", "USE",
     "DO", "END", "IF", "THEN",
     "ELIF", "ELSE", "FOR", "WHILE",
