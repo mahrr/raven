@@ -52,11 +52,10 @@ typedef enum {
 
     /* Delimiters */
     LPAREN, RPAREN, LBRACE, RBRACE,
-    LBRACKET, RBRACKET, COMMA,
+    LBRACKET, RBRACKET, COMMA, TK_NL,
 
     /* Errors and end of file */
-    UNRECOG, UNTERMIN_COMM,
-    UNTERMIN_STR, UNTERMIN_RSTR,
+    UNRECOG, UNTERMIN_STR,
     INVALID_ESCP, OCT_OUTOFR_ESCP,
     OCT_MISS_ESCP, OCT_INVL_ESCP,
     HEX_MISS_ESCP, HEX_INVL_ESCP,
@@ -87,9 +86,7 @@ typedef struct {
 /* check if the current token is error_token */
 #define is_errtok(t)                                        \
     ((t)->type ==  UNRECOG        ||                        \
-     (t)->type == UNTERMIN_COMM   ||                        \
      (t)->type == UNTERMIN_STR    ||                        \
-     (t)->type == UNTERMIN_RSTR   ||                        \
      (t)->type == INVALID_ESCP    ||                        \
      (t)->type == OCT_OUTOFR_ESCP ||                        \
      (t)->type == OCT_MISS_ESCP   ||                        \

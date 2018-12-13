@@ -2,7 +2,7 @@
  *
  * (lerror.c | 28 Nov 18 | Ahmad Maher)
  *
- * See lerror.h for full description.
+ * See error.h for full description.
 */
 
 /*
@@ -38,17 +38,10 @@ extern void lex_error(token *tok) {
     case UNRECOG:
         fprintf(stderr, "unrecognize syntax '%s'\n", tok->lexeme);
         break;
-    case UNTERMIN_COMM:
-        fprintf(stderr, "unterminated comment at line (%ld)\n",
-                tok->line);
-        break;
     case UNTERMIN_STR:
         fprintf(stderr, "unterminated string at line (%ld)\n",
                 tok->line);
         break;
-    case UNTERMIN_RSTR:
-        fprintf(stderr, "unterminated long string at line (%ld)\n",
-                tok->line);
     case INVALID_ESCP:
         fprintf(stderr, "invalid escape sequence in %s\n",
                 tok->lexeme);

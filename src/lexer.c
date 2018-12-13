@@ -37,13 +37,16 @@ void init_lexer(lexer *l, char *src, const char *file) {
     l->line = 1;
 }
 
-/* initializes a new token */
+/* initializes a new token with a lexeme */
 #define new_token(t)                                    \
     (token){t, strn(l->fixed, l->current - l->fixed),   \
             l->file_name, l->line}                      \
 
+/* initializes a new token without a lexeme */
+#define new_ntoken(t) (token) {t, NULL, l->file_name, l->line} 
+
 /* checks if the lexer reached the end of the source */
-#define at_end() *l->current == '\0'
+#define at_end() (*(l->current) == '\0')
 
 /* consumes the current char, and returns it */
 #define cons_char() at_end() ? '\0' : *l->current++
@@ -62,21 +65,9 @@ void init_lexer(lexer *l, char *src, const char *file) {
 #define match_char(c) c == *l->current ? (l->current++, true) : false
 
 /* skips the short comments */
-#define line_comment() \
-    while (!at_end() && peek_char() != '\n') cons_char()
-
-/* skips the long comment. If it is an unterminated 
-   comment, it yeilds a token_error */
-#define long_comment()                                  \
-    while (!at_end() &&                                 \
-           peek_char() != '*' &&                        \
-           peek_next() != '/') {                        \
-        if (peek_char() == '\n') line++;                \
-        cons_char();                                    \
-    }                                                   \
-    if (at_end())                                       \
-        return new_token(UNTERMIN_COMM)                 \
-    cons_char(); cons_char()
+#define line_comment()                                      \
+    while (!at_end() && peek_char() != '\n') cons_char();   \
+    if (peek_char() == '\n') cons_char()
 
 static void skip_whitespace(lexer *l) {    
     for (;;) {
@@ -86,15 +77,9 @@ static void skip_whitespace(lexer *l) {
         case '\r':
             cons_char();
             break;
-        case '\n':
-            l->line++;
-            cons_char();
-            break;
         case '/':
             if (match_char('/'))
                 line_comment();
-            else
-                return;
             break;
         default:
             return;
@@ -105,14 +90,6 @@ static void skip_whitespace(lexer *l) {
 /* match the rest of the keyword with the rest of the token */
 #define match_keyword(rest)                                 \
     (!at_end() && !strncmp(rest, l->fixed+1, l->current - l->fixed-1))
-
-/*
-bool match_keyword(const char *rest) {
-    if (!at_end() && !strncmp(rest, fixed+1, current-fixed-1))
-        return true;
-    return false;
-}
-*/
 
 /* consumes keywords if matched, or identifiers */
 token cons_ident(lexer *l) {
@@ -126,121 +103,119 @@ token cons_ident(lexer *l) {
     switch (start_ch) {
     case 'a':
         if (match_keyword("nd"))
-            return new_token(AND);
+            return new_ntoken(AND);
         break;
         
     case 'b':
         if (match_keyword("ool"))
-            return new_token(BOOL_T);
+            return new_ntoken(BOOL_T);
         else if (match_keyword("reak"))
-            return new_token(BREAK);
+            return new_ntoken(BREAK);
         break;
         
     case 'c':
         if (match_keyword("ase"))
-            return new_token(CASE);
+            return new_ntoken(CASE);
         else if (match_keyword("ontinue"))
-            return new_token(CONTINUE);
+            return new_ntoken(CONTINUE);
         break;
         
     case 'd':
         if (match_keyword("o"))
-            return new_token(DO);
+            return new_ntoken(DO);
         break;
         
     case 'e':
         if (match_keyword("lif"))
-            return new_token(ELIF);
+            return new_ntoken(ELIF);
         else if (match_keyword("lse"))
-            return new_token(ELSE);
+            return new_ntoken(ELSE);
         else if (match_keyword("nd"))
-            return new_token(END);
+            return new_ntoken(END);
         break;
         
     case 'f':
         if (match_keyword("alse"))
-            return new_token(FALSE);
+            return new_ntoken(FALSE);
         else if (match_keyword("in"))
-            return new_token(FIN);
+            return new_ntoken(FIN);
         else if (match_keyword("loat"))
-            return new_token(FLOAT_T);
+            return new_ntoken(FLOAT_T);
         else if (match_keyword("n"))
-            return new_token(FN);
+            return new_ntoken(FN);
         else if (match_keyword("or"))
-            return new_token(FOR);
+            return new_ntoken(FOR);
         break;
         
     case 'h':
         if (match_keyword("andle"))
-            return new_token(HANDLE);
+            return new_ntoken(HANDLE);
         break;
         
     case 'i':
         if (match_keyword("f"))
-            return new_token(IF);
+            return new_ntoken(IF);
         else if (match_keyword("nt"))
-            return new_token(INT_T);
+            return new_ntoken(INT_T);
         break;
         
     case 'l':
         if (match_keyword("et"))
-            return new_token(LET);
+            return new_ntoken(LET);
         else if (match_keyword("ist"))
-            return new_token(LIST_T);
+            return new_ntoken(LIST_T);
         break;
         
     case 'm':
         if (match_keyword("atch"))
-            return new_token(MATCH);
-        else if (match_keyword("odule"))
-            return new_token(MODULE);
+            return new_ntoken(MATCH);
         break;
         
     case 'n':
         if (match_keyword("il"))
-            return new_token(NIL);
+            return new_ntoken(NIL);
         else if (match_keyword("ot"))
-            return new_token(NOT);
+            return new_ntoken(NOT);
         else if (match_keyword("um"))
-            return new_token(NUM_T);
+            return new_ntoken(NUM_T);
         break;
         
     case 'o':
         if (match_keyword("r"))
-            return new_token(OR);
+            return new_ntoken(OR);
         else if (match_keyword("f"))
-            return new_token(OF);
+            return new_ntoken(OF);
         break;
         
     case 'r':
         if (match_keyword("aise"))
             return new_token(RAISE);
         else if (match_keyword("eturn"))
-            return new_token(RETURN);
+            return new_ntoken(RETURN);
         break;
         
     case 's':
         if (match_keyword("tr"))
-            return new_token(STR_T);
+            return new_ntoken(STR_T);
         break;
         
     case 't':
         if (match_keyword("hen"))
-            return new_token(THEN);
+            return new_ntoken(THEN);
         else if (match_keyword("rue"))
-            return new_token(TRUE);
+            return new_ntoken(TRUE);
         else if (match_keyword("ype"))
-            return new_token(TYPE);
+            return new_ntoken(TYPE);
         break;
         
     case 'u':
         if (match_keyword("se"))
-            return new_token(USE);
+            return new_ntoken(USE);
         break;
         
     case 'w':
         if (match_keyword("hile"))
-            return new_token(WHILE);
+            return new_ntoken(WHILE);
         break;
         
     }
@@ -385,7 +360,7 @@ token cons_rstr(lexer *l) {
     cons_char();
     
     if (at_end())
-        return new_token(UNTERMIN_RSTR);
+        return new_token(UNTERMIN_STR);
     
     return new_token(R_STRING);
 }
@@ -403,76 +378,76 @@ extern token cons_token(lexer *l) {
     switch(c) {      
     /* one character tokens */
     case '#':
-        return new_token(HASH);
+        return new_ntoken(HASH);
     case '@':
-        return new_token(AT);
+        return new_ntoken(AT);
     case ':':
-        return new_token(COLON);
+        return new_ntoken(COLON);
     case '+':
-        return new_token(PLUS);
+        return new_ntoken(PLUS);
     case '-':
-        return new_token(MINUS);
+        return new_ntoken(MINUS);
     case '*':
-        return new_token(ASTERISK);
+        return new_ntoken(ASTERISK);
     case '/':
-        return new_token(SLASH);
+        return new_ntoken(SLASH);
     case '%':
-        return new_token(PERCENT);
+        return new_ntoken(PERCENT);
     case '|':
-        return new_token(PIPE);
+        return new_ntoken(PIPE);
     case '&':
-        return new_token(AMPERSAND);
+        return new_ntoken(AMPERSAND);
     case '^':
-        return new_token(CARET);
+        return new_ntoken(CARET);
     case '~':
-        return new_token(TILDE);
+        return new_ntoken(TILDE);
     case '(':
-        return new_token(LPAREN);
+        return new_ntoken(LPAREN);
     case ')':
-        return new_token(RPAREN);
+        return new_ntoken(RPAREN);
     case '{':
-        return new_token(LBRACE);
+        return new_ntoken(LBRACE);
     case '}':
-        return new_token(RBRACE);
+        return new_ntoken(RBRACE);
     case '[':
-        return new_token(LBRACKET);
+        return new_ntoken(LBRACKET);
     case ']':
-        return new_token(RBRACKET);
+        return new_ntoken(RBRACKET);
     case ',':
-        return new_token(COMMA);
+        return new_ntoken(COMMA);
         
     /* possible two character tokens */
     case '.':
         if (match_char('.'))
-            return new_token(DOT_DOT);
-        return new_token(DOT);
+            return new_ntoken(DOT_DOT);
+        return new_ntoken(DOT);
         
     case '<':
         if (match_char('<'))
-            return new_token(LESS_LESS);
+            return new_ntoken(LESS_LESS);
         else if (match_char('='))
-            return new_token(LESS_EQUAL);
-        return new_token(LESS);
+            return new_ntoken(LESS_EQUAL);
+        return new_ntoken(LESS);
         
     case '>':
         if (match_char('>'))
-            return new_token(GREAT_GREAT);
+            return new_ntoken(GREAT_GREAT);
         else if (match_char('='))
-            return new_token(GREAT_EQUAL);
+            return new_ntoken(GREAT_EQUAL);
         else if (match_char('|'))
-            return new_token(GREAT_PIPE);
-        return new_token(GREAT);
+            return new_ntoken(GREAT_PIPE);
+        return new_ntoken(GREAT);
 
     case '=':
         if (match_char('='))
-            return new_token(EQUAL_EQUAL);
+            return new_ntoken(EQUAL_EQUAL);
         else if (match_char('>'))
-            return new_token(EQUAL_GREAT);
-        return new_token(EQUAL);
+            return new_ntoken(EQUAL_GREAT);
+        return new_ntoken(EQUAL);
 
     case '!':
         if (match_char('='))
-            return new_token(BANG_EQUAL);
+            return new_ntoken(BANG_EQUAL);
         else if (match_char('"') ||
                  match_char('\''))
             return cons_rstr(l);
@@ -481,9 +456,15 @@ extern token cons_token(lexer *l) {
     case '"':
     case '\'':
         return cons_str(l);
+    case '\n':
+        l->line++;
+        /* It's really wired to register the line of newline token,
+           I will stick with the more technical solution and
+           register it in the line '\n' character was found */
+        return (token){TK_NL, NULL, l->file_name, l->line-1};
     case '\0':
     case EOF:
-        return new_token(EOF_TOK);
+        return new_ntoken(EOF_TOK);
 
     default:
         return new_token(UNRECOG);
@@ -548,9 +529,8 @@ char *tok_types_str[] = {
     "CATER", "TILDE", "GREAT_GREAT",
     "LESS_LESS", "LPAREN", "RPAREN",
     "LBRACE", "RBRACE", "LBRACKET",
-    "RBRACKET", "COMMA", "UNRECOG",
-    "UNTERMIN_COMM",
-    "UNTERMIN_STR", "UNTERMIN_RSTR",
+    "RBRACKET", "COMMA", "TK_NL",
+    "UNRECOG", "UNTERMIN_STR",
     "INVALID_ESCP", "OCT_OUTOFR_ESCP",
     "OCT_MISS_ESCP", "OCT_INVL_ESCP",
     "HEX_MISS_ESCP", "HEX_INVL_ESCP",
@@ -561,7 +541,7 @@ void print_token(token *t) {
     printf("%s@line %ld :: %s :: %s\n",
            t->file,
            t->line,
-           t->lexeme,
+           t->lexeme == NULL ? " " : t->lexeme,
            tok_types_str[t->type]);
 }
 
