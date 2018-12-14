@@ -1,4 +1,5 @@
 /*
+ *
  * (test_lexer.c | 10 Dec 18 | Amr Anwar, Kareem Hamdy)
  *
  * test for lexer.c code 
@@ -42,37 +43,33 @@ token *create_tok(token_type type, char *lexeme, int line) {
     return tok;
 }
 
+void compare_two_tokens(token *input_tk, token *test_tk) {
+    assert(input_tk->type == test_tk->type);
+    if (input_tk->lexeme == NULL || test_tk->lexeme == NULL)
+        assert(input_tk->lexeme == NULL && test_tk->lexeme == NULL);
+    else
+        assert(strcmp(input_tk->lexeme, test_tk->lexeme) == 0);
+    assert(input_tk->line == test_tk->line);
+}
+
 void compare_two_lists(list *input, list *test) {
     int input_len, test_len = 0;
 
-    while (test != NULL||input != NULL) {
-        /*
-        if (input == NULL) {
-            printf("failed: tokens_from_scanner = %d , expected_out_tokens= %d \n", input_len, test_len);
-            assert(input_len == test_len);
-            break;
-        }
-        */
+    while (test != NULL || input != NULL) {
         token *curr_input_tk = input->obj;
         token *curr_test_tk = test->obj;
-        print_token(curr_input_tk);
-        print_token(curr_test_tk);
-        assert(curr_input_tk->type == curr_test_tk->type);
-        if (curr_input_tk->lexeme == NULL || curr_test_tk->lexeme == NULL)
-            assert(curr_input_tk->lexeme == NULL && curr_test_tk->lexeme == NULL);
-        else
-            assert(strcmp(curr_input_tk->lexeme, curr_test_tk->lexeme) == 0);
-
-        assert(curr_input_tk->line == curr_test_tk->line);
+        
+        compare_two_tokens(curr_input_tk, curr_test_tk);
         input = input->link;
         test = test->link;
-
-        if (test != NULL)
-            test_len++;
-        if (input != NULL)
-            input_len++;
+        
+        if (test != NULL) test_len++;
+        if (input != NULL) input_len++;
+        
+        assert(input_len == test_len);
     }
 }
+
 void compare_two_token_lists(token_list *input, token_list *test) {
     compare_two_lists(input->tokens, test->tokens);
     compare_two_lists(input->error_tokens, test->error_tokens);
@@ -95,6 +92,7 @@ void init_test(char *str_input, token *toks[]) {
 }
 
 void test_keywords() {
+    
     token *toks[] = {
         create_tok(FN, NULL, 1),
         create_tok(TYPE, NULL, 1),
@@ -116,13 +114,16 @@ void test_keywords() {
         create_tok(HANDLE, NULL, 1),
         create_tok(MATCH, NULL, 1),
         create_tok(CASE, NULL, 1),
-        create_tok(EOF_TOK, "", 1)};
+        create_tok(EOF_TOK, "", 1)
+    };
+    
     char *str =
         " fn type return let fin use do end if then elif \
     else for while continue break raise handle match case";
 
     init_test(str, toks);
 }
+
 void test_literals_types() {
     char *str =
         "1500 0.5 \"kareem\" !\"kareem\" \
@@ -137,13 +138,13 @@ void test_literals_types() {
         create_tok(NIL, NULL, 1),
         create_tok(TK_NL, NULL, 1),
         /* Types */
-
         create_tok(INT_T, NULL, 2),
         create_tok(FLOAT_T, NULL, 2),
         create_tok(STR_T, NULL, 2),
         create_tok(BOOL_T, NULL, 2),
         create_tok(LIST_T, NULL, 2),
-        create_tok(EOF_TOK, "", 1)};
+        create_tok(EOF_TOK, "", 1)
+    };
 
     init_test(str, toks);
 }
@@ -192,13 +193,15 @@ void test_symbol_tokens() {
         create_tok(LBRACKET, NULL, 1),
         create_tok(RBRACKET, NULL, 1),
         create_tok(COMMA, NULL, 1),
-        create_tok(EOF_TOK, "", 1)};
+        create_tok(EOF_TOK, "", 1)
+    };
 
     init_test(str, toks);
 }
 
 void combination_test() {
     char *str = "let kareem = 1500\nkareem=kareem+15.5\nkareem=(15.5+1500)";
+    
     token *toks[] = {
         /*frist line */
         create_tok(LET, NULL, 1),
@@ -226,8 +229,9 @@ void combination_test() {
     };
     init_test(str, toks);
 
-    // test other shape of Integer
+    /* test other shape of Integer */
     char *str2 = "let kareem = 0x65Eeac \ne=0o123456755\n i=(0b11011)";
+    
     token *toks2[] = {
         /*frist line  test Hexa */
         create_tok(LET, NULL, 1),
@@ -247,8 +251,8 @@ void combination_test() {
         create_tok(INT, "0b11011", 3),
         create_tok(RPAREN, NULL, 3),
         create_tok(EOF_TOK, "", 3)
-
     };
+    
     init_test(str2, toks2);
 }
 
