@@ -89,7 +89,8 @@ static void skip_whitespace(lexer *l) {
 
 /* match the rest of the keyword with the rest of the token */
 #define match_keyword(rest)                                 \
-    (!strncmp(rest, l->fixed + 1, sizeof(rest) - 1))
+    (sizeof(rest) - 1 == l->current - l->fixed - 1 &&       \
+     !strncmp(rest, l->fixed + 1, sizeof(rest) - 1))
 
 /* consumes keywords if matched, or identifiers */
 token cons_ident(lexer *l) {
