@@ -1,10 +1,9 @@
 /*
-/*
+ *
  * (test_lexer.c | 10 Dec 18 | Amr Anwar, Kareem Hamdy)
  *
  * test for lexer.c code 
 */
-
 
 #include <assert.h>
 #include <stdio.h>
@@ -42,35 +41,27 @@ token *create_tok(token_type type, char *lexeme, int line) {
     return tok;
 }
 
+void compare_two_tokens(token *input_tk, token *test_tk) {
+    assert(input_tk->type == test_tk->type);
+    if (input_tk->lexeme == NULL || test_tk->lexeme == NULL)
+        assert(input_tk->lexeme == NULL && test_tk->lexeme == NULL);
+    else
+        assert(strcmp(input_tk->lexeme, test_tk->lexeme) == 0);
+    assert(input_tk->line == test_tk->line);
+}
+
 void compare_two_lists(list *input, list *test) {
     int input_len, test_len = 0;
 
-    while (test != NULL||input != NULL) {
-        if (input == NULL) {
-            printf("failed: tokens_from_scanner = %d , expected_out_tokens= %d \n", input_len, test_len);
-            assert(input_len == test_len);
-            break;
-        }
-
+    while (test != NULL || input != NULL) {
         token *curr_input_tk = input->obj;
         token *curr_test_tk = test->obj;
-        print_token(curr_input_tk);
-        print_token(curr_test_tk);
-        assert(curr_input_tk->type == curr_test_tk->type);
-        if (curr_input_tk->lexeme == NULL || curr_test_tk->lexeme == NULL)
-            assert(curr_input_tk->lexeme == NULL && curr_test_tk->lexeme == NULL);
-        else
-            assert(strcmp(curr_input_tk->lexeme, curr_test_tk->lexeme) == 0);
-
-        assert(curr_input_tk->line == curr_test_tk->line);
+        compare_two_tokens(curr_input_tk, curr_test_tk);
         input = input->link;
         test = test->link;
-
-        if (test != NULL)
-            test_len++;
-        if (input != NULL) {
-            input_len++;
-        }
+        if (test != NULL) test_len++;
+        if (input != NULL) input_len++;
+        assert(input_len == test_len);
     }
 }
 void compare_two_token_lists(token_list *input, token_list *test) {
