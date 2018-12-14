@@ -1,25 +1,26 @@
 /*
-Scanner Test
+/*
+ * (test_lexer.c | 10 Dec 18 | Amr Anwar, Kareem Hamdy)
+ *
+ * test for lexer.c code 
 */
 
-#include <stdio.h>
-#include <assert.h>
 
-#include "../src/lexer.h"
+#include <assert.h>
+#include <stdio.h>
+
 #include "../src/alloc.h"
 #include "../src/error.h"
+#include "../src/lexer.h"
 #include "../src/list.h"
 
-token_list *cons_tokens_test(token *toks[])
-{
+token_list *cons_tokens_test(token *toks[]) {
     list *tokens = NULL;
     list *error_tokens = NULL;
     bool been_error = false;
     token *tok = toks[0];
-    for (int i = 1; tok->type != EOF_TOK; i++)
-    {
-        if (is_errtok(tok))
-        {
+    for (int i = 1; tok->type != EOF_TOK; i++) {
+        if (is_errtok(tok)) {
             been_error = true;
             error_tokens = append_list(error_tokens, tok);
         }
@@ -33,8 +34,7 @@ token_list *cons_tokens_test(token *toks[])
     return tl;
 }
 
-token *create_tok(token_type type, char *lexeme, int line)
-{
+token *create_tok(token_type type, char *lexeme, int line) {
     token *tok = make(tok, R_FIRS);
     tok->lexeme = lexeme;
     tok->type = type;
@@ -42,14 +42,11 @@ token *create_tok(token_type type, char *lexeme, int line)
     return tok;
 }
 
-void compare_two_lists(list *input, list *test)
-{
+void compare_two_lists(list *input, list *test) {
     int input_len, test_len = 0;
 
-    while (test != NULL)
-    {
-        if (input == NULL)
-        {
+    while (test != NULL||input != NULL) {
+        if (input == NULL) {
             printf("failed: tokens_from_scanner = %d , expected_out_tokens= %d \n", input_len, test_len);
             assert(input_len == test_len);
             break;
@@ -71,21 +68,18 @@ void compare_two_lists(list *input, list *test)
 
         if (test != NULL)
             test_len++;
-        if (input != NULL)
-        {
+        if (input != NULL) {
             input_len++;
         }
     }
 }
-void compare_two_token_lists(token_list *input, token_list *test)
-{
+void compare_two_token_lists(token_list *input, token_list *test) {
     compare_two_lists(input->tokens, test->tokens);
     compare_two_lists(input->error_tokens, test->error_tokens);
     assert(input->been_error == test->been_error);
 }
 
-void init_test(char *str_input, token *toks[])
-{
+void init_test(char *str_input, token *toks[]) {
     lexer *lex = make(lex, R_FIRS);
 
     printf("\n--------TEST CASE--------\n");
@@ -100,8 +94,7 @@ void init_test(char *str_input, token *toks[])
     printf("------ passed----------\n");
 }
 
-void test_key_words()
-{
+void test_key_words() {
     token *toks[] = {
         create_tok(FN, NULL, 1),
         create_tok(TYPE, NULL, 1),
@@ -124,13 +117,16 @@ void test_key_words()
         create_tok(MATCH, NULL, 1),
         create_tok(CASE, NULL, 1),
         create_tok(EOF_TOK, "", 1)};
-    char *str = " fn type return let fin use do end if then elif else for while continue break raise handle match case";
+    char *str =
+        " fn type return let fin use do end if then elif \
+    else for while continue break raise handle match case";
 
     init_test(str, toks);
 }
-void test_Literals_types()
-{
-    char *str = "1500 0.5 \"kareem\" !\"kareem\" false true nil \n  int float str bool list";
+void test_Literals_types() {
+    char *str =
+        "1500 0.5 \"kareem\" !\"kareem\" \
+     false true nil \n  int float str bool list";
     token *toks[] = {
         create_tok(INT, "1500", 1),
         create_tok(FLOAT, "0.5", 1),
@@ -153,9 +149,7 @@ void test_Literals_types()
 }
 
 /* Operators Arthimetik Operators Ordering Operators Logic Operators Delimiters */
-void test_symbole_tokens()
-{
-
+void test_symbole_tokens() {
     char *str = "= and or not. .. #@ : => >| +-* / % < > == != <= >= |&^ ~ >> << (){}[ ],";
     token *toks[] = {
         /* Operators */
@@ -203,8 +197,7 @@ void test_symbole_tokens()
     init_test(str, toks);
 }
 
-void compination_test()
-{
+void compination_test() {
     char *str = "let kareem = 1500\nkareem=kareem+15.5\nkareem=(15.5+1500)";
     token *toks[] = {
         /*frist line */
@@ -259,16 +252,7 @@ void compination_test()
     init_test(str2, toks2);
 }
 
-int main(void)
-{
-    // token *toks[4] = {
-    //     create_tok(EQUAL,"=",1),
-    //     create_tok(INT,"12",1),
-    //     create_tok(EQUAL,"=",1),
-    //     create_tok(EOF_TOK, "",1)
-    // };
-    // char *str = "=12=" ;
-    // init_test(str, toks);
+int main(void) {
     test_key_words();
     test_Literals_types();
     test_symbole_tokens();
