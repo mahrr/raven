@@ -78,9 +78,10 @@ static void skip_whitespace(lexer *l) {
             cons_char();
             break;
         case '/':
-            if (match_char('/'))
+            if (peek_next() == '/')
                 line_comment();
-            break;
+            else
+                return;
         default:
             return;
         }
