@@ -191,7 +191,7 @@ token cons_ident(lexer *l) {
         
     case 'r':
         if (match_keyword("aise"))
-            return new_token(RAISE);
+            return new_ntoken(RAISE);
         else if (match_keyword("eturn"))
             return new_ntoken(RETURN);
         break;
