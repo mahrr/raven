@@ -53,7 +53,7 @@ void compare_two_tokens(token *input_tk, token *test_tk) {
 }
 
 void compare_two_lists(list *input, list *test) {
-    int input_len, test_len = 0;
+    int input_len = 0, test_len = 0;
 
     while (test != NULL || input != NULL) {
         token *curr_input_tk = input->obj;
