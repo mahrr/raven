@@ -1,10 +1,8 @@
 /*
-/*
  * (test_lexer.c | 10 Dec 18 | Amr Anwar, Kareem Hamdy)
  *
  * test for lexer.c code 
 */
-
 
 #include <assert.h>
 #include <stdio.h>
@@ -19,6 +17,7 @@ token_list *cons_tokens_test(token *toks[]) {
     list *error_tokens = NULL;
     bool been_error = false;
     token *tok = toks[0];
+    
     for (int i = 1; tok->type != EOF_TOK; i++) {
         if (is_errtok(tok)) {
             been_error = true;
@@ -27,6 +26,7 @@ token_list *cons_tokens_test(token *toks[]) {
         tokens = append_list(tokens, tok);
         tok = toks[i];
     }
+    
     token_list *tl = make(tl, R_FIRS);
     tl->tokens = tokens;
     tl->been_error = been_error;
@@ -46,12 +46,13 @@ void compare_two_lists(list *input, list *test) {
     int input_len, test_len = 0;
 
     while (test != NULL||input != NULL) {
+        /*
         if (input == NULL) {
             printf("failed: tokens_from_scanner = %d , expected_out_tokens= %d \n", input_len, test_len);
             assert(input_len == test_len);
             break;
         }
-
+        */
         token *curr_input_tk = input->obj;
         token *curr_test_tk = test->obj;
         print_token(curr_input_tk);
@@ -68,9 +69,8 @@ void compare_two_lists(list *input, list *test) {
 
         if (test != NULL)
             test_len++;
-        if (input != NULL) {
+        if (input != NULL)
             input_len++;
-        }
     }
 }
 void compare_two_token_lists(token_list *input, token_list *test) {
@@ -94,7 +94,7 @@ void init_test(char *str_input, token *toks[]) {
     printf("------ passed----------\n");
 }
 
-void test_key_words() {
+void test_keywords() {
     token *toks[] = {
         create_tok(FN, NULL, 1),
         create_tok(TYPE, NULL, 1),
@@ -123,7 +123,7 @@ void test_key_words() {
 
     init_test(str, toks);
 }
-void test_Literals_types() {
+void test_literals_types() {
     char *str =
         "1500 0.5 \"kareem\" !\"kareem\" \
      false true nil \n  int float str bool list";
@@ -148,8 +148,8 @@ void test_Literals_types() {
     init_test(str, toks);
 }
 
-/* Operators Arthimetik Operators Ordering Operators Logic Operators Delimiters */
-void test_symbole_tokens() {
+/* Operators Arithmetic Operators Ordering Operators Logic Operators Delimiters */
+void test_symbol_tokens() {
     char *str = "= and or not. .. #@ : => >| +-* / % < > == != <= >= |&^ ~ >> << (){}[ ],";
     token *toks[] = {
         /* Operators */
@@ -197,7 +197,7 @@ void test_symbole_tokens() {
     init_test(str, toks);
 }
 
-void compination_test() {
+void combination_test() {
     char *str = "let kareem = 1500\nkareem=kareem+15.5\nkareem=(15.5+1500)";
     token *toks[] = {
         /*frist line */
@@ -253,9 +253,9 @@ void compination_test() {
 }
 
 int main(void) {
-    test_key_words();
-    test_Literals_types();
-    test_symbole_tokens();
-    compination_test();
+    test_keywords();
+    test_literals_types();
+    test_symbol_tokens();
+    combination_test();
     return 0;
 }
