@@ -18,6 +18,7 @@ token_list *cons_tokens_test(token *toks[]) {
     list *error_tokens = NULL;
     bool been_error = false;
     token *tok = toks[0];
+    
     for (int i = 1; tok->type != EOF_TOK; i++) {
         if (is_errtok(tok)) {
             been_error = true;
@@ -26,6 +27,7 @@ token_list *cons_tokens_test(token *toks[]) {
         tokens = append_list(tokens, tok);
         tok = toks[i];
     }
+    
     token_list *tl = make(tl, R_FIRS);
     tl->tokens = tokens;
     tl->been_error = been_error;
@@ -56,14 +58,18 @@ void compare_two_lists(list *input, list *test) {
     while (test != NULL || input != NULL) {
         token *curr_input_tk = input->obj;
         token *curr_test_tk = test->obj;
+        
         compare_two_tokens(curr_input_tk, curr_test_tk);
         input = input->link;
         test = test->link;
+        
         if (test != NULL) test_len++;
         if (input != NULL) input_len++;
+        
         assert(input_len == test_len);
     }
 }
+
 void compare_two_token_lists(token_list *input, token_list *test) {
     compare_two_lists(input->tokens, test->tokens);
     compare_two_lists(input->error_tokens, test->error_tokens);
@@ -85,7 +91,8 @@ void init_test(char *str_input, token *toks[]) {
     printf("------ passed----------\n");
 }
 
-void test_key_words() {
+void test_keywords() {
+    
     token *toks[] = {
         create_tok(FN, NULL, 1),
         create_tok(TYPE, NULL, 1),
@@ -107,14 +114,17 @@ void test_key_words() {
         create_tok(HANDLE, NULL, 1),
         create_tok(MATCH, NULL, 1),
         create_tok(CASE, NULL, 1),
-        create_tok(EOF_TOK, "", 1)};
+        create_tok(EOF_TOK, "", 1)
+    };
+    
     char *str =
         " fn type return let fin use do end if then elif \
     else for while continue break raise handle match case";
 
     init_test(str, toks);
 }
-void test_Literals_types() {
+
+void test_literals_types() {
     char *str =
         "1500 0.5 \"kareem\" !\"kareem\" \
      false true nil \n  int float str bool list";
@@ -128,19 +138,19 @@ void test_Literals_types() {
         create_tok(NIL, NULL, 1),
         create_tok(TK_NL, NULL, 1),
         /* Types */
-
         create_tok(INT_T, NULL, 2),
         create_tok(FLOAT_T, NULL, 2),
         create_tok(STR_T, NULL, 2),
         create_tok(BOOL_T, NULL, 2),
         create_tok(LIST_T, NULL, 2),
-        create_tok(EOF_TOK, "", 1)};
+        create_tok(EOF_TOK, "", 1)
+    };
 
     init_test(str, toks);
 }
 
-/* Operators Arthimetik Operators Ordering Operators Logic Operators Delimiters */
-void test_symbole_tokens() {
+/* Operators Arithmetic Operators Ordering Operators Logic Operators Delimiters */
+void test_symbol_tokens() {
     char *str = "= and or not. .. #@ : => >| +-* / % < > == != <= >= |&^ ~ >> << (){}[ ],";
     token *toks[] = {
         /* Operators */
@@ -183,13 +193,15 @@ void test_symbole_tokens() {
         create_tok(LBRACKET, NULL, 1),
         create_tok(RBRACKET, NULL, 1),
         create_tok(COMMA, NULL, 1),
-        create_tok(EOF_TOK, "", 1)};
+        create_tok(EOF_TOK, "", 1)
+    };
 
     init_test(str, toks);
 }
 
-void compination_test() {
+void combination_test() {
     char *str = "let kareem = 1500\nkareem=kareem+15.5\nkareem=(15.5+1500)";
+    
     token *toks[] = {
         /*frist line */
         create_tok(LET, NULL, 1),
@@ -217,8 +229,9 @@ void compination_test() {
     };
     init_test(str, toks);
 
-    // test other shape of Integer
+    /* test other shape of Integer */
     char *str2 = "let kareem = 0x65Eeac \ne=0o123456755\n i=(0b11011)";
+    
     token *toks2[] = {
         /*frist line  test Hexa */
         create_tok(LET, NULL, 1),
@@ -238,15 +251,15 @@ void compination_test() {
         create_tok(INT, "0b11011", 3),
         create_tok(RPAREN, NULL, 3),
         create_tok(EOF_TOK, "", 3)
-
     };
+    
     init_test(str2, toks2);
 }
 
 int main(void) {
-    test_key_words();
-    test_Literals_types();
-    test_symbole_tokens();
-    compination_test();
+    test_keywords();
+    test_literals_types();
+    test_symbol_tokens();
+    combination_test();
     return 0;
 }
