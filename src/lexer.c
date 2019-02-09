@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
@@ -77,11 +78,8 @@ static void skip_whitespace(lexer *l) {
         case '\r':
             cons_char();
             break;
-        case '/':
-            if (peek_next() == '/')
-                line_comment();
-            else
-                return;
+        case '#':
+            line_comment();
         default:
             return;
         }
@@ -105,123 +103,88 @@ token cons_ident(lexer *l) {
     switch (start_ch) {
     case 'a':
         if (match_keyword("nd"))
-            return new_ntoken(AND);
+            return new_ntoken(TK_AND);
         break;
         
     case 'b':
-        if (match_keyword("ool"))
-            return new_ntoken(BOOL_T);
-        else if (match_keyword("reak"))
-            return new_ntoken(BREAK);
+        if (match_keyword("reak"))
+            return new_ntoken(TK_BREAK);
         break;
         
     case 'c':
         if (match_keyword("ase"))
-            return new_ntoken(CASE);
+            return new_ntoken(TK_CASE);
         else if (match_keyword("ontinue"))
-            return new_ntoken(CONTINUE);
+            return new_ntoken(TK_CONTINUE);
         break;
         
     case 'd':
         if (match_keyword("o"))
-            return new_ntoken(DO);
+            return new_ntoken(TK_DO);
         break;
         
     case 'e':
         if (match_keyword("lif"))
-            return new_ntoken(ELIF);
+            return new_ntoken(TK_ELIF);
         else if (match_keyword("lse"))
-            return new_ntoken(ELSE);
+            return new_ntoken(TK_ELSE);
         else if (match_keyword("nd"))
-            return new_ntoken(END);
+            return new_ntoken(TK_END);
         break;
         
     case 'f':
         if (match_keyword("alse"))
-            return new_ntoken(FALSE);
-        else if (match_keyword("in"))
-            return new_ntoken(FIN);
-        else if (match_keyword("loat"))
-            return new_ntoken(FLOAT_T);
+            return new_ntoken(TK_FALSE);
         else if (match_keyword("n"))
-            return new_ntoken(FN);
+            return new_ntoken(TK_FN);
         else if (match_keyword("or"))
-            return new_ntoken(FOR);
-        break;
-        
-    case 'h':
-        if (match_keyword("andle"))
-            return new_ntoken(HANDLE);
+            return new_ntoken(TK_FOR);
         break;
         
     case 'i':
         if (match_keyword("f"))
-            return new_ntoken(IF);
-        else if (match_keyword("nt"))
-            return new_ntoken(INT_T);
+            return new_ntoken(TK_IF);
         break;
         
     case 'l':
         if (match_keyword("et"))
-            return new_ntoken(LET);
-        else if (match_keyword("ist"))
-            return new_ntoken(LIST_T);
+            return new_ntoken(TK_LET);
         break;
         
     case 'm':
         if (match_keyword("atch"))
-            return new_ntoken(MATCH);
+            return new_ntoken(TK_MATCH);
         break;
         
     case 'n':
         if (match_keyword("il"))
-            return new_ntoken(NIL);
+            return new_ntoken(TK_NIL);
         else if (match_keyword("ot"))
-            return new_ntoken(NOT);
-        else if (match_keyword("um"))
-            return new_ntoken(NUM_T);
+            return new_ntoken(TK_NOT);
         break;
         
     case 'o':
         if (match_keyword("r"))
-            return new_ntoken(OR);
-        else if (match_keyword("f"))
-            return new_ntoken(OF);
+            return new_ntoken(TK_OR);
         break;
         
     case 'r':
-        if (match_keyword("aise"))
-            return new_ntoken(RAISE);
-        else if (match_keyword("eturn"))
-            return new_ntoken(RETURN);
-        break;
-        
-    case 's':
-        if (match_keyword("tr"))
-            return new_ntoken(STR_T);
+        if (match_keyword("eturn"))
+            return new_ntoken(TK_RETURN);
         break;
         
     case 't':
-        if (match_keyword("hen"))
-            return new_ntoken(THEN);
-        else if (match_keyword("rue"))
-            return new_ntoken(TRUE);
-        else if (match_keyword("ype"))
-            return new_ntoken(TYPE);
-        break;
-        
-    case 'u':
-        if (match_keyword("se"))
-            return new_ntoken(USE);
+        if (match_keyword("rue"))
+            return new_ntoken(TK_TRUE);
         break;
         
     case 'w':
         if (match_keyword("hile"))
-            return new_ntoken(WHILE);
+            return new_ntoken(TK_WHILE);
         break;
         
     }
-    return new_token(IDENT);  
+    return new_token(TK_IDENT);  
 }
 
 #define is_hexa_digit(n)                        \
@@ -248,17 +211,17 @@ token cons_num(lexer *l) {
         case 'X':
             cons_char();
             while (is_hexa_digit(peek_char())) cons_char();
-            return new_token(INT);
+            return new_token(TK_INT);
         case 'o':
         case 'O':
             cons_char();
             while (is_octal_digit(peek_char())) cons_char();
-            return new_token(INT);
+            return new_token(TK_INT);
         case 'b':
         case 'B':
             cons_char();
             while(is_bin_digit(peek_char())) cons_char();
-            return new_token(INT);
+            return new_token(TK_INT);
         }
     }
     
@@ -285,13 +248,13 @@ token cons_num(lexer *l) {
         
         /* malformed scientific notation (ex. '1e+') */
         if (!isdigit(prev_char()) && !isdigit(peek_char()))
-            return new_token(INVALID_SCIEN);
+            return new_token(TK_INVALID_SCIEN);
         
         while (!at_end() && isdigit(peek_char()))
             cons_char();
     }
 
-    return new_token(is_float ? FLOAT : INT);
+    return new_token(is_float ? TK_FLOAT : TK_INT);
 }
 
 /* consumes escaped strings */
@@ -313,7 +276,7 @@ token cons_str(lexer *l) {
     char *str_end = l->current;
     
     if (at_end() || peek_char() == '\n')
-        return new_token(UNTERMIN_STR);
+        return new_token(TK_UNTERMIN_STR);
 
     cons_char();   /* consume the final qoute */
 
@@ -333,19 +296,19 @@ token cons_str(lexer *l) {
 
     switch (state) {  
     case INV_ESCP:
-        return new_token(INVALID_ESCP);
+        return new_token(TK_INVALID_ESCP);
     case OCT_OFRG:
-        return new_token(OCT_OUTOFR_ESCP);
+        return new_token(TK_OCT_OUTOFR_ESCP);
     case OCT_MISS:
-        return new_token(OCT_MISS_ESCP);
+        return new_token(TK_OCT_MISS_ESCP);
     case OCT_INVL:
-        return new_token(OCT_INVL_ESCP);
+        return new_token(TK_OCT_INVL_ESCP);
     case HEX_MISS:
-        return new_token(HEX_MISS_ESCP);
+        return new_token(TK_HEX_MISS_ESCP);
     case HEX_INVL:
-        return new_token(HEX_INVL_ESCP);
+        return new_token(TK_HEX_INVL_ESCP);
     default:
-        return (token){STRING, escaped_str, l->file_name, l->line};
+        return (token){TK_STR, escaped_str, l->file_name, l->line};
     }
 }
 
@@ -362,9 +325,9 @@ token cons_rstr(lexer *l) {
     cons_char();
     
     if (at_end())
-        return new_token(UNTERMIN_STR);
+        return new_token(TK_UNTERMIN_STR);
     
-    return new_token(R_STRING);
+    return new_token(TK_RSTR);
 }
 
 extern token cons_token(lexer *l) {    
@@ -379,85 +342,78 @@ extern token cons_token(lexer *l) {
 
     switch(c) {      
     /* one character tokens */
-    case '#':
-        return new_ntoken(HASH);
     case '@':
-        return new_ntoken(AT);
+        return new_ntoken(TK_AT);
     case ':':
-        return new_ntoken(COLON);
+        return new_ntoken(TK_COLON);
     case '+':
-        return new_ntoken(PLUS);
-    case '-':
-        return new_ntoken(MINUS);
+        return new_ntoken(TK_PLUS);
     case '*':
-        return new_ntoken(ASTERISK);
+        return new_ntoken(TK_ASTERISK);
     case '/':
-        return new_ntoken(SLASH);
+        return new_ntoken(TK_SLASH);
     case '%':
-        return new_ntoken(PERCENT);
+        return new_ntoken(TK_PERCENT);
     case '|':
-        return new_ntoken(PIPE);
+        return new_ntoken(TK_PIPE);
     case '&':
-        return new_ntoken(AMPERSAND);
+        return new_ntoken(TK_AMPERSAND);
     case '^':
-        return new_ntoken(CARET);
+        return new_ntoken(TK_CARET);
     case '~':
-        return new_ntoken(TILDE);
+        return new_ntoken(TK_TILDE);
     case '(':
-        return new_ntoken(LPAREN);
+        return new_ntoken(TK_LPAREN);
     case ')':
-        return new_ntoken(RPAREN);
+        return new_ntoken(TK_RPAREN);
     case '{':
-        return new_ntoken(LBRACE);
+        return new_ntoken(TK_LBRACE);
     case '}':
-        return new_ntoken(RBRACE);
+        return new_ntoken(TK_RBRACE);
     case '[':
-        return new_ntoken(LBRACKET);
+        return new_ntoken(TK_LBRACKET);
     case ']':
-        return new_ntoken(RBRACKET);
+        return new_ntoken(TK_RBRACKET);
     case ',':
-        return new_ntoken(COMMA);
+        return new_ntoken(TK_COMMA);
         
     /* possible two character tokens */
-    case '.':
-        if (match_char('.'))
-            return new_ntoken(DOT_DOT);
-        return new_ntoken(DOT);
-        
     case '<':
         if (match_char('<'))
-            return new_ntoken(LESS_LESS);
+            return new_ntoken(TK_LT_LT);
         else if (match_char('='))
-            return new_ntoken(LESS_EQUAL);
-        return new_ntoken(LESS);
+            return new_ntoken(TK_LT_EQ);
+        return new_ntoken(TK_LT);
         
     case '>':
         if (match_char('>'))
-            return new_ntoken(GREAT_GREAT);
+            return new_ntoken(TK_GT_GT);
         else if (match_char('='))
-            return new_ntoken(GREAT_EQUAL);
-        else if (match_char('|'))
-            return new_ntoken(GREAT_PIPE);
-        return new_ntoken(GREAT);
+            return new_ntoken(TK_GT_EQ);
+        return new_ntoken(TK_GT);
 
     case '=':
         if (match_char('='))
-            return new_ntoken(EQUAL_EQUAL);
-        else if (match_char('>'))
-            return new_ntoken(EQUAL_GREAT);
-        return new_ntoken(EQUAL);
+            return new_ntoken(TK_EQ_EQ);
+        return new_ntoken(TK_EQ);
+
+    case '-':
+        if (match_char('>'))
+            return new_ntoken(TK_DASH_GT);
+        return new_ntoken(TK_MINUS);
 
     case '!':
         if (match_char('='))
-            return new_ntoken(BANG_EQUAL);
-        else if (match_char('"') ||
-                 match_char('\''))
-            return cons_rstr(l);
-        return new_token(UNRECOG);
+            return new_ntoken(TK_BANG_EQ);
+        return new_token(TK_UNRECOG);
 
     case '"':
     case '\'':
         return cons_str(l);
+
+    case'`':
+        return cons_rstr(l);
+            
     case '\n':
         l->line++;
         /* It's really wired to register the line of newline token,
@@ -466,14 +422,14 @@ extern token cons_token(lexer *l) {
         return (token){TK_NL, NULL, l->file_name, l->line-1};
     case '\0':
     case EOF:
-        return new_ntoken(EOF_TOK);
+        return new_ntoken(TK_EOF);
 
     default:
-        return new_token(UNRECOG);
+        return new_token(TK_UNRECOG);
     }       
 }
 
-extern token* alloc_token(token t, unsigned reg) {
+extern token *alloc_token(token t, unsigned reg) {
     token *tokp = make(tokp, reg);
     tokp->type = t.type;
     tokp->lexeme = t.lexeme;
@@ -484,17 +440,15 @@ extern token* alloc_token(token t, unsigned reg) {
 }
 
 extern token_list *cons_tokens(lexer *l) {
-    /* initial space for the tokens list. it will shrink
-       or increase depent of the final number of tokens.*/
     list *tokens = NULL;
     list *error_tokens = NULL;
-    bool been_error = false;
+    int been_error = 0;
+    
     token curr_tok = cons_token(l);
-
-    while (curr_tok.type != EOF_TOK) {
+    while (curr_tok.type != TK_EOF) {
         token *tp = alloc_token(curr_tok, R_FIRS);
         if (is_errtok(tp)) {
-            been_error = true;
+            been_error = 1;
             error_tokens = append_list(error_tokens, tp);
         }
         tokens = append_list(tokens, tp);
@@ -510,40 +464,60 @@ extern token_list *cons_tokens(lexer *l) {
 
 /* debugging stuff */
 char *tok_types_str[] = {
-    "INT", "FLOAT", "STRING",
-    "R_STRING", "FALSE", "TRUE", "NIL",
-    "MODULE", "FN", "TYPE", "OF",
-    "RETURN", "LET", "FIN", "USE",
-    "DO", "END", "IF", "THEN",
-    "ELIF", "ELSE", "FOR", "WHILE",
-    "CONTINUE", "BREAK", "RAISE",
-    "HANDLE", "MATCH", "CASE",
-    "IDENT", "NUM_T", "INT_T",
-    "FLOAT_T", "STR_T", "BOOL_T",
-    "LIST_T", "EQUAL", "AND", "OR",
-    "NOT", "IN", "DOT", "DOT_DOT",
-    "HASH", "AT", "COLON", "EQUAL_GREAT",
-    "GREAT_PIPE", "PLUS", "MINUS",
-    "ASTERISK", "SLASH", "PERCENT",
-    "LESS", "GREAT", "EQUAL_EQUAL",
-    "BANG_EQUAL", "LESS_EQUAL",
-    "GREAT_EQUAL", "PIPE", "AMPERSAND",
-    "CATER", "TILDE", "GREAT_GREAT",
-    "LESS_LESS", "LPAREN", "RPAREN",
-    "LBRACE", "RBRACE", "LBRACKET",
-    "RBRACKET", "COMMA", "TK_NL",
-    "UNRECOG", "UNTERMIN_STR",
-    "INVALID_ESCP", "OCT_OUTOFR_ESCP",
-    "OCT_MISS_ESCP", "OCT_INVL_ESCP",
-    "HEX_MISS_ESCP", "HEX_INVL_ESCP",
-    "INVALID_SCIEN", "EOF_TOK"
+    /* Literals */
+    "TK_INT", "TK_FLOAT", "TK_STR",
+    "TK_RSTR", "TK_FALSE", "TK_TRUE",
+    "TK_NIL",
+    
+    /* Keywords */
+    "TK_FN", "TK_RETURN", "TK_LET", "TK_DO",
+    "TK_END", "TK_IF", "TK_ELIF", "TK_ELSE",
+    "TK_FOR", "TK_WHILE", "TK_CONTINUE",
+    "TK_BREAK", "TK_MATCH", "TK_CASE",
+    
+    /* Identefier */
+    "TK_IDENT",
+    
+    /* Operators */
+    "TK_AND", "TK_OR", "TK_NOT",
+    "TK_DOT", "TK_AT",
+    
+    /* Arthimetik Operators */
+    "TK_PLUS", "TK_MINUS", "TK_ASTERISK",
+    "TK_SLASH", "TK_PERCENT",
+    
+    /* Ordering Operators */
+    "TK_LT", "TK_GT", "TK_EQ_EQ",
+    "TK_BANG_EQ", "TK_LT_EQ",
+    "TK_GT_EQ",
+    
+    /* Logic Operators */
+    "TK_PIPE", "TK_AMPERSAND", "TK_CARET",
+    "TK_TILDE", "TK_GT_GT", "TK_LT_LT",
+    
+    /* Delimiters */
+    "TK_LPAREN", "TK_RPAREN",
+    "TK_LBRACE", "TK_RBRACE",
+    "TK_LBRACKET", "TK_RBRACKET",
+    "TK_COMMA", "TK_DASH_GT",
+    "TK_COLON", "TK_EQ", "TK_IN",
+    "TK_NL", 
+    
+    /* Errors and end of file */
+    "TK_UNRECOG", "TK_UNTERMIN_STR",
+    "TK_INVALID_ESCP", "TK_OCT_OUTOFR_ESCP",
+    "TK_OCT_MISS_ESCP", "TK_OCT_INVL_ESCP",
+    "TK_HEX_MISS_ESCP", "TK_HEX_INVL_ESCP",
+    "TK_INVALID_SCIEN",
+    
+    "TK_EOF",
 };
 
 void print_token(token *t) {
-    printf("%s@line %ld :: %s :: %s\n",
+    printf("[%s @line %ld] :: %s :: %s\n",
            t->file,
            t->line,
-           t->lexeme == NULL ? " " : t->lexeme,
+           t->lexeme == NULL ? "--" : t->lexeme,
            tok_types_str[t->type]);
 }
 

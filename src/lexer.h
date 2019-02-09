@@ -7,60 +7,56 @@
 #ifndef lexer_h
 #define lexer_h
 
-#include <stdbool.h>
-
 #include "list.h"
 
 typedef enum {
     /* Literals */
-    INT, FLOAT, STRING,
-    R_STRING, FALSE, TRUE, NIL,
+    TK_INT, TK_FLOAT, TK_STR,
+    TK_RSTR, TK_FALSE, TK_TRUE,
+    TK_NIL,
 
     /* Keywords */
-    MODULE, FN, TYPE, OF,
-    RETURN, LET, FIN, USE,
-    DO, END, IF, THEN, ELIF,
-    ELSE, FOR, WHILE, CONTINUE,
-    BREAK, RAISE, HANDLE,
-    MATCH, CASE,
+    TK_FN, TK_RETURN, TK_LET, TK_DO,
+    TK_END, TK_IF, TK_ELIF, TK_ELSE,
+    TK_FOR, TK_WHILE, TK_CONTINUE,
+    TK_BREAK, TK_MATCH, TK_CASE,
 
     /* Identefier */
-    IDENT,
-
-    /* Types */
-    NUM_T, INT_T, FLOAT_T,
-    STR_T, BOOL_T, LIST_T,
-
+    TK_IDENT,
+    
     /* Operators */
-    EQUAL, AND, OR, NOT, IN,
-    DOT, DOT_DOT, HASH,
-    AT, COLON, EQUAL_GREAT,
-    GREAT_PIPE,
+    TK_AND, TK_OR, TK_NOT,
+    TK_DOT, TK_AT,
 
     /* Arthimetik Operators */
-    PLUS, MINUS, ASTERISK,
-    SLASH, PERCENT,
+    TK_PLUS, TK_MINUS, TK_ASTERISK,
+    TK_SLASH, TK_PERCENT,
 
     /* Ordering Operators */
-    LESS, GREAT, EQUAL_EQUAL,
-    BANG_EQUAL, LESS_EQUAL,
-    GREAT_EQUAL,
+    TK_LT, TK_GT, TK_EQ_EQ,
+    TK_BANG_EQ, TK_LT_EQ,
+    TK_GT_EQ,
 
     /* Logic Operators */
-    PIPE, AMPERSAND, CARET,
-    TILDE, GREAT_GREAT, LESS_LESS,
+    TK_PIPE, TK_AMPERSAND, TK_CARET,
+    TK_TILDE, TK_GT_GT, TK_LT_LT,
 
     /* Delimiters */
-    LPAREN, RPAREN, LBRACE, RBRACE,
-    LBRACKET, RBRACKET, COMMA, TK_NL,
+    TK_LPAREN, TK_RPAREN,
+    TK_LBRACE, TK_RBRACE,
+    TK_LBRACKET, TK_RBRACKET,
+    TK_COMMA, TK_DASH_GT,
+    TK_COLON, TK_EQ, TK_IN,
+    TK_NL, 
 
     /* Errors and end of file */
-    UNRECOG, UNTERMIN_STR,
-    INVALID_ESCP, OCT_OUTOFR_ESCP,
-    OCT_MISS_ESCP, OCT_INVL_ESCP,
-    HEX_MISS_ESCP, HEX_INVL_ESCP,
-    ZERO_START, INVALID_SCIEN,
-    EOF_TOK
+    TK_UNRECOG, TK_UNTERMIN_STR,
+    TK_INVALID_ESCP, TK_OCT_OUTOFR_ESCP,
+    TK_OCT_MISS_ESCP, TK_OCT_INVL_ESCP,
+    TK_HEX_MISS_ESCP, TK_HEX_INVL_ESCP,
+    TK_INVALID_SCIEN,
+    
+    TK_EOF,
 } token_type;
 
 typedef struct {
@@ -72,7 +68,7 @@ typedef struct {
 
 typedef struct {
     list *tokens;
-    bool been_error;
+    int been_error;
     list *error_tokens;
 } token_list;
 
@@ -84,16 +80,16 @@ typedef struct {
 } lexer;
 
 /* check if the current token is error_token */
-#define is_errtok(t)                                        \
-    ((t)->type ==  UNRECOG        ||                        \
-     (t)->type == UNTERMIN_STR    ||                        \
-     (t)->type == INVALID_ESCP    ||                        \
-     (t)->type == OCT_OUTOFR_ESCP ||                        \
-     (t)->type == OCT_MISS_ESCP   ||                        \
-     (t)->type == OCT_INVL_ESCP   ||                        \
-     (t)->type == HEX_MISS_ESCP   ||                        \
-     (t)->type == HEX_INVL_ESCP   ||                        \
-     (t)->type == INVALID_SCIEN)
+#define is_errtok(t)                                           \
+    ((t)->type == TK_UNRECOG         ||                        \
+     (t)->type == TK_UNTERMIN_STR    ||                        \
+     (t)->type == TK_INVALID_ESCP    ||                        \
+     (t)->type == TK_OCT_OUTOFR_ESCP ||                        \
+     (t)->type == TK_OCT_MISS_ESCP   ||                        \
+     (t)->type == TK_OCT_INVL_ESCP   ||                        \
+     (t)->type == TK_HEX_MISS_ESCP   ||                        \
+     (t)->type == TK_HEX_INVL_ESCP   ||                        \
+     (t)->type == TK_INVALID_SCIEN)
 
 /* extract the file content to a buffer */
 extern char *scan_file(const char *file);

@@ -26,7 +26,7 @@ void repl() {
         init_lexer(lex, buf, "stdin");
         
         tok = cons_token(lex);
-        while (tok.type != EOF_TOK) {
+        while (tok.type != TK_EOF) {
             
             if (is_errtok(&tok))
                 lex_error(&tok);

@@ -35,34 +35,34 @@ extern void lex_error(token *tok) {
             tok->file, tok->line);
     
     switch (tok->type) {
-    case UNRECOG:
+    case TK_UNRECOG:
         fprintf(stderr, "unrecognize syntax '%s'\n", tok->lexeme);
         break;
-    case UNTERMIN_STR:
+    case TK_UNTERMIN_STR:
         fprintf(stderr, "unterminated string at line (%ld)\n",
                 tok->line);
         break;
-    case INVALID_ESCP:
+    case TK_INVALID_ESCP:
         fprintf(stderr, "invalid escape sequence in %s\n",
                 tok->lexeme);
         break;
-    case OCT_OUTOFR_ESCP:
+    case TK_OCT_OUTOFR_ESCP:
         fprintf(stderr, "out of range escape sequence in %s\n",
                 tok->lexeme);
         break;
-    case OCT_MISS_ESCP:
-    case HEX_MISS_ESCP:
+    case TK_OCT_MISS_ESCP:
+    case TK_HEX_MISS_ESCP:
         fprintf(stderr,
                 "missing digits for the escape sequence in %s\n",
                 tok->lexeme);
         break;
-    case OCT_INVL_ESCP:
-    case HEX_INVL_ESCP:
+    case TK_OCT_INVL_ESCP:
+    case TK_HEX_INVL_ESCP:
         fprintf(stderr,
                 "invalid format for the escape sequence in %s\n",
                 tok->lexeme);
         break;
-    case INVALID_SCIEN:
+    case TK_INVALID_SCIEN:
         fprintf(stderr, "malformed scientific notation in '%s'\n",
                 tok->lexeme);
     }
