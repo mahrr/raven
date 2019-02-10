@@ -66,9 +66,52 @@ void init_lexer(lexer *l, char *src, const char *file) {
 #define match_char(c) c == *l->current ? (l->current++, true) : false
 
 /* skips the short comments */
-#define line_comment()                                      \
-    while (!at_end() && peek_char() != '\n') cons_char();   \
-    if (peek_char() == '\n') cons_char()
+static void line_comment(lexer *l) {
+    while (!at_end() && peek_char() != '\n')
+        cons_char();
+    
+    /* not to consume the newline at the end 
+       of the comment as a token*/
+    if (peek_char() == '\n') {
+        l->line++;
+        cons_char();
+    }
+}
+
+/* skips the long comments */
+static void long_comment(lexer *l) {    
+    cons_char(); /* '#' */
+    cons_char(); /* '-' */
+
+    int unclosed = 1; /* number of unclosed '#-' */
+
+    while (unclosed) {
+        while (!at_end() && (peek_char() != '-') || (peek_next() != '#')) {
+            cons_char();
+
+            /* '#-' found */
+            if ((peek_char() == '#') && (peek_next() == '-'))
+                unclosed++;
+        
+            if (peek_char() == '\n')
+                l->line++;
+        }
+
+        /* '-#' found */
+        if (!at_end()) {
+            unclosed--;
+            cons_char(); /* '-' */
+            cons_char(); /* '#' */
+        } else {
+            return; /* unterminated long comment is not an error */
+        }
+    }
+
+    if (peek_char() == '-') {
+        cons_char(); /* '-' */
+        cons_char(); /* '#' */
+    }
+}
 
 static void skip_whitespace(lexer *l) {    
     for (;;) {
@@ -79,7 +122,11 @@ static void skip_whitespace(lexer *l) {
             cons_char();
             break;
         case '#':
-            line_comment();
+            if (peek_next() == '-')
+                long_comment(l);
+            else
+                line_comment(l);
+            break;
         default:
             return;
         }
@@ -517,7 +564,7 @@ void print_token(token *t) {
     printf("[%s @line %ld] :: %s :: %s\n",
            t->file,
            t->line,
-           t->lexeme == NULL ? "--" : t->lexeme,
+           t->lexeme == NULL ? " " : t->lexeme,
            tok_types_str[t->type]);
 }
 
