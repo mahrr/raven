@@ -26,12 +26,8 @@ let_statement ::= "let" pattern "=" expr_list delimiter;
 fn_statement ::= "fn" name param_list piece "end";
 
 name_expr ::= name
-            | name_prefix "[" expression "]"
-            | name_prefix "." name;
-
-name_prefix ::= name_expr
-              | group_expression
-              | call_expression;
+            | expression "[" expression "]"
+            | expression "." name;
 
 param_list ::= "(" [pattern {, pattern}] ")";
 

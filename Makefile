@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -std=c11 -g -o
 SRCDIR = ./src
 OUTDIR = ./bin
-TARGET = l
+TARGET = raven
 CLIBS =
 
 # main

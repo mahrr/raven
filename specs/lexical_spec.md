@@ -2,7 +2,7 @@
 
 ## Encoding
 
-l reads an ASCII coded text. UTF-8 is consedred for
+raven reads an ASCII coded text. UTF-8 is consedred for
 future versions.
 
 <br>
@@ -39,7 +39,7 @@ Long comments can be nested.
 identifier ::= (alpha | '_') (digit | alpha | '_')* ;
 ```
 
-l has the traditional naming rules. Identifiers start
+raven has the traditional naming rules. Identifiers start
 with letter or underscore and then may extends to letters,
 digits and underscores.
 
@@ -83,7 +83,7 @@ Note that the `-` in the scientific notation is a part of the float literal toke
 
 ### String literals
 
-l support escaped strings literals and raw string literals.
+raven support escaped strings literals and raw string literals.
 
 Escaped strings use double and single qoutes and raw strings use backticks.
 
@@ -145,7 +145,6 @@ Operator | Function    | Associations
 not - ~   | Not, Negate, Complement | right
 \* / %    | Multply, Divide, Module | left
 \+ -      | Add, Subtract           | left
-..        | Range                   | left
 @         | Concatenation           | left
 ::        | list Cons               | left
 << >>     | Left, Right Shift       | left
