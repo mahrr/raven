@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -std=c11 -g -o
+CFLAGS = -std=c11 -g -Wall -o
 SRCDIR = ./src
 OUTDIR = ./bin
 TARGET = raven
@@ -29,5 +29,5 @@ LEXER_TEST_RELATED = src/alloc.c \
 lex_test:
 	$(CC) $(CFLAGS) $(OUTDIR)/$(LEXER_TEST_TARGET) $(LEXER_TEST_RELATED) $(LEXER_TEST) $(CLIBS)
 
-run_ltest: 
+run_lextest: 
 	$(OUTDIR)/$(LEXER_TEST_TARGET)

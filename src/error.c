@@ -65,5 +65,7 @@ extern void lex_error(token *tok) {
     case TK_INVALID_SCIEN:
         fprintf(stderr, "malformed scientific notation in '%s'\n",
                 tok->lexeme);
+    default:
+        return; /* just for warnings */
     }
 }

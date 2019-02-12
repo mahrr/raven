@@ -88,8 +88,8 @@ static void long_comment(lexer *l) {
     int unclosed = 1; /* number of unclosed '#-' */
 
     while (unclosed) {
-        while (!at_end() && (peek_char() != '-') ||
-               (peek_next() != '#')) {
+        while (!at_end() && ((peek_char() != '-') ||
+                             (peek_next() != '#'))) {
             cons_char();
 
             /* '#-' found */
@@ -146,7 +146,7 @@ token cons_ident(lexer *l) {
     /* extract the whole token first */
     char start_ch = prev_char();
     
-    while (!at_end() && isalnum(peek_char()) || peek_char() == '_')
+    while (!at_end() && (isalnum(peek_char()) || peek_char() == '_'))
         cons_char();
 
     /* @@ probably faster than hash table but need to be tested though */

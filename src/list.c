@@ -96,7 +96,7 @@ void *list_to_vec(list *l, unsigned reg) {
     void *obj;
     int i = 0;
 
-    while (obj = iter_list(lp))       
+    while ((obj = iter_list(lp)))       
         vec[i++] = obj;
 
     vec[++i] = NULL;

@@ -46,7 +46,8 @@ int main(int argc, char **argv) {
             /* load content file to src */
             char *src = scan_file(argv[i]);
             if (src == NULL) {
-                fprintf(stderr, "No such file or directory: %s", argv[i]);
+                fprintf(stderr, "No such file or directory: %s",
+                        argv[i]);
                 exit(1);
             }
             
@@ -61,12 +62,12 @@ int main(int argc, char **argv) {
             if (tl->been_error) {
                 toks = tl->error_tokens;
                 /* iterate over the error tokens list */
-                while (tok = iter_list(toks))
+                while ((tok = iter_list(toks)))
                     lex_error(tok);
             } else {
                 toks = tl->tokens;
                 /* iterate over the tokens list */
-                while (tok = iter_list(toks))
+                while ((tok = iter_list(toks)))
                     print_token(tok);
             }           
         }
