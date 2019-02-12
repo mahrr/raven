@@ -86,7 +86,8 @@ static void long_comment(lexer *l) {
     int unclosed = 1; /* number of unclosed '#-' */
 
     while (unclosed) {
-        while (!at_end() && (peek_char() != '-') || (peek_next() != '#')) {
+        while (!at_end() && (peek_char() != '-') ||
+               (peek_next() != '#')) {
             cons_char();
 
             /* '#-' found */
@@ -336,10 +337,9 @@ token cons_str(lexer *l) {
          hexa missing digits            -> 0x16
          hexa invalid digits            -> 0x32
     */
-    int state;
     int size = str_end - str_start;
     char *escaped_str = alloc(size, R_PERM);
-    state = escape(str_start, escaped_str, size);
+    int state = escape(str_start, escaped_str, size);
 
     switch (state) {  
     case INV_ESCP:
@@ -374,7 +374,9 @@ token cons_rstr(lexer *l) {
     if (at_end())
         return new_token(TK_UNTERMIN_STR);
     
-    return new_token(TK_RSTR);
+    return (token){TK_RSTR,
+            strn(l->fixed+1, l->current - l->fixed - 2),
+            l->file_name, l->line};
 }
 
 extern token cons_token(lexer *l) {    
