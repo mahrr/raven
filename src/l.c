@@ -6,6 +6,7 @@
 */
 
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "lexer.h"
 #include "alloc.h"
@@ -44,6 +45,11 @@ int main(int argc, char **argv) {
         for (int i = 1; i < argc; i++) {
             /* load content file to src */
             char *src = scan_file(argv[i]);
+            if (src == NULL) {
+                fprintf(stderr, "No such file or directory: %s", argv[i]);
+                exit(1);
+            }
+            
             /* initialize a lexer */
             lexer *lex = make(lex, R_FIRS);
             init_lexer(lex, src, argv[i]);

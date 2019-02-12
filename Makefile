@@ -18,7 +18,7 @@ clean:
 
 # lexer tests
 LEXER_TEST = tests/test_lexer.c
-LEXER_TEST_TARGET = ltest
+LEXER_TEST_TARGET = lex_test
 LEXER_TEST_RELATED = src/alloc.c \
 					src/salloc.c \
 					src/lexer.c  \
@@ -26,7 +26,7 @@ LEXER_TEST_RELATED = src/alloc.c \
 					src/list.c   \
 					src/strutil.c
 
-ltest:
+lex_test:
 	$(CC) $(CFLAGS) $(OUTDIR)/$(LEXER_TEST_TARGET) $(LEXER_TEST_RELATED) $(LEXER_TEST) $(CLIBS)
 
 run_ltest: 

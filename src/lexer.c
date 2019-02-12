@@ -19,6 +19,9 @@
 
 char *scan_file(const char *file) {
     FILE *f = fopen(file, "rb");
+    if (f == NULL)
+        return NULL;
+    
     fseek(f, 0, SEEK_END);
     size_t size = ftell(f)+1;
     char *buff = alloc(size, R_PERM);
@@ -31,7 +34,6 @@ char *scan_file(const char *file) {
 }
 
 void init_lexer(lexer *l, char *src, const char *file) {
-    assert(l != NULL);
     l->current = src;
     l->fixed = src;
     l->file_name = str(file);
@@ -192,6 +194,8 @@ token cons_ident(lexer *l) {
     case 'i':
         if (match_keyword("f"))
             return new_ntoken(TK_IF);
+        else if (match_keyword("n"))
+            return new_ntoken(TK_IN);
         break;
         
     case 'l':
@@ -237,8 +241,8 @@ token cons_ident(lexer *l) {
 
 #define is_hexa_digit(n)                        \
     (n >= '0' && n <= '9') ||                   \
-    (n >= 'a' && n <= 'e') ||                   \
-    (n >= 'A' && n <= 'E')
+    (n >= 'a' && n <= 'f') ||                   \
+    (n >= 'A' && n <= 'F')
 
 #define is_octal_digit(n)                       \
     (n >= '0' && n <= '7')
@@ -499,8 +503,9 @@ extern token_list *cons_tokens(lexer *l) {
         if (is_errtok(tp)) {
             been_error = 1;
             error_tokens = append_list(error_tokens, tp);
+        } else {
+            tokens = append_list(tokens, tp);
         }
-        tokens = append_list(tokens, tp);
         curr_tok = cons_token(l);
     }
 
