@@ -283,7 +283,7 @@ void test_file_lexing() {
         {TK_UNTERMIN_STR, "\"unterminate", "test_lexer", 33},
     };
 
-    char *path = "/home/ahmad/dev/projects/l_lang/tests/test_lexer.rav";
+    char *path = "../tests/test_lexer.rav";
     char *buf = scan_file(path);
     assert(buf != NULL);
     
