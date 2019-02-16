@@ -67,7 +67,7 @@ group_expression ::= "(" expression ")";
 call_expression ::= expression "(" expr_list ")";
 
 if_expression ::= "if" expression "do" piece 
-  {"elif" expression "do" piece} [else piece] "end";
+  {"elif" expression "do" piece} ["else" piece] "end";
 
 for_expression ::= "for" name "in" expression "do" piece "end";
 
