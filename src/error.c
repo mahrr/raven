@@ -9,9 +9,9 @@
  * ::NOTE::
  *
  * I'm keeping the implementation simple for now.
- * It could be improved by printing the source line
- * where the error occur, and point to the start of
- * error. but i will defer that for later.
+ * It could be improved by printing the source column
+ * where the error occur, and point to the start/end
+ * of the error. but i will defer that for later.
  *
  */
 
@@ -29,43 +29,27 @@ extern void fatal_error(int status, const char *msg, ...) {
     exit(status);
 }
 
-extern void lex_error(token *tok) {
+extern void lex_error(char *src, token *tok) {
+    fprintf(stderr, "[%s:%ld] syntax error: %s\n",
+            tok->file, tok->line, tok->err_msg);
 
-    fprintf(stderr, "[%s@%ld] syntax error: ",
-            tok->file, tok->line);
-    
-    switch (tok->type) {
-    case TK_UNRECOG:
-        fprintf(stderr, "unrecognize syntax '%s'\n", tok->lexeme);
-        break;
-    case TK_UNTERMIN_STR:
-        fprintf(stderr, "unterminated string at line (%ld)\n",
-                tok->line);
-        break;
-    case TK_INVALID_ESCP:
-        fprintf(stderr, "invalid escape sequence in %s\n",
-                tok->lexeme);
-        break;
-    case TK_OCT_OUTOFR_ESCP:
-        fprintf(stderr, "out of range escape sequence in %s\n",
-                tok->lexeme);
-        break;
-    case TK_OCT_MISS_ESCP:
-    case TK_HEX_MISS_ESCP:
-        fprintf(stderr,
-                "missing digits for the escape sequence in %s\n",
-                tok->lexeme);
-        break;
-    case TK_OCT_INVL_ESCP:
-    case TK_HEX_INVL_ESCP:
-        fprintf(stderr,
-                "invalid format for the escape sequence in %s\n",
-                tok->lexeme);
-        break;
-    case TK_INVALID_SCIEN:
-        fprintf(stderr, "malformed scientific notation in '%s'\n",
-                tok->lexeme);
-    default:
-        return; /* just for warnings */
+    /* get the beginning of the line */
+    char *begin = tok->lexeme;
+    int count = 0;
+    while (*begin != '\n' && begin != src) {
+        begin--;
+        count++;
     }
+
+    if (*begin == '\n') {
+        begin++;
+        count--;
+    }
+    
+    count += tok->length;
+    
+    fprintf(stderr, "\t%.*s\n\t", count, begin);         
+    int len = count - tok->length + 1;
+    while (--len) putchar(' ');
+    puts("^--");
 }

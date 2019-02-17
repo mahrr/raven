@@ -7,6 +7,8 @@
 #ifndef lexer_h
 #define lexer_h
 
+#include <stdint.h>
+
 #include "list.h"
 
 typedef enum {
@@ -49,21 +51,17 @@ typedef enum {
     TK_COLON, TK_EQ, TK_IN,
     TK_NL, 
 
-    /* Errors and end of file */
-    TK_UNRECOG, TK_UNTERMIN_STR,
-    TK_INVALID_ESCP, TK_OCT_OUTOFR_ESCP,
-    TK_OCT_MISS_ESCP, TK_OCT_INVL_ESCP,
-    TK_HEX_MISS_ESCP, TK_HEX_INVL_ESCP,
-    TK_INVALID_SCIEN,
-    
-    TK_EOF,
+    /* Error and end of file */
+    TK_ERR, TK_EOF,
 } token_type;
 
 typedef struct {
-    token_type type;
-    char *lexeme;
-    char *file;
-    long line;
+    token_type type;  /* the type of the token */
+    char *lexeme;     /* pointer to the start of the token in the src */
+    int length;       /* the length of the token */
+    char *file;       /* the name of the source file */
+    long line;        /* the line of the token */
+    char *err_msg;    /* the associated message if TK_ERR consumed */
 } token;
 
 typedef struct {
@@ -78,18 +76,6 @@ typedef struct {
     char *file_name;  /* the source file name */
     long line;        /* the current line number */
 } lexer;
-
-/* check if the current token is error_token */
-#define is_errtok(t)                                           \
-    ((t)->type == TK_UNRECOG         ||                        \
-     (t)->type == TK_UNTERMIN_STR    ||                        \
-     (t)->type == TK_INVALID_ESCP    ||                        \
-     (t)->type == TK_OCT_OUTOFR_ESCP ||                        \
-     (t)->type == TK_OCT_MISS_ESCP   ||                        \
-     (t)->type == TK_OCT_INVL_ESCP   ||                        \
-     (t)->type == TK_HEX_MISS_ESCP   ||                        \
-     (t)->type == TK_HEX_INVL_ESCP   ||                        \
-     (t)->type == TK_INVALID_SCIEN)
 
 /* extract the file content to a buffer */
 extern char *scan_file(const char *file);
