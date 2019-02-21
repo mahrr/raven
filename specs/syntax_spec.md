@@ -21,7 +21,7 @@ expr_statement ::= expression delimiter;
 
 fixed_statement ::= "break" | "continue";
 
-let_statement ::= "let" pattern "=" expr_list delimiter;
+let_statement ::= "let" pattern "=" expression delimiter;
 
 fn_statement ::= "fn" name param_list piece "end";
 
