@@ -395,8 +395,6 @@ extern token cons_token(lexer *l) {
     /* one character tokens */
     case '@':
         return empty_token(TK_AT);
-    case ':':
-        return empty_token(TK_COLON);
     case '+':
         return empty_token(TK_PLUS);
     case '*':
@@ -427,6 +425,8 @@ extern token cons_token(lexer *l) {
         return empty_token(TK_RBRACKET);
     case ',':
         return empty_token(TK_COMMA);
+    case ';':
+        return empty_token(TK_SEMICOLON);
         
     /* possible two character tokens */
     case '<':
@@ -453,9 +453,15 @@ extern token cons_token(lexer *l) {
             return empty_token(TK_DASH_GT);
         return empty_token(TK_MINUS);
 
+    case ':':
+        if (match_char(':'))
+            return empty_token(TK_COL_COL);
+        return empty_token(TK_COLON);
+
     case '!':
         if (match_char('='))
             return empty_token(TK_BANG_EQ);
+
 
     case '"':
     case '\'':
@@ -466,7 +472,7 @@ extern token cons_token(lexer *l) {
             
     case '\n':
         l->line++;
-        /* It's really wired to register the line of newline token,
+        /* It's really weird to register the line of newline token,
            I will stick with the more technical solution and
            register it in the line '\n' character was found */
         return (token){TK_NL, NULL, 0, l->file_name, l->line-1, NULL};
@@ -531,7 +537,7 @@ char *tok_types_str[] = {
     
     /* Operators */
     "TK_AND", "TK_OR", "TK_NOT",
-    "TK_DOT", "TK_AT",
+    "TK_DOT", "TK_AT", "TK_COL_COL",
     
     /* Arthimetik Operators */
     "TK_PLUS", "TK_MINUS", "TK_ASTERISK",

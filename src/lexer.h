@@ -28,7 +28,7 @@ typedef enum {
     
     /* Operators */
     TK_AND, TK_OR, TK_NOT,
-    TK_DOT, TK_AT,
+    TK_DOT, TK_AT, TK_COL_COL,
 
     /* Arthimetik Operators */
     TK_PLUS, TK_MINUS, TK_ASTERISK,
