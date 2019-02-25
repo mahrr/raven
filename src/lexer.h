@@ -48,7 +48,8 @@ typedef enum {
     TK_LBRACE, TK_RBRACE,
     TK_LBRACKET, TK_RBRACKET,
     TK_COMMA, TK_DASH_GT,
-    TK_COLON, TK_EQ, TK_IN,
+    TK_COLON, TK_SEMICOLON,
+    TK_EQ, TK_IN,
     TK_NL, 
 
     /* Error and end of file */

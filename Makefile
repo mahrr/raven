@@ -10,7 +10,7 @@ default:
 	$(CC) $(CFLAGS) $(OUTDIR)/$(TARGET) $(SRCDIR)/*.c $(CLIBS)
 
 run:
-	$(OUTDIR)/$(TARGET)
+	@$(OUTDIR)/$(TARGET)
 
 clean:
 	$(RM) $(OUTDIR)/*
@@ -26,8 +26,11 @@ LEXER_TEST_RELATED = src/alloc.c \
 					src/list.c   \
 					src/strutil.c
 
-lex_test:
-	$(CC) $(CFLAGS) $(OUTDIR)/$(LEXER_TEST_TARGET) $(LEXER_TEST_RELATED) $(LEXER_TEST) $(CLIBS)
+# compile the lexer test and run it
+lextest:
+	@$(CC) $(CFLAGS) $(OUTDIR)/$(LEXER_TEST_TARGET) $(LEXER_TEST_RELATED) $(LEXER_TEST) $(CLIBS)
+	@$(OUTDIR)/$(LEXER_TEST_TARGET)
 
-run_lextest: 
-	$(OUTDIR)/$(LEXER_TEST_TARGET)
+# compile the lexer test only
+clextest:
+	@$(CC) $(CFLAGS) $(OUTDIR)/$(LEXER_TEST_TARGET) $(LEXER_TEST_RELATED) $(LEXER_TEST) $(CLIBS)

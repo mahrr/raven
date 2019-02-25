@@ -351,16 +351,15 @@ static token cons_str(lexer *l) {
     char *s = escape(str_start, es, size);
 
     /* escape error */
-    if (s != NULL) {
-        printf("[debug]: %s", s);
+    if (s != NULL) 
         return (token){TK_ERR, s, l->current - s, l->file_name,
                 l->line, msg_INVLD};
-    }
     
     /* copy *es because *es is allocated in R_SECN. */
     char *escaped = str(es);
     
-    return (token){TK_STR, escaped, size, l->file_name, l->line};
+    return (token){TK_STR, escaped, strlen(escaped),
+            l->file_name, l->line, NULL};
 }
 
 /* consume raw strings without any escaping */
@@ -557,7 +556,8 @@ char *tok_types_str[] = {
     "TK_LBRACE", "TK_RBRACE",
     "TK_LBRACKET", "TK_RBRACKET",
     "TK_COMMA", "TK_DASH_GT",
-    "TK_COLON", "TK_EQ", "TK_IN",
+    "TK_COLON", "TK_SEMICOLON",
+    "TK_EQ", "TK_IN",
     "TK_NL", 
     
     /* Errors and end of file */

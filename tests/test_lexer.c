@@ -1,6 +1,6 @@
 /*
  *
- * (test_lexer.c | 10 Dec 18 | Amr Anwar, Kareem Hamdy)
+ * (test_lexer.c | 12 Feb 19 | Ahmad Maher)
  * 
  * test for the lexer.
  *
@@ -18,19 +18,23 @@
 #undef PRINT_TOKENS
 
 /* assert the equality of two tokens */
-#define assert_token(t1, t2)                                            \
-    assert(t1.type == t2.type);                                         \
-    assert(t1.line == t2.line);                                         \
-    assert(!strcmp(t1.file, t2.file));                                  \
-    if ((t1.lexeme == NULL) || (t2.lexeme == NULL))                     \
-        assert((t1.lexeme == NULL) && (t2.lexeme == NULL));             \
-    else                                                                \
-        assert(!strcmp(t1.lexeme, t2.lexeme));                          \
+#define assert_token(t1, t2)                                       \
+    assert(t1.type == t2.type);                                    \
+    assert(t1.line == t2.line);                                    \
+    assert(t1.length == t2.length);                                \
+    assert(!strcmp(t1.file, t2.file));                             \
+    if ((t1.lexeme == NULL) || (t2.lexeme == NULL))                \
+        assert((t1.lexeme == NULL) && (t2.lexeme == NULL));        \
+    else                                                           \
+        assert(!strncmp(t1.lexeme, t2.lexeme, strlen(t2.lexeme))); \
+    if (t1.type == TK_ERR)                                         \
+        assert(!strcmp(t1.err_msg, t2.err_msg));                   \
 
 
 /* iterate over generated and expected tokens
    asserting the equality of them */
-void assert_tokens(lexer *lex, char *input, token *expected, char *name) {
+void
+assert_tokens(lexer *lex, char *input, token *expected, char *name) {
     init_lexer(lex, input, name);
     
     token tok = cons_token(lex);
@@ -45,134 +49,138 @@ void assert_tokens(lexer *lex, char *input, token *expected, char *name) {
     }
 }
 
+/* tokens with lexemes (e.g identifiers, literals) */
+#define A_TOKEN(t, s) {t, s, (sizeof s) - 1, "test", 1, NULL}
+
+/* error tokens with error messages */
+#define E_TOKEN(s, m) {TK_ERR, s, (sizeof s) - 1, "test", 1, m}
+
+/* tokesn without lexemes (e.g operators, keywords) */
+#define N_TOKEN(t) {t, NULL, 0, "test", 1, NULL} 
+
 void test_literals(lexer *lex) {
     char input[] = \
         "'foo' `bar` "
-        "1 0xA1F 0b101 0o716\n"
+        "123 0xA1F 0b101 0o716 "
         "1.1 1e-10 "
-        "true false\n"
+        "true false "
         "nil";
 
     token expected[] = {
-        {TK_STR, "foo", "literals", 1},
-        {TK_RSTR, "bar", "literals", 1},
-        {TK_INT, "1", "literals", 1},
-        {TK_INT, "0xA1F", "literals", 1},
-        {TK_INT, "0b101", "literals", 1},
-        {TK_INT, "0o716", "literals", 1},
-        {TK_NL, NULL, "literals", 1},
-        {TK_FLOAT, "1.1", "literals", 2},
-        {TK_FLOAT, "1e-10", "literals", 2},
-        {TK_TRUE, NULL, "literals", 2},
-        {TK_FALSE, NULL, "literals", 2},
-        {TK_NL, NULL, "literals", 2},
-        {TK_NIL, NULL, "literals", 3}
+        A_TOKEN(TK_STR, "'foo'"),
+        A_TOKEN(TK_RSTR, "`bar`"),
+        A_TOKEN(TK_INT, "123"),
+        A_TOKEN(TK_INT, "0xA1F"),
+        A_TOKEN(TK_INT, "0b101"),
+        A_TOKEN(TK_INT, "0o716"),
+        A_TOKEN(TK_FLOAT, "1.1"),
+        A_TOKEN(TK_FLOAT, "1e-10"),
+        N_TOKEN(TK_TRUE),
+        N_TOKEN(TK_FALSE),
+        N_TOKEN(TK_NIL)
     };
 
-    assert_tokens(lex, input, expected, "literals");
+    assert_tokens(lex, input, expected, "test");
     puts("literals\t==> passed");
 }
 
 void test_keywords(lexer *lex) {
-    char input[] = "fn return let do end if\n"
-        "elif else for while continue break\n"
+    char input[] = "fn return let do end if "
+        "elif else for while continue break "
         "match case";
 
     token expected[] = {
-        {TK_FN, NULL, "keywords", 1},
-        {TK_RETURN, NULL, "keywords", 1},
-        {TK_LET, NULL, "keywords", 1},
-        {TK_DO, NULL, "keywords", 1},
-        {TK_END, NULL, "keywords", 1},
-        {TK_IF, NULL, "keywords", 1},
-        {TK_NL, NULL, "keywords", 1},
-        {TK_ELIF, NULL, "keywords", 2},
-        {TK_ELSE, NULL, "keywords", 2},
-        {TK_FOR, NULL, "keywords", 2},
-        {TK_WHILE, NULL, "keywords", 2},
-        {TK_CONTINUE, NULL, "keywords", 2},
-        {TK_BREAK, NULL, "keywords", 2},
-        {TK_NL, NULL, "keywords", 2},
-        {TK_MATCH, NULL, "keywords", 3},
-        {TK_CASE, NULL, "keywords", 3}
+        N_TOKEN(TK_FN),
+        N_TOKEN(TK_RETURN),
+        N_TOKEN(TK_LET),
+        N_TOKEN(TK_DO),
+        N_TOKEN(TK_END),
+        N_TOKEN(TK_IF),
+        N_TOKEN(TK_ELIF),
+        N_TOKEN(TK_ELSE),
+        N_TOKEN(TK_FOR),
+        N_TOKEN(TK_WHILE),
+        N_TOKEN(TK_CONTINUE),
+        N_TOKEN(TK_BREAK),
+        N_TOKEN(TK_MATCH),
+        N_TOKEN(TK_CASE)
     };
 
-    assert_tokens(lex, input, expected, "keywords");
+    assert_tokens(lex, input, expected, "test");
     puts("keywords\t==> passed");
 }
 
 void test_identifiers(lexer *lex) {
-    char input[] = "foo _bar id12 _un_";
+    char input[] = "foo _bar_ id12 done";
 
     token expected[] = {
-        {TK_IDENT, "foo", "identifiers", 1},
-        {TK_IDENT, "_bar", "identifiers", 1},
-        {TK_IDENT, "id12", "identifiers", 1},
-        {TK_IDENT, "_un_", "identifiers", 1}
+        A_TOKEN(TK_IDENT, "foo"),
+        A_TOKEN(TK_IDENT, "_bar_"),
+        A_TOKEN(TK_IDENT, "id12"),
+        A_TOKEN(TK_IDENT, "done")
     };
 
-    assert_tokens(lex, input, expected, "identifiers");
+    assert_tokens(lex, input, expected, "test");
     puts("identifiers\t==> passed");
 }
 
 void test_operators(lexer *lex) {
-    char input[] = "and or not . @\n"
-        "+ - * / %\n"
-        "< > == != <= >=\n"
+    char input[] = "and or not . @"
+        "+ - * / % ::"
+        "< > == != <= >="
         "| & ^ ~ >> <<";
 
     token expected[] = {
-        {TK_AND, NULL, "operators", 1},
-        {TK_OR, NULL, "operators", 1},
-        {TK_NOT, NULL, "operators", 1},
-        {TK_DOT, NULL, "operators", 1},
-        {TK_AT, NULL, "operators", 1},
-        {TK_NL, NULL, "operators", 1},
-        {TK_PLUS, NULL, "operators", 2},
-        {TK_MINUS, NULL, "operators", 2},
-        {TK_ASTERISK, NULL, "operators", 2},
-        {TK_SLASH, NULL, "operators", 2},
-        {TK_PERCENT, NULL, "operators", 2},
-        {TK_NL, NULL, "operators", 2},
-        {TK_LT, NULL, "operators", 3},
-        {TK_GT, NULL, "operators", 3},
-        {TK_EQ_EQ, NULL, "operators", 3},
-        {TK_BANG_EQ, NULL, "operators", 3},
-        {TK_LT_EQ, NULL, "operators", 3},
-        {TK_GT_EQ, NULL, "operators", 3},
-        {TK_NL, NULL, "operators", 3},
-        {TK_PIPE, NULL, "operators", 4},
-        {TK_AMPERSAND, NULL, "operators", 4},
-        {TK_CARET, NULL, "operators", 4},
-        {TK_TILDE, NULL, "operators", 4},
-        {TK_GT_GT, NULL, "operators", 4},
-        {TK_LT_LT, NULL, "operators", 4}
+        N_TOKEN(TK_AND),
+        N_TOKEN(TK_OR),
+        N_TOKEN(TK_NOT),
+        N_TOKEN(TK_DOT),
+        N_TOKEN(TK_AT),
+        N_TOKEN(TK_PLUS),
+        N_TOKEN(TK_MINUS),
+        N_TOKEN(TK_ASTERISK),
+        N_TOKEN(TK_SLASH),
+        N_TOKEN(TK_PERCENT),
+        N_TOKEN(TK_COL_COL),
+        N_TOKEN(TK_LT),
+        N_TOKEN(TK_GT),
+        N_TOKEN(TK_EQ_EQ),
+        N_TOKEN(TK_BANG_EQ),
+        N_TOKEN(TK_LT_EQ),
+        N_TOKEN(TK_GT_EQ),
+        N_TOKEN(TK_PIPE),
+        N_TOKEN(TK_AMPERSAND),
+        N_TOKEN(TK_CARET),
+        N_TOKEN(TK_TILDE),
+        N_TOKEN(TK_GT_GT),
+        N_TOKEN(TK_LT_LT)
     };
 
-    assert_tokens(lex, input, expected, "operators");
+    assert_tokens(lex, input, expected, "test");
     puts("operators\t==> passed");
 }
 
 void test_delimiters(lexer *lex) {
-    char input[] = "() {} [] , -> : = in \n";
+    char input[] = "() {} [] , -> : ; = in \n";
 
     token expected[] = {
-        {TK_LPAREN, NULL, "delimiters", 1},
-        {TK_RPAREN, NULL, "delimiters", 1},
-        {TK_LBRACE, NULL, "delimiters", 1},
-        {TK_RBRACE, NULL, "delimiters", 1},
-        {TK_LBRACKET, NULL, "delimiters", 1},
-        {TK_RBRACKET, NULL, "delimiters", 1},
-        {TK_COMMA, NULL, "delimiters", 1},
-        {TK_DASH_GT, NULL, "delimiters", 1},
-        {TK_COLON, NULL, "delimiters", 1},
-        {TK_EQ, NULL, "delimiters", 1},
-        {TK_IN, NULL, "delimiters", 1},
-        {TK_NL, NULL, "delimiters", 1}
+        N_TOKEN(TK_LPAREN),
+        N_TOKEN(TK_RPAREN),
+        N_TOKEN(TK_LBRACE),
+        N_TOKEN(TK_RBRACE),
+        N_TOKEN(TK_LBRACKET),
+        N_TOKEN(TK_RBRACKET),
+        N_TOKEN(TK_COMMA),
+        N_TOKEN(TK_DASH_GT),
+        N_TOKEN(TK_COLON),
+        N_TOKEN(TK_SEMICOLON),
+        N_TOKEN(TK_EQ),
+        N_TOKEN(TK_IN),
+        N_TOKEN(TK_NL)
     };
 
-    assert_tokens(lex, input, expected, "delimiters");
-    puts("delimiterst\t==> passed");
+    assert_tokens(lex, input, expected, "test");
+    puts("delimiters\t==> passed");
 }
 
 void test_escaping(lexer *lex) {
@@ -185,36 +193,34 @@ void test_escaping(lexer *lex) {
         "'\\a \\b \\f \\n \\r \\t \\v \\\\ \\' \\\"'";
 
     token expected[] = {
-        {TK_STR, "Quoth", "escaping", 1},
-        {TK_STR, "the Raven", "escaping", 1},
-        {TK_STR, "Nevermore", "escaping", 1},
-        {TK_STR, "\a \b \f \n \r \t \v \\ \' \"", "escaping", 1}
+        A_TOKEN(TK_STR, "'Quoth'"),
+        A_TOKEN(TK_STR, "'the Raven'"),
+        A_TOKEN(TK_STR, "'Nevermore'"),
+        A_TOKEN(TK_STR, "'\a \b \f \n \r \t \v \\ \' \"'")
     };
 
-    assert_tokens(lex, input, expected, "escaping");
+    assert_tokens(lex, input, expected, "test");
     puts("escapingt\t==> passed");
 }
 
 void test_errors(lexer *lex) {
-    char input[] = "? 'inv\\z' 1e+ \n"
-        "'\\777' '\\17' '\\888'\n"
+    char input[] = "? 'inv\\z' 1e+ "
+        "'\\777' '\\17' '\\888' "
         "'\\x1' '\\x1g' `unter";
 
     token expected[] = {
-        {TK_UNRECOG, "?", "errors", 1},
-        {TK_INVALID_ESCP, "'inv\\z'", "errors", 1},
-        {TK_INVALID_SCIEN, "1e+", "errors", 1},
-        {TK_NL, NULL, "errors", 1},
-        {TK_OCT_OUTOFR_ESCP, "'\\777'", "errors", 2},
-        {TK_OCT_MISS_ESCP, "'\\17'", "errors", 2},
-        {TK_OCT_INVL_ESCP, "'\\888'", "errors", 2},
-        {TK_NL, NULL, "errors", 2},
-        {TK_HEX_MISS_ESCP, "'\\x1'", "errors", 3},
-        {TK_HEX_INVL_ESCP, "'\\x1g'", "errors", 3},
-        {TK_UNTERMIN_STR, "`unter", "errors", 3},
+        E_TOKEN("?", "unrecognize syntax"),
+        E_TOKEN("z'", "invalid escape sequence"),
+        E_TOKEN("1e+", "malformed scientific notation"),
+        E_TOKEN("777'", "invalid escape sequence"),
+        E_TOKEN("17'", "invalid escape sequence"),
+        E_TOKEN("888'", "invalid escape sequence"),
+        E_TOKEN("1'", "invalid escape sequence"),
+        E_TOKEN("1g'", "invalid escape sequence"),
+        E_TOKEN("`unter", "unterminated string")
     };
 
-    assert_tokens(lex, input, expected, "errors");
+    assert_tokens(lex, input, expected, "test");
     puts("errors\t\t==> passed");
 }
 
@@ -230,60 +236,69 @@ void test_lexer() {
     test_errors(lex);
 }
 
+/**********************************************************/
+
+/* like the macros above but with the token line unspecified */
+#define A_FTOKEN(t, s, l) {t, s, (sizeof s) - 1, "test_lexer", l, NULL}
+#define E_FTOKEN(s, l, m) {TK_ERR, s, (sizeof s) - 1, "test_lexer", l, m}
+#define N_FTOKEN(t, l)    {t, NULL, 0, "test_lexer", l, NULL} 
+
 /* test the layers which uses/used by the lexer
    (e.g. scanfile, cons_tokens, list iteration ...) */
 void test_file_lexing() {
     token tok_expected[] = {
-        {TK_NL, NULL, "test_lexer", 2},
-        {TK_NL, NULL, "test_lexer", 24},
-        {TK_NL, NULL, "test_lexer", 25},
-        {TK_FN, NULL, "test_lexer", 26},
-        {TK_IDENT, "derivative", "test_lexer", 26},
-        {TK_LPAREN, NULL, "test_lexer", 26},
-        {TK_IDENT, "f", "test_lexer", 26},
-        {TK_RPAREN, NULL, "test_lexer", 26},
-        {TK_NL, NULL, "test_lexer", 26},
-        {TK_LET, NULL, "test_lexer", 27},
-        {TK_IDENT, "delta", "test_lexer", 27},
-        {TK_EQ, NULL, "test_lexer", 27},
-        {TK_FLOAT, "1e-4", "test_lexer", 27},
-        {TK_NL, NULL, "test_lexer", 27},
-        {TK_RETURN, NULL, "test_lexer", 28},
-        {TK_FN, NULL, "test_lexer", 28},
-        {TK_LPAREN, NULL, "test_lexer", 28},
-        {TK_IDENT, "n", "test_lexer", 28},
-        {TK_RPAREN, NULL, "test_lexer", 28},
-        {TK_NL, NULL, "test_lexer", 28},
-        {TK_LPAREN, NULL, "test_lexer", 29},
-        {TK_IDENT, "f", "test_lexer", 29},
-        {TK_LPAREN, NULL, "test_lexer", 29},
-        {TK_IDENT, "n", "test_lexer", 29},
-        {TK_PLUS, NULL, "test_lexer", 29},
-        {TK_IDENT, "delta", "test_lexer", 29},
-        {TK_RPAREN, NULL, "test_lexer", 29},
-        {TK_MINUS, NULL, "test_lexer", 29},
-        {TK_IDENT, "f", "test_lexer", 29},
-        {TK_LPAREN, NULL, "test_lexer", 29},
-        {TK_IDENT, "n", "test_lexer", 29},
-        {TK_RPAREN, NULL, "test_lexer", 29},
-        {TK_RPAREN, NULL, "test_lexer", 29},
-        {TK_SLASH, NULL, "test_lexer", 29},
-        {TK_IDENT,"delta", "test_lexer", 29},
-        {TK_NL, NULL, "test_lexer", 29},
-        {TK_END, NULL, "test_lexer", 30},
-        {TK_NL, NULL, "test_lexer", 30},
-        {TK_END, NULL, "test_lexer", 31},
-        {TK_NL, NULL, "test_lexer", 31},
-        {TK_NL, NULL, "test_lexer", 32},
-        {TK_EOF, NULL, "test_lexer", 33}
+        N_FTOKEN(TK_NL, 2), 
+        N_FTOKEN(TK_NL, 24),
+        N_FTOKEN(TK_NL, 25),
+        N_FTOKEN(TK_FN, 26),
+        A_FTOKEN(TK_IDENT, "derivative", 26),
+        N_FTOKEN(TK_LPAREN, 26),
+        A_FTOKEN(TK_IDENT, "f", 26),
+        N_FTOKEN(TK_RPAREN, 26),
+        N_FTOKEN(TK_NL, 26),
+        N_FTOKEN(TK_LET, 27),
+        A_FTOKEN(TK_IDENT, "delta", 27),
+        N_FTOKEN(TK_EQ, 27),
+        A_FTOKEN(TK_FLOAT, "1e-4", 27),
+        N_FTOKEN(TK_NL, 27),
+        N_FTOKEN(TK_RETURN, 28),
+        N_FTOKEN(TK_FN, 28),
+        N_FTOKEN(TK_LPAREN, 28),
+        A_FTOKEN(TK_IDENT, "n", 28),
+        N_FTOKEN(TK_RPAREN, 28),
+        N_FTOKEN(TK_NL, 28),
+        N_FTOKEN(TK_LPAREN, 29),
+        A_FTOKEN(TK_IDENT, "f", 29),
+        N_FTOKEN(TK_LPAREN, 29),
+        A_FTOKEN(TK_IDENT, "n", 29),
+        N_FTOKEN(TK_PLUS, 29),
+        A_FTOKEN(TK_IDENT, "delta", 29),
+        N_FTOKEN(TK_RPAREN, 29),
+        N_FTOKEN(TK_MINUS, 29),
+        A_FTOKEN(TK_IDENT, "f", 29),
+        N_FTOKEN(TK_LPAREN, 29),
+        A_FTOKEN(TK_IDENT, "n", 29),
+        N_FTOKEN(TK_RPAREN, 29),
+        N_FTOKEN(TK_RPAREN, 29),
+        N_FTOKEN(TK_SLASH, 29),
+        A_FTOKEN(TK_IDENT,"delta", 29),
+        N_FTOKEN(TK_NL, 29),
+        N_FTOKEN(TK_END, 30),
+        N_FTOKEN(TK_NL, 30),
+        N_FTOKEN(TK_END, 31),
+        N_FTOKEN(TK_NL, 31),
+        N_FTOKEN(TK_NL, 32),
+        N_FTOKEN(TK_EOF, 33)
     };
 
     token err_expected[] = {
-        {TK_UNRECOG, "?", "test_lexer", 33},
-        {TK_UNTERMIN_STR, "\"unterminate", "test_lexer", 33},
+        E_FTOKEN("?", 33, "unrecognize syntax"),
+        E_FTOKEN("`unterminate", 33, "unterminated string") 
     };
 
-    char *path = "../tests/test_lexer.rav";
+    /* NOTE: run the test from the main directory,
+       not from the /bin directory */
+    char *path = "tests/test_lexer.rav";
     char *buf = scan_file(path);
     assert(buf != NULL);
     
