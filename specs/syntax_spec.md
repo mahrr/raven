@@ -35,6 +35,7 @@ expression ::= literal_expression
              | prefix_expression
              | infix_expression
              | index_expression
+             | access_expression
              | group_expression
              | call_expression
              | if_expression
@@ -61,6 +62,8 @@ prefix_expression ::= prefix_op expression;
 infix_expression ::= expression infix_op expression;
 
 index_expression ::= expression "[" expression "]";
+
+access_expression ::= expression "." name;
 
 group_expression ::= "(" expression ")";
 
