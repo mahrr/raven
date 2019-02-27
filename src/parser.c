@@ -40,10 +40,58 @@ typedef enum {
     NOT_NEGATE_COMPLEMENT,
     GROUP_INDEX_ACCESS
 } precedence;
-typedef expr *(*prefix_t)(parser *);
+
+precedence precedenc_of(token_type type) {
+    switch (type) {
+        case TK_OR:
+            return OR;
+        case TK_AND:
+            return AND;
+        case TK_EQ_EQ:
+        case TK_BANG_EQ:
+            return EQUALITY;
+        case TK_LT:
+        case TK_GT:
+        case TK_GT_EQ:
+        case TK_LT_EQ:
+            return COMPARE;
+        case TK_PIPE:
+            return BOR;
+        case TK_CARET:
+            return BXOR;
+        case TK_AMPERSAND:
+            return BAND;
+        case TK_GT_GT:
+        case TK_LT_LT:
+            return SHIFT;
+        case TK_COL_COL:
+            return L_CONS;
+        case TK_AT:
+            return CONCATENATION;
+        case TK_PLUS:
+        case TK_MINUS:
+            return ADDSUB;
+        case TK_ASTERISK:
+        case TK_SLASH:
+        case TK_PERCENT:
+            return MULT_DIV_MOD;
+        case TK_NOT:
+        case TK_TILDE:
+            return NOT_NEGATE_COMPLEMENT;
+        case TK_LPAREN:
+        case TK_LBRACKET:
+        case TK_DOT:
+            return GROUP_INDEX_ACCESS;
+
+        default:
+            break;
+    }
+}
+
+typedef expr *(*prefix_type)(parser *);
 typedef expr *(*infix_type)(parser *, expr *);
 
-prefix_t prefix_of(token_type type) {
+prefix_type prefix_of(token_type type) {
     switch (type) {
         case TK_MINUS:
         case TK_NOT:
@@ -108,12 +156,12 @@ infix_type infix_of(token_type type) {
         case TK_AND:
         case TK_OR:
             return parse_infix;
-        case TK_DOT :
+        case TK_DOT:
             return parse_access_exp;
-        case TK_LPAREN: 
-        return  parse_call_exp;
+        case TK_LPAREN:
+            return parse_call_exp;
         case TK_LBRACKET:
-        return parse_index_exp;
+            return parse_index_exp;
 
         default:
             return NULL;
@@ -121,7 +169,10 @@ infix_type infix_of(token_type type) {
 }
 
 expr *parse_expr(parser *p, precedence prec) {
-    prefix_t pre = prefix_of(p->curr_token->type);
+    /* 15 + 1 */
+
+    /* current is "15" */
+    prefix_type pre = prefix_of(p->curr_token->type);
     if (pre == NULL) {
         //TODO add error
         return NULL;
@@ -141,18 +192,31 @@ expr *parse_expr(parser *p, precedence prec) {
 }
 
 stmt *parse_let_stmt(parser *p) {
+    /* let x = 15+1 ; */
+
     let_stmt *let_s = make(let_s, R_SECN);
+    /* current let next is "x" */
     if (!expect_token(p, TK_IDENT)) {
         //TODO add error
         return NULL;
     }
-    let_s->ident = str(p->curr_token->lexeme);
+    /* current "X" next is "=" */
+    let_s->ident = strn(p->curr_token->lexeme, p->curr_token->length);
+
     if (!expect_token(p, TK_EQ)) {
         //TODO add error
         return NULL;
     }
+    /*current "=" next is "15" */
+    next_token(p);
+
+    /*current "15" next is "+" */
     let_s->expression = parse_expr(p, LOWEST);
     if (let_s->expression == NULL) {
+        //TODO add error
+        return NULL;
+    }
+    if (!expect_token(p, TK_SEMICOLON) || !expect_token(p, TK_NL)) {
         //TODO add error
         return NULL;
     }
