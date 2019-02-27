@@ -3,7 +3,7 @@
 
 typedef struct {
     list *stmts;
-} peice;
+} program;
 
 typedef enum {
     let_stmt_t,

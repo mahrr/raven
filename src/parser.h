@@ -5,7 +5,7 @@
 
 #include "lexer.h"
 #include "list.h"
-#include "parse_tree.h"
+#include "ast_test.h"
 
 typedef struct {
     token *tokens;
