@@ -41,7 +41,7 @@ typedef enum {
     GROUP_INDEX_ACCESS
 } precedence;
 typedef expr *(*prefix_t)(parser *);
-typedef expr *(*infix_t)(parser *, expr *);
+typedef expr *(*infix_type)(parser *, expr *);
 
 prefix_t prefix_of(token_type type) {
     switch (type) {
@@ -86,14 +86,13 @@ prefix_t prefix_of(token_type type) {
             return NULL;
     }
 }
-infix_t infix_of(token_type type) {
+infix_type infix_of(token_type type) {
     switch (type) {
         case TK_PLUS:
         case TK_MINUS:
         case TK_ASTERISK:
         case TK_SLASH:
         case TK_PERCENT:
-        case TK_DOT:
         case TK_AT:
         case TK_COL_COL:
         case TK_GT_GT:
@@ -106,12 +105,18 @@ infix_t infix_of(token_type type) {
         case TK_LT_EQ:
         case TK_EQ_EQ:
         case TK_BANG_EQ:
-
+        case TK_AND:
+        case TK_OR:
             return parse_infix;
-
+        case TK_DOT :
+            return parse_access_exp;
+        case TK_LPAREN: 
+        return  parse_call_exp;
+        case TK_LBRACKET:
+        return parse_index_exp;
 
         default:
-            break;
+            return NULL;
     }
 }
 
@@ -125,7 +130,7 @@ expr *parse_expr(parser *p, precedence prec) {
     while (!expect_token(p, TK_NL) &&
            !expect_token(p, TK_SEMICOLON) &&
            prec < precedenc_of(p->next_token)) {
-        infix_t inf = infex_of(p->next_token->type);
+        infix_type inf = infex_of(p->next_token->type);
         if (inf == NULL) {
             return left_expr;
         }
