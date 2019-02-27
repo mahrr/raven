@@ -24,67 +24,67 @@ void init_parser(parser *p, token *toks) {
 
 // for experssions parsing
 typedef enum {
-    LOWEST,
-    OR,
-    AND,
-    EQUALITY,
-    COMPARE,
-    BOR,  //B for Bitwise
-    BXOR,
-    BAND,
-    SHIFT,
-    L_CONS,
-    CONCATENATION,
-    ADDSUB,
-    MULT_DIV_MOD,
-    NOT_NEGATE_COMPLEMENT,
-    GROUP_INDEX_ACCESS
+    LOWEST_PREC,
+    OR_PREC,
+    AND_PREC,
+    EQUALITY_PREC,
+    COMPARE_PREC,
+    BOR_PREC,  //B for Bitwise
+    BXOR_PREC,
+    BAND_PREC,
+    SHIFT_PREC,
+    LCONS_PREC,
+    CONCATENATION_PREC,
+    ADD_PREC,
+    MULT_PREC,
+    PREFIX_PREC,
+    GROUP_PREC
 } precedence;
 
 precedence precedenc_of(token_type type) {
     switch (type) {
         case TK_OR:
-            return OR;
+            return OR_PREC;
         case TK_AND:
-            return AND;
+            return AND_PREC;
         case TK_EQ_EQ:
         case TK_BANG_EQ:
-            return EQUALITY;
+            return EQUALITY_PREC;
         case TK_LT:
         case TK_GT:
         case TK_GT_EQ:
         case TK_LT_EQ:
-            return COMPARE;
+            return COMPARE_PREC;
         case TK_PIPE:
-            return BOR;
+            return BOR_PREC;
         case TK_CARET:
-            return BXOR;
+            return BXOR_PREC;
         case TK_AMPERSAND:
-            return BAND;
+            return BAND_PREC;
         case TK_GT_GT:
         case TK_LT_LT:
-            return SHIFT;
+            return SHIFT_PREC;
         case TK_COL_COL:
-            return L_CONS;
+            return LCONS_PREC;
         case TK_AT:
-            return CONCATENATION;
+            return CONCATENATION_PREC;
         case TK_PLUS:
         case TK_MINUS:
-            return ADDSUB;
+            return ADD_PREC;
         case TK_ASTERISK:
         case TK_SLASH:
         case TK_PERCENT:
-            return MULT_DIV_MOD;
+            return MULT_PREC;
         case TK_NOT:
         case TK_TILDE:
-            return NOT_NEGATE_COMPLEMENT;
+            return PREFIX_PREC;
         case TK_LPAREN:
         case TK_LBRACKET:
         case TK_DOT:
-            return GROUP_INDEX_ACCESS;
+            return GROUP_PREC;
 
         default:
-            break;
+            LOWEST_PREC;
     }
 }
 
@@ -211,7 +211,7 @@ stmt *parse_let_stmt(parser *p) {
     next_token(p);
 
     /*current "15" next is "+" */
-    let_s->expression = parse_expr(p, LOWEST);
+    let_s->expression = parse_expr(p, LOWEST_PREC);
     if (let_s->expression == NULL) {
         //TODO add error
         return NULL;
