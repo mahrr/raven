@@ -35,10 +35,10 @@ typedef enum {
     SHIFT_PREC,
     LCONS_PREC,
     CONCATENATION_PREC,
-    ADD_PREC,
-    MULT_PREC,
+    ADD_PREC,  /* add  muins */
+    MULT_PREC, /*mult  dived mode */
     PREFIX_PREC,
-    GROUP_PREC
+    GROUP_PREC /* group and index and access prec*/
 } precedence;
 
 precedence precedenc_of(token_type type) {
@@ -70,26 +70,116 @@ precedence precedenc_of(token_type type) {
             return CONCATENATION_PREC;
         case TK_PLUS:
         case TK_MINUS:
-            return ADD_PREC;
+            return ADD_PREC; /* add  muins */
         case TK_ASTERISK:
         case TK_SLASH:
         case TK_PERCENT:
-            return MULT_PREC;
+            return MULT_PREC; /*mult  dived mode */
         case TK_NOT:
         case TK_TILDE:
             return PREFIX_PREC;
         case TK_LPAREN:
         case TK_LBRACKET:
         case TK_DOT:
-            return GROUP_PREC;
+            return GROUP_PREC; /* group and index and access prec*/
 
         default:
             LOWEST_PREC;
     }
 }
 
+expr *parse_expr(parser * , precedence );
+
 typedef expr *(*prefix_type)(parser *);
 typedef expr *(*infix_type)(parser *, expr *);
+/*
+expr * assign_exp (expr * the_exp, expr_type t){
+    expr * exp= make(exp,R_SECN);
+    exp->type= t;
+    exp->obj.pe= the_exp;
+    return exp;
+}*/
+expr * parse_prefix_expr(parser *p){
+    /* current token = not || - || ~ */
+    prefix_expr  *pre_exp= make(pre_exp,R_SECN);
+    pre_exp->op = p->curr_token->type;
+    next_token(p);
+    pre_exp->expression = parse_expr(p,PREFIX_PREC);
+    
+    expr * exp= make(exp,R_SECN);
+    exp->type= infix_expr_type ;
+    exp->obj.pe= pre_exp;
+    return exp;
+
+}
+
+expr * parse_ident_expr(parser *p){
+
+}
+
+expr * parse_int_lit(parser *p){
+
+}
+
+expr * parse_float_lit(parser *p){
+
+}
+
+expr * parse_str_lit(parser *p){
+
+}
+
+expr * parse_rstr_lit(parser *p){
+
+}
+
+expr * parse_true_lit(parser *p){
+
+}
+
+expr * parse_false_lit(parser *p){
+
+}
+
+expr * parse_literal_expr(parser *p){
+
+}
+
+expr * parse_function_lit(parser *p){
+
+}
+
+expr * parse_list_lit(parser *p){
+
+}
+
+expr * parse_record_lit(parser *p){
+
+}
+
+expr * parse_group_exp(parser *p){
+
+}
+
+expr * parse_if_exp(parser *p){
+
+}
+
+expr * parse_while_exp(parser *p){
+
+}
+
+expr * parse_for_exp(parser *p){
+
+}
+
+expr * parse_match_exp(parser *p){
+
+}
+
+
+
+
 
 prefix_type prefix_of(token_type type) {
     switch (type) {

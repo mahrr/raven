@@ -35,17 +35,17 @@ typedef struct {
 } expr_stmt;
 
 typedef enum {
-    lit_expr_t,
-    prefix_expr_t,
-    infix_expr_t,
+    lit_expr_type,
+    prefix_expr_type,
+    infix_expr_type,
 } expr_type;
 
 typedef struct {
     expr_type type;
     union {
-        lit_expr le;
-        prefix_expr pe;
-        infix_expr ie;
+        lit_expr *le;
+        prefix_expr *pe;
+        infix_expr *ie;
     } obj;
 } expr;
 
@@ -90,11 +90,12 @@ typedef struct {
 } infix_expr;
 
 typedef enum {
-    minus_pop_t,
-    not_pop_t,
-} p_op_type;
+    minus_pre_type,
+    not_pre_type,
+    complement_pre_type
+} pre_op_type;
 
 typedef struct {
-    p_op_type op;
-    expr expression;
+    pre_op_type op;
+    expr *expression;
 } prefix_expr;
