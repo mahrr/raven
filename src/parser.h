@@ -5,7 +5,7 @@
 
 #include "lexer.h"
 #include "list.h"
-#include "ast_test.h"
+#include "ast.h"
 
 typedef struct {
     token *tokens;
@@ -22,4 +22,4 @@ typedef struct{
 } p_error;
 
 extern void init_parser(parser*, token*);
-extern program *parse_program (parser*);
+extern piece *parse_piece (parser*);

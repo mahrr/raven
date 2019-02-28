@@ -2,12 +2,14 @@
  *
  * (parser.c | 27 Feb 19 | Kareem Hamdy)
 */
+#include <stdlib.h>
+#include <string.h>
 
-#include "parser.h"
 #include "alloc.h"
-#include "ast_test.h"
+#include "ast.h"
 #include "lexer.h"
 #include "list.h"
+#include "parser.h"
 #include "salloc.h"
 
 void init_parser(parser *p, token *toks) {
@@ -88,7 +90,7 @@ precedence precedenc_of(token_type type) {
     }
 }
 
-expr *parse_expr(parser * , precedence );
+expr *parse_expr(parser *, precedence);
 
 typedef expr *(*prefix_type)(parser *);
 typedef expr *(*infix_type)(parser *, expr *);
@@ -99,87 +101,151 @@ expr * assign_exp (expr * the_exp, expr_type t){
     exp->obj.pe= the_exp;
     return exp;
 }*/
-expr * parse_prefix_expr(parser *p){
-    /* current token = not || - || ~ */
-    prefix_expr  *pre_exp= make(pre_exp,R_SECN);
+
+expr *parse_prefix_expr(parser *p) {
+    /* current token = -  "-X" */
+    prefix_expr *pre_exp = make(pre_exp, R_SECN);
     pre_exp->op = p->curr_token->type;
     next_token(p);
-    pre_exp->expression = parse_expr(p,PREFIX_PREC);
-    
-    expr * exp= make(exp,R_SECN);
-    exp->type= infix_expr_type ;
-    exp->obj.pe= pre_exp;
+    pre_exp->expression = parse_expr(p, PREFIX_PREC);
+    /* assgin to big exp */
+    expr *exp = make(exp, R_SECN);
+    exp->type = infix_expr_type;
+    exp->obj.pe = pre_exp;
     return exp;
-
 }
 
-expr * parse_ident_expr(parser *p){
-
+expr *parse_ident_expr(parser *p) {
+    /*current token "x"  "x+y"*/
+    expr *ident_exp = make(ident_exp, R_SECN);
+    ident_exp->type = ident_expr_type;
+    ident_exp->obj.ident_n = strn(p->curr_token->lexeme, p->curr_token->length);
+    return ident_exp;
 }
 
-expr * parse_int_lit(parser *p){
+expr *parse_int_lit(parser *p) {
+    int_lit *int_exp = make(int_exp, R_SECN);
+    char *str_number = strn(p->curr_token->lexeme, p->curr_token->length);
 
+    char *end = make(end, R_SECN);
+
+    if ((*str_number) == '0') {
+        switch (str_number[1]) {
+            case 'x':
+            case 'X':
+                /*hex number */
+                int_exp->i = strtol(str_number, end, 0);
+                break;
+            case 'o':
+            case 'O':
+                int_exp->i = strtol(str_number + 2, end, 0);
+                break;
+            case 'b':
+            case 'B':
+                int_exp->i = strtol(str_number + 2, end, 2);
+                break;
+            default:
+                int_exp->i = strtol(str_number, end, 10);
+        }
+    } else {
+        int_exp->i = strtol(str_number, end, 10);
+    }
+
+    if (*end != NULL) {
+        //Error
+    }
+
+    lit_expr *li_exp = make(li_exp, R_SECN);
+    li_exp->type = int_lit_type;
+    li_exp->obj.i_val = int_exp;
+
+    expr *exp = make(exp, R_SECN);
+    exp->type = lit_expr_type;
+    exp->obj.le = li_exp;
+    return exp;
 }
 
-expr * parse_float_lit(parser *p){
+expr *parse_float_lit(parser *p) {
+    float_lit *float_exp = make(float_exp, R_SECN);
+    char* end = make(end,R_SECN);
+    char *str_number = strn(p->curr_token->lexeme, p->curr_token->length);
+    
+    float_exp->f = strtod(str_number,end);
 
+      if (*end != NULL) {
+        //Error
+    }
+
+    lit_expr *li_exp = make(li_exp, R_SECN);
+    li_exp->type = float_lit_type;
+    li_exp->obj.i_val = float_exp;
+
+    expr *exp = make(exp, R_SECN);
+    exp->type = lit_expr_type;
+    exp->obj.le = li_exp;
+    return exp;
 }
 
-expr * parse_str_lit(parser *p){
+expr *parse_str_lit(parser *p) {
+    str_lit *str_exp = make(str_exp, R_SECN);
+    str_exp->s = strn(p->curr_token->lexeme + 1, p->curr_token->length - 1);
 
+    lit_expr *li_exp = make(li_exp, R_SECN);
+    li_exp->type = str_lit_type;
+    li_exp->obj.i_val = str_exp;
+
+    expr *exp = make(exp, R_SECN);
+    exp->type = lit_expr_type;
+    exp->obj.le = li_exp;
+    return exp;
 }
 
-expr * parse_rstr_lit(parser *p){
+expr *parse_rstr_lit(parser *p) {
+    rstr_lit *rstr_exp = make(rstr_exp, R_SECN);
+    rstr_exp->s = strn(p->curr_token->lexeme + 1, p->curr_token->length - 1);
 
+    lit_expr *li_exp = make(li_exp, R_SECN);
+    li_exp->type = str_lit_type;
+    li_exp->obj.i_val = rstr_exp;
+
+    expr *exp = make(exp, R_SECN);
+    exp->type = lit_expr_type;
+    exp->obj.le = li_exp;
+    return exp;
 }
 
-expr * parse_true_lit(parser *p){
-
+expr *parse_true_lit(parser *p) {
 }
 
-expr * parse_false_lit(parser *p){
-
+expr *parse_false_lit(parser *p) {
 }
 
-expr * parse_literal_expr(parser *p){
-
+expr *parse_literal_expr(parser *p) {
 }
 
-expr * parse_function_lit(parser *p){
-
+expr *parse_function_lit(parser *p) {
 }
 
-expr * parse_list_lit(parser *p){
-
+expr *parse_list_lit(parser *p) {
 }
 
-expr * parse_record_lit(parser *p){
-
+expr *parse_record_lit(parser *p) {
 }
 
-expr * parse_group_exp(parser *p){
-
+expr *parse_group_exp(parser *p) {
 }
 
-expr * parse_if_exp(parser *p){
-
+expr *parse_if_exp(parser *p) {
 }
 
-expr * parse_while_exp(parser *p){
-
+expr *parse_while_exp(parser *p) {
 }
 
-expr * parse_for_exp(parser *p){
-
+expr *parse_for_exp(parser *p) {
 }
 
-expr * parse_match_exp(parser *p){
-
+expr *parse_match_exp(parser *p) {
 }
-
-
-
-
 
 prefix_type prefix_of(token_type type) {
     switch (type) {
@@ -311,7 +377,7 @@ stmt *parse_let_stmt(parser *p) {
         return NULL;
     }
     stmt *s = make(s, R_SECN);
-    s->type = let_stmt_t;
+    s->type = let_stmt_type;
     s->obj.ls = let_s;
     return s;
 }
@@ -326,8 +392,8 @@ stmt *parse_stmt(parser *p) {
     }
 }
 
-program *parse_program(parser *p) {
-    program *prog = make(prog, R_SECN);
+piece *parse_piece(parser *p) {
+    piece *prog = make(prog, R_SECN);
     prog->stmts = make(prog->stmts, R_SECN);
 
     token *tok = p->curr_token;

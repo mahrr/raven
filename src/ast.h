@@ -13,11 +13,11 @@ typedef struct {
 } piece;
 
 typedef enum {
-    let_stmt_t,
-    fn_stmt_t,
-    ret_stmt_t,
-    expr_stmt_t,
-    fixed_stmt_t
+    let_stmt_type,
+    fn_stmt_type,
+    ret_stmt_type,
+    expr_stmt_type,
+    fixed_stmt_type
 } stmt_type;
 
 typedef enum {
@@ -28,11 +28,11 @@ typedef enum {
 typedef struct {
     stmt_type type;
     union {
-        let_stmt ls;
-        fn_stmt fs;
-        ret_stmt rs;
-        expr_stmt es;
-        fixed_stmt fs;
+        let_stmt * ls;
+        fn_stmt *fs;
+        ret_stmt *rs;
+        expr_stmt *es;
+        fixed_stmt *fs;
     } obj;
 } stmt;
 
@@ -69,83 +69,55 @@ typedef struct {
 } expr_stmt;
 
 typedef enum {
-    lit_expr_t,
-    prefix_expr_t,
-    infix_expr_t,
-    index_expr_t,
-    access_expr_t,
-    group_expr_t,
-    call_expr_t,
-    if_expr_t,
-    for_expr_t,
-    while_expr_t,
-    match_expr_t,
-    ident_expr_t,
+    lit_expr_type,
+    prefix_expr_type,
+    infix_expr_type,
+    index_expr_type,
+    access_expr_type,
+    group_expr_type,
+    call_expr_type,
+    if_expr_type,
+    for_expr_type,
+    while_expr_type,
+    match_expr_type,
+    ident_expr_type,
 } expr_type;
 
 typedef struct {
     expr_type type;
     union {
-        lit_expr le;
-        prefix_expr pe;
-        infix_expr ie;
-        index_expr index_e;
-        access_expr as;
-        group_expr ge;
-        call_expr ce;
-        if_expr if_e;
-        for_expr for_e;
-        while_expr while_e;
-        match_expr match_e;
+        lit_expr *le;
+        prefix_expr* pe;
+        infix_expr *ie;
+        index_expr *index_e;
+        access_expr* as;
+        group_expr *ge;
+        call_expr *ce;
+        if_expr *if_e;
+        for_expr *for_e;
+        while_expr *while_e;
+        match_expr *match_e;
         char *ident_n;
     } obj;
 } expr;
 
 typedef struct {
-    expr expression;
+    expr *expression;
     char *n_ident;
 } access_expr;
 
-typedef enum {
-    dot_iop_t,
-    plus_iop_t,
-    minus_iop_t,
-    asterisk_iop_t,
-    slash_iop_t,
-    percent_iop_t,
-    col_col_iop_t,
-    at_iop_t,
-    colon_iop_t,
-    lt_lt_iop_t,
-    gt_gt_iop_t,
-    ampersand_iop_t,
-    caret_iop_t,
-    pipe_iop_t,
-    lt_iop_t,
-    gt_iop_t,
-    lt_eq_iop_t,
-    gt_eq_iop_t,
-    eq_eq_iop_t,
-    bang_eq_iop_t,
-    and_iop_t,
-    or_iop_t,
-} i_op_type;
+
 
 typedef struct {
-    i_op_type op;
-    expr left;
-    expr right;
+    token_type op;
+    expr *left;
+    expr *right;
 } infix_expr;
 
-typedef enum {
-    hyphen_pop_t, /* - */ 
-    tilde_pop_t, /* ~ */
-    not_pop_t,
-} p_op_type;
 
 typedef struct {
-    p_op_type op;
-    expr expression;
+    token_type op;
+    expr *expression;
 } prefix_expr;
 
 /*
@@ -154,8 +126,8 @@ index_expression ::=
 */
 
 typedef struct {
-    expr outer_e;
-    expr inner_e;
+    expr *outer_e;
+    expr *inner_e;
 } index_expr;
 
 /*
@@ -163,7 +135,7 @@ group_expression ::=
      "(" expression ")";
 */
 typedef struct {
-    expr group_e;
+    expr *group_e;
 } group_expr;
 
 /*
@@ -171,12 +143,12 @@ call_expression ::=
     expression "(" expr_list ")";
 */
 typedef struct {
-    expr expr;
-    expr_list expression_l;
+    expr *expr;
+    expr_list *expression_l;
 } call_expr;
 
 typedef struct {
-    expr expression;
+    expr *expression;
     list exprs;
 } expr_list;
 
@@ -187,11 +159,11 @@ if_expression ::=
   ["else" piece] "end";
 */
 typedef struct {
-    expr if_e;
-    piece if_p;
+    expr *if_e;
+    piece *if_p;
     list *elif_e; 
-    piece elif_p;
-    piece else_p;
+    piece *elif_p;
+    piece *else_p;
 } if_expr;
 
 /*
@@ -201,8 +173,8 @@ for_expression ::=
 
 typedef struct {
     char *name_i;
-    expr for_e;
-    piece for_p;
+    expr *for_e;
+    piece *for_p;
 } for_expr;
 
 /*
@@ -210,8 +182,8 @@ while_expression ::=
  "while" expression "do" piece "end";
 */
 typedef struct {
-    expr while_e;
-    piece while_p;
+    expr *while_e;
+    piece *while_p;
 } while_expr;
 
 /*
@@ -224,33 +196,33 @@ match_expression ::=
    "end";
 */
 typedef struct {
-    expr match_e;
+    expr *match_e;
     list *match_l; 
 } match_expr;
 
 typedef enum {
-    fn_lit_t,
-    list_lit_t,
-    record_lit_t,
-    int_lit_t,
-    float_lit_t,
-    str_lit_t,
-    rstr_lit_t,
-    bool_lit_t,
-    nil_lit_t,
+    fn_lit_type,
+    list_lit_type,
+    record_lit_type,
+    int_lit_type,
+    float_lit_type,
+    str_lit_type,
+    rstr_lit_type,
+    bool_lit_type,
+    nil_lit_type,
 } lit_type;
 
 typedef struct {
     lit_type type;
     union {
-        fn_lit fn_l;
-        list_lit list_l;
-        record_lit record_l;
-        int_s i_val;
-        float_s f_val;
-        str_s s_val;
-        rstr_s rs_val;
-        bool_s b_val; // TRUE | FALSE
+        fn_lit *fn_l;
+        list_lit *list_l;
+        record_lit *record_l;
+        int_lit *i_val;
+        float_lit *f_val;
+        str_lit *s_val;
+        rstr_lit *rs_val;
+        bool_lit *b_val; // TRUE | FALSE
         // nil
     } obj;
 } lit_expr;
@@ -258,32 +230,33 @@ typedef struct {
 
 typedef struct {
     int64_t i;
-} int_s;
+} int_lit;
 
 typedef struct {
-    float f;
-} float_s;
-
-typedef struct {
-    char *s;
-} str_s;
+    /* for precision errors */
+    double f;
+} float_lit;
 
 typedef struct {
     char *s;
-    char *inner_s;
-} rstr_s;
+} str_lit;
+
+typedef struct {
+    char *s;
+  
+} rstr_lit;
 
 typedef struct {
     int b;
-} bool_s;
+} bool_lit;
 
 /*
 fn_literal ::=
      "fn" "(" param_list ")" piece "end";
 */
 typedef struct {
-    param_list fn_param_l;
-    piece fn_p;
+    param_list *fn_param_l;
+    piece *fn_p;
 } fn_lit;
 
 /*
@@ -291,7 +264,7 @@ list_literal ::=
      "[" [expression {, expression}] "]";
 */
 typedef struct {
-    expr list_e;
+    expr *list_e;
     list *list_exprs;
 } list_lit;
 
@@ -302,13 +275,13 @@ record_field ::=
     name ":" expression;
 */
 typedef struct {
-    record_field record_f;
+    record_field *record_f;
     list *record_fields;
 } record_lit;
 
 typedef struct {
     char *name;
-    expr record_e;
+    expr *record_e;
 } record_field;
 
 /*
@@ -322,21 +295,21 @@ match_expression ::=
 */
 
 typedef struct {
-    expr match_e;
+    expr *match_e;
     list *match_bs; 
 } match_expr;
 
 typedef enum {
-    expr_t,
-    piece_t,
+    expression_type,
+    piece_type,
 } match_body_type;
 
 typedef struct {
     match_body_type type;
     pattern patt;
     union {
-        expr expr;
-        piece piece;
+        expr *expr;
+        piece *piece;
     } obj;
 } match_b;
 
@@ -356,28 +329,28 @@ const_pattern ::= INTEGER
 ident_pattern ::= name;
 */
 typedef enum {
-    int_patt_t,
-    float_patt_t,
-    str_patt_t,
-    rstr_patt_t,
-    bool_patt_t,
-    nil_patt_t,
-    ident_patt_t,
-    list_patt_t,
-    record_patt_t,
+    int_patt_type,
+    float_patt_type,
+    str_patt_type,
+    rstr_patt_type,
+    bool_patt_type,
+    nil_patt_type,
+    ident_patt_type,
+    list_patt_type,
+    record_patt_type,
 } pattern_type;
 
 typedef struct {
     pattern_type type;
     union {
-        int_s i_val;
-        float_s f_val;
-        str_s s_val;
-        rstr_s rs_val;
-        bool_s b_val; 
+        int_s *i_val;
+        float_s *f_val;
+        str_s *s_val;
+        rstr_s *rs_val;
+        bool_s *b_val; 
         char *ident_n; // ident_pattern
         list_patt *list_pattern;
-        record_patt record_pattern;
+        record_patt *record_pattern;
     } obj;
 } pattern;
 
@@ -387,33 +360,33 @@ list_pattern ::= "[" [pattern {, pattern}] "]"
 */
 // TODO check: | pattern "::" pattern;
 typedef enum {
-    patt_brucket_t,
-    patt_scope_t,
+    patt_brucket_type,
+    patt_scope_type,
 } list_pattern_type;
 
 typedef struct {
     list_pattern_type type;
     union {
-        list_patt_bruckt p_brucket;
-        list_pattern_scope p_scope;
+        list_patt_bruckt *p_brucket;
+        list_pattern_scope *p_scope;
     } obj;
 } list_patt;
 
 typedef struct {
-    pattern p;
+    pattern *p;
     list *patts;
 } list_patt_bruckt;
 
 typedef struct {
-    pattern outer_p;
-    pattern inner_p;
+    pattern *outer_p;
+    pattern *inner_p;
 } list_pattern_scope;
 /*
 record_pattern ::= 
     "{" [pattern_field {, pattern_field}] "}";
 */
 typedef struct {
-    patt_field pf;
+    patt_field *pf;
     list *p_fields;
 } record_patt;
 /*
@@ -421,5 +394,5 @@ pattern_field ::= name ":" pattern;
 */
 typedef struct {
     char *name;
-    pattern p;
+    pattern *p;
 } patt_field;
