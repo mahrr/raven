@@ -152,7 +152,7 @@ expr *parse_int_lit(parser *p) {
     }
 
     if (*end != NULL) {
-        //Error
+        /*Error in function "strn" */
     }
 
     lit_expr *li_exp = make(li_exp, R_SECN);
@@ -173,7 +173,7 @@ expr *parse_float_lit(parser *p) {
     float_exp->f = strtod(str_number, end);
 
     if (*end != NULL) {
-        //Error
+        /*Error in function strn */
     }
 
     lit_expr *li_exp = make(li_exp, R_SECN);
@@ -258,6 +258,8 @@ param_list *parse_param_list(parser *p) {
     append_list(paraml_exp->patts, paraml_exp->ident);
 
     while (expect_token(p, TK_COMMA)) {
+        if (!expect_token(p, TK_IDENT))
+            break;
         char *curr_id = strn(p->curr_token->lexeme, p->curr_token->length);
         //pattern * curr_p = parse_pattern(p);
         append_list(paraml_exp->patts, curr_id);
@@ -291,6 +293,7 @@ expr *parse_function_lit(parser *p) {
 }
 
 expr *parse_list_lit(parser *p) {
+    /* pass "[" token */
     next_token(p);
     list_lit *list_exp = make(list_exp, R_SECN);
     list_exp->list_e = parse_expr(p, LOWEST_PREC);
@@ -304,10 +307,15 @@ expr *parse_list_lit(parser *p) {
     }
     list_exp->list_exprs = make(list_exp->list_exprs, R_SECN);
     append_list(list_exp->list_exprs, list_exp->list_e);
+
     while (expect_token(p, TK_COMMA)) {
+        /* to pass Comma Token */
+        next_token(p);
         expr *curr_exp = parse_expr(p, LOWEST_PREC);
-        if (curr_exp == NULL)
-            break;
+        if (curr_exp == NULL) {
+            /*Error */
+            return NULL;
+        }
         append_list(list_exp->list_exprs, curr_exp);
     }
     if (!expect_token(p, TK_RBRACKET)) {
@@ -336,6 +344,7 @@ record_field *parse_record(parser *p) {
         /*error */
         return NULL;
     }
+    /* to pass : token */
     next_token(p);
     rec_f->experssion = parse_expr(p, LOWEST_PREC);
     if (rec_f->experssion == NULL) {
@@ -356,9 +365,11 @@ expr *parse_record_lit(parser *p) {
     record_l->record_fields = make(record_l->record_fields, R_SECN);
     append_list(record_l->record_fields, record_l->record_f);
     while (expect_token(p, TK_COMMA)) {
+        /* no need to pass comma_token cause I use expect_token in parse_record() function */
         record_field *curr_record = parse_record(p);
+        //Erorr
         if (curr_record == NULL)
-            break;
+            return NULL;
         append_list(record_l->record_fields, curr_record);
     }
     if (!expect_token(p, TK_RBRACE)) {
@@ -378,6 +389,7 @@ expr *parse_record_lit(parser *p) {
 
 expr *parse_group_exp(parser *p) {
     group_expr *group_exp = make(group_exp, R_SECN);
+    /* to pass "(" token */
     next_token(p);
     group_exp->group_e = parse_expr(p, GROUP_PREC);
 
@@ -397,6 +409,7 @@ expr *parse_group_exp(parser *p) {
 
 expr *parse_if_exp(parser *p) {
     if_expr *if_exp = make(if_exp, R_SECN);
+    /* to pass  "IF" key word token */
     next_token(p);
     if_exp->if_e = parse_expr(p, LOWEST_PREC);
     if (if_exp->if_e == NULL) {
@@ -407,9 +420,13 @@ expr *parse_if_exp(parser *p) {
         /*error*/
         return NULL;
     }
+    /* to pass  "do" key word token */
     next_token(p);
     if_exp->if_p = parse_piece(p);
+
+    /*elif part */
     while (expect_token(p, TK_ELIF)) {
+        /* to pass  "ELIF" key word token */
         next_token(p);
         if_exp->elif_e = parse_expr(p, LOWEST_PREC);
 
@@ -421,10 +438,11 @@ expr *parse_if_exp(parser *p) {
             /*error*/
             return NULL;
         }
+        /* to pass  "do" key word token */
         next_token(p);
         if_exp->elif_p = parse_piece(p);
     }
-
+    /* else part */
     if (expect_token(p, TK_ELSE)) {
         if_exp->else_p = parse_piece(p);
     }
@@ -440,6 +458,7 @@ expr *parse_if_exp(parser *p) {
 
 expr *parse_while_exp(parser *p) {
     while_expr *while_exp = make(while_exp, R_SECN);
+    /* to pass while token */
     next_token(p);
     while_exp->while_e = parse_expr(p, LOWEST_PREC);
     if (while_exp->while_e == NULL) {
@@ -450,6 +469,7 @@ expr *parse_while_exp(parser *p) {
         /*error*/
         return NULL;
     }
+    /* to pass  "do" key word token */
     next_token(p);
     while_exp->while_p = parse_piece(p);
     if (!expect_token(p, TK_END)) {
@@ -477,6 +497,7 @@ expr *parse_for_exp(parser *p) {
         /*error*/
         return NULL;
     }
+    /* to pass  "do" key word token */
     next_token(p);
     for_exp->for_p = parse_piece(p);
 
@@ -486,30 +507,83 @@ expr *parse_for_exp(parser *p) {
     }
     expr *exp = make(exp, R_SECN);
     exp->type = for_expr_type;
-    exp->obj.while_e = for_exp;
+    exp->obj.for_e = for_exp;
     return exp;
+}
+
+match_body *parse_match_body(parser *p) {
+    match_body *m_body = make(m_body, R_SECN);
+    if (!expect_token(p, TK_IDENT)) {
+        /*Error */
+        return NULL;
+    }
+    /*parse pattern */
+    m_body->patt = strn(p->curr_token->lexeme, p->curr_token->length);
+    if (!expect_token(p, TK_DASH_GT)) {
+        /* Error */
+        return NULL;
+    }
+    if (expect_token(p, TK_DO)) {
+        next_token(p);
+        m_body->type = piece_body_type;
+        m_body->obj.piece = parse_piece(p);
+        if (m_body->obj.piece == NULL) {
+            /* Error */
+            return NULL;
+        }
+        if (!expect_token(p, TK_END)) {
+            /*error */
+            return NULL;
+        }
+
+    } else {
+        next_token(p);
+        m_body->type = expr_body_type;
+        m_body->obj.expr = parse_expr(p, LOWEST_PREC);
+        if (m_body->obj.expr == NULL) {
+            /* Error */
+            return NULL;
+        }
+    }
+    return m_body;
 }
 
 expr *parse_match_exp(parser *p) {
     match_expr *match_exp = make(match_exp, R_SECN);
     next_token(p);
     match_exp->match_e = parse_expr(p, LOWEST_PREC);
+    if (match_exp->match_e == NULL) {
+        /* error */
+        return NULL;
+    }
     if (!expect_token(p, TK_DO)) {
         /*error*/
         return NULL;
     }
+    /* to pass do token and New line Token  */
+
     next_token(p);
+    while (p->curr_token->type == TK_NL) {
+        next_token(p);
+    }
     match_exp->match_bs = make(match_exp->match_bs, R_SECN);
-    match_b *curr = parse_match_body(p);
-    if (curr == NULL) {
-        /*error */
+
+    while (expect_token(p, TK_CASE)) {
+        match_body *curr = parse_match_body(p);
+        if (curr == NULL) {
+            /*error */
+            return NULL;
+        }
+        append_list(match_exp->match_bs, curr);
+    }
+    if (!expect_token(p, TK_END)) {
+        /*Error */
         return NULL;
     }
-    while (expect_token(p, TK_CASE)) {
-        append_list(match_exp->match_bs, curr);
-        curr = parse_match_body(p);
-    }
-    /* TODO  don't forget skip newlines........... */
+    expr *exp = make(exp, R_SECN);
+    exp->type = match_expr_type;
+    exp->obj.match_e = match_exp;
+    return exp;
 }
 
 prefix_type prefix_of(token_type type) {
@@ -662,6 +736,10 @@ piece *parse_piece(parser *p) {
     prog->stmts = make(prog->stmts, R_SECN);
 
     token *tok = p->curr_token;
+    /* to skip  empty lines in the begin and set current token to real token*/
+    while (p->curr_token->type == TK_NL)
+        next_token(p);
+
     while (tok != NULL && tok->type != TK_EOF) {
         stmt *s = parse_stmt(p);
         if (s != NULL) {

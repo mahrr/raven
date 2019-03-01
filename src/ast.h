@@ -298,18 +298,18 @@ typedef struct {
 } match_expr;
 
 typedef enum {
-    expression_type,
-    piece_type,
+    expr_body_type,
+    piece_body_type,
 } match_body_type;
 
 typedef struct {
     match_body_type type;
-    pattern patt;
+    char* patt;
     union {
         expr *expr;
         piece *piece;
     } obj;
-} match_b;
+} match_body;
 
 /*
 pattern ::= const_pattern
@@ -331,7 +331,8 @@ typedef enum {
     float_patt_type,
     str_patt_type,
     rstr_patt_type,
-    bool_patt_type,
+    true_patt_type,
+    false_patt_type,
     nil_patt_type,
     ident_patt_type,
     list_patt_type,
@@ -345,7 +346,6 @@ typedef struct {
         float_lit *f_val;
         str_lit *s_val;
         rstr_lit *rs_val;
-        bool_lit *b_val; 
         char *ident_n; // ident_pattern
         list_patt *list_pattern;
         record_patt *record_pattern;
