@@ -12,6 +12,11 @@
 #include "parser.h"
 #include "salloc.h"
 
+expr *parse_expr(parser *, precedence);
+
+typedef expr *(*prefix_type)(parser *);
+typedef expr *(*infix_type)(parser *, expr *);
+
 void init_parser(parser *p, token *toks) {
     assert(toks != NULL);
     assert(p != NULL);
@@ -90,10 +95,6 @@ precedence precedenc_of(token_type type) {
     }
 }
 
-expr *parse_expr(parser *, precedence);
-
-typedef expr *(*prefix_type)(parser *);
-typedef expr *(*infix_type)(parser *, expr *);
 /*
 expr * assign_exp (expr * the_exp, expr_type t){
     expr * exp= make(exp,R_SECN);
@@ -629,28 +630,218 @@ prefix_type prefix_of(token_type type) {
             return NULL;
     }
 }
+
+expr *parse_add_infix(parser *p, expr *left) {
+    infix_expr *inf_exp = make(inf_exp, R_SECN);
+    inf_exp->left = left;
+    inf_exp->op = p->curr_token->type;
+    /* to pass "+ - token " */
+    next_token(p);
+    inf_exp->right = parse_expr(p, ADD_PREC);
+    if (inf_exp->right == NULL) {
+        /*Error */
+        return NULL;
+    }
+    expr *exp = make(exp, R_SECN);
+    exp->type = infix_expr_type;
+    exp->obj.ie = inf_exp;
+    return exp;
+}
+expr *parse_muldivmod_infix(parser *p, expr *left) {
+    infix_expr *inf_exp = make(inf_exp, R_SECN);
+    inf_exp->left = left;
+    inf_exp->op = p->curr_token->type;
+    /* to pass "* / % token " */
+    next_token(p);
+    inf_exp->right = parse_expr(p, MULT_PREC);
+    if (inf_exp->right == NULL) {
+        /*Error */
+        return NULL;
+    }
+    expr *exp = make(exp, R_SECN);
+    exp->type = infix_expr_type;
+    exp->obj.ie = inf_exp;
+    return exp;
+}
+
+expr *parse_lcons_infix(parser *p, expr *left) {
+    infix_expr *inf_exp = make(inf_exp, R_SECN);
+    inf_exp->left = left;
+    inf_exp->op = p->curr_token->type;
+    /* to pass "* / % token " */
+    next_token(p);
+    inf_exp->right = parse_expr(p, LCONS_PREC);
+    if (inf_exp->right == NULL) {
+        /*Error */
+        return NULL;
+    }
+    expr *exp = make(exp, R_SECN);
+    exp->type = infix_expr_type;
+    exp->obj.ie = inf_exp;
+    return exp;
+}
+expr *parse_concate_infix(parser *p, expr *left) {
+    infix_expr *inf_exp = make(inf_exp, R_SECN);
+    inf_exp->left = left;
+    inf_exp->op = p->curr_token->type;
+    /* to pass "* / % token " */
+    next_token(p);
+    inf_exp->right = parse_expr(p, CONCATENATION_PREC);
+    if (inf_exp->right == NULL) {
+        /*Error */
+        return NULL;
+    }
+    expr *exp = make(exp, R_SECN);
+    exp->type = infix_expr_type;
+    exp->obj.ie = inf_exp;
+    return exp;
+}
+expr *parse_shift_infix(parser *p, expr *left) {
+    infix_expr *inf_exp = make(inf_exp, R_SECN);
+    inf_exp->left = left;
+    inf_exp->op = p->curr_token->type;
+    /* to pass "* / % token " */
+    next_token(p);
+    inf_exp->right = parse_expr(p, SHIFT_PREC);
+    if (inf_exp->right == NULL) {
+        /*Error */
+        return NULL;
+    }
+    expr *exp = make(exp, R_SECN);
+    exp->type = infix_expr_type;
+    exp->obj.ie = inf_exp;
+    return exp;
+}
+expr * parse_bitw_and_infix (parser *p, expr *left) {
+    infix_expr *inf_exp = make(inf_exp, R_SECN);
+    inf_exp->left = left;
+    inf_exp->op = p->curr_token->type;
+    /* to pass "* / % token " */
+    next_token(p);
+    inf_exp->right = parse_expr(p, BAND_PREC);
+    if (inf_exp->right == NULL) {
+        /*Error */
+        return NULL;
+    }
+    expr *exp = make(exp, R_SECN);
+    exp->type = infix_expr_type;
+    exp->obj.ie = inf_exp;
+    return exp;
+}
+expr *parse_bitw_or_infix (parser *p, expr *left) {
+    infix_expr *inf_exp = make(inf_exp, R_SECN);
+    inf_exp->left = left;
+    inf_exp->op = p->curr_token->type;
+    /* to pass "* / % token " */
+    next_token(p);
+    inf_exp->right = parse_expr(p, BOR_PREC);
+    if (inf_exp->right == NULL) {
+        /*Error */
+        return NULL;
+    }
+    expr *exp = make(exp, R_SECN);
+    exp->type = infix_expr_type;
+    exp->obj.ie = inf_exp;
+    return exp;
+}
+expr *parse_bitw_xor_infix (parser *p, expr *left) {
+    infix_expr *inf_exp = make(inf_exp, R_SECN);
+    inf_exp->left = left;
+    inf_exp->op = p->curr_token->type;
+    /* to pass "* / % token " */
+    next_token(p);
+    inf_exp->right = parse_expr(p, BXOR_PREC);
+    if (inf_exp->right == NULL) {
+        /*Error */
+        return NULL;
+    }
+    expr *exp = make(exp, R_SECN);
+    exp->type = infix_expr_type;
+    exp->obj.ie = inf_exp;
+    return exp;
+}
+expr* parse_comparsion_infix(parser *p, expr *left) {
+    infix_expr *inf_exp = make(inf_exp, R_SECN);
+    inf_exp->left = left;
+    inf_exp->op = p->curr_token->type;
+    /* to pass "* / % token " */
+    next_token(p);
+    inf_exp->right = parse_expr(p, COMPARE_PREC);
+    if (inf_exp->right == NULL) {
+        /*Error */
+        return NULL;
+    }
+    expr *exp = make(exp, R_SECN);
+    exp->type = infix_expr_type;
+    exp->obj.ie = inf_exp;
+    return exp;
+}
+expr* parse_and_infix(parser *p, expr *left) {
+    infix_expr *inf_exp = make(inf_exp, R_SECN);
+    inf_exp->left = left;
+    inf_exp->op = p->curr_token->type;
+    /* to pass "* / % token " */
+    next_token(p);
+    inf_exp->right = parse_expr(p, AND_PREC);
+    if (inf_exp->right == NULL) {
+        /*Error */
+        return NULL;
+    }
+    expr *exp = make(exp, R_SECN);
+    exp->type = infix_expr_type;
+    exp->obj.ie = inf_exp;
+    return exp;
+}
+expr* parse_or_infix(parser *p, expr *left) {
+    infix_expr *inf_exp = make(inf_exp, R_SECN);
+    inf_exp->left = left;
+    inf_exp->op = p->curr_token->type;
+    /* to pass "* / % token " */
+    next_token(p);
+    inf_exp->right = parse_expr(p, OR_PREC);
+    if (inf_exp->right == NULL) {
+        /*Error */
+        return NULL;
+    }
+    expr *exp = make(exp, R_SECN);
+    exp->type = infix_expr_type;
+    exp->obj.ie = inf_exp;
+    return exp;
+}
+
 infix_type infix_of(token_type type) {
     switch (type) {
         case TK_PLUS:
         case TK_MINUS:
+            return parse_add_infix;
         case TK_ASTERISK:
         case TK_SLASH:
         case TK_PERCENT:
+            return parse_muldivmod_infix;
         case TK_AT:
+            return parse_concate_infix;
         case TK_COL_COL:
+             return parse_lcons_infix;
         case TK_GT_GT:
         case TK_LT_LT:
+            return parse_shift_infix;
         case TK_AMPERSAND:
+            return parse_bitw_and_infix;
         case TK_PIPE:
+            return parse_bitw_or_infix;
+        case TK_CARET:
+            return parse_bitw_xor_infix;
         case TK_LT:
         case TK_GT:
         case TK_GT_EQ:
         case TK_LT_EQ:
         case TK_EQ_EQ:
         case TK_BANG_EQ:
+            return parse_comparsion_infix;
         case TK_AND:
+            return parse_and_infix;
         case TK_OR:
-            return parse_infix;
+            return parse_or_infix;
         case TK_DOT:
             return parse_access_exp;
         case TK_LPAREN:
@@ -676,7 +867,7 @@ expr *parse_expr(parser *p, precedence prec) {
     while (!expect_token(p, TK_NL) &&
            !expect_token(p, TK_SEMICOLON) &&
            prec < precedenc_of(p->next_token)) {
-        infix_type inf = infex_of(p->next_token->type);
+        infix_type inf = infix_of(p->next_token->type);
         if (inf == NULL) {
             return left_expr;
         }
