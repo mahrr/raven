@@ -867,15 +867,15 @@ list *parse_list_exp(parser *p) {
 expr *parse_call_exp(parser *p, expr *left) {
     call_expr *call_exp = make(call_exp, R_SECN);
     call_exp->expr = left;
-
+    /*to pass  "(" token */
     next_token(p);
     call_exp->expression_l = parse_list_exp(p);
     if (call_exp->expression_l == NULL) {
         /*Error */
         return NULL;
     }
-    if(!expect_token(p,TK_RPAREN)){
-        /* Error */ 
+    if (!expect_token(p, TK_RPAREN)) {
+        /* Error */
         return NULL;
     }
 
