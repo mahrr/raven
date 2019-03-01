@@ -51,8 +51,9 @@ typedef struct {
 param_list ::= "(" [pattern {, pattern}] ")";
 */
 typedef struct {
-    pattern pattern;
-    list patts;
+   // pattern pattern;
+    char* ident;
+    list* patts;
 } param_list;
 
 typedef struct {
@@ -208,7 +209,8 @@ typedef enum {
     float_lit_type,
     str_lit_type,
     rstr_lit_type,
-    bool_lit_type,
+    true_type,
+    false_type,
     nil_lit_type,
 } lit_type;
 
@@ -222,8 +224,6 @@ typedef struct {
         float_lit *f_val;
         str_lit *s_val;
         rstr_lit *rs_val;
-        bool_lit *b_val; // TRUE | FALSE
-        // nil
     } obj;
 } lit_expr;
 
@@ -246,9 +246,7 @@ typedef struct {
   
 } rstr_lit;
 
-typedef struct {
-    int b;
-} bool_lit;
+
 
 /*
 fn_literal ::=
@@ -281,7 +279,7 @@ typedef struct {
 
 typedef struct {
     char *name;
-    expr *record_e;
+    expr *experssion;
 } record_field;
 
 /*
@@ -343,11 +341,11 @@ typedef enum {
 typedef struct {
     pattern_type type;
     union {
-        int_s *i_val;
-        float_s *f_val;
-        str_s *s_val;
-        rstr_s *rs_val;
-        bool_s *b_val; 
+        int_lit *i_val;
+        float_lit *f_val;
+        str_lit *s_val;
+        rstr_lit *rs_val;
+        bool_lit *b_val; 
         char *ident_n; // ident_pattern
         list_patt *list_pattern;
         record_patt *record_pattern;

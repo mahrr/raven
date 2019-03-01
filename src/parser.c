@@ -167,18 +167,18 @@ expr *parse_int_lit(parser *p) {
 
 expr *parse_float_lit(parser *p) {
     float_lit *float_exp = make(float_exp, R_SECN);
-    char* end = make(end,R_SECN);
+    char *end = make(end, R_SECN);
     char *str_number = strn(p->curr_token->lexeme, p->curr_token->length);
-    
-    float_exp->f = strtod(str_number,end);
 
-      if (*end != NULL) {
+    float_exp->f = strtod(str_number, end);
+
+    if (*end != NULL) {
         //Error
     }
 
     lit_expr *li_exp = make(li_exp, R_SECN);
     li_exp->type = float_lit_type;
-    li_exp->obj.i_val = float_exp;
+    li_exp->obj.f_val = float_exp;
 
     expr *exp = make(exp, R_SECN);
     exp->type = lit_expr_type;
@@ -192,7 +192,7 @@ expr *parse_str_lit(parser *p) {
 
     lit_expr *li_exp = make(li_exp, R_SECN);
     li_exp->type = str_lit_type;
-    li_exp->obj.i_val = str_exp;
+    li_exp->obj.s_val = str_exp;
 
     expr *exp = make(exp, R_SECN);
     exp->type = lit_expr_type;
@@ -206,7 +206,7 @@ expr *parse_rstr_lit(parser *p) {
 
     lit_expr *li_exp = make(li_exp, R_SECN);
     li_exp->type = str_lit_type;
-    li_exp->obj.i_val = rstr_exp;
+    li_exp->obj.rs_val = rstr_exp;
 
     expr *exp = make(exp, R_SECN);
     exp->type = lit_expr_type;
@@ -215,36 +215,303 @@ expr *parse_rstr_lit(parser *p) {
 }
 
 expr *parse_true_lit(parser *p) {
+    lit_expr *li_exp = make(li_exp, R_SECN);
+    li_exp->type = true_type;
+
+    expr *exp = make(exp, R_SECN);
+    exp->type = lit_expr_type;
+    exp->obj.le = li_exp;
+    return exp;
 }
 
 expr *parse_false_lit(parser *p) {
+    lit_expr *li_exp = make(li_exp, R_SECN);
+    li_exp->type = false_type;
+
+    expr *exp = make(exp, R_SECN);
+    exp->type = lit_expr_type;
+    exp->obj.le = li_exp;
+    return exp;
 }
 
-expr *parse_literal_expr(parser *p) {
+expr *parse_nil_lit(parser *p) {
+    lit_expr *li_exp = make(li_exp, R_SECN);
+    li_exp->type = nil_lit_type;
+
+    expr *exp = make(exp, R_SECN);
+    exp->type = lit_expr_type;
+    exp->obj.le = li_exp;
+    return exp;
+}
+
+param_list *parse_param_list(parser *p) {
+    if (!expect_token(p, TK_LPAREN)) {
+        //add Error
+        return NULL;
+    }
+    param_list *paraml_exp = make(paraml_exp, R_SECN);
+    if (expect_token(p, TK_RPAREN)) {
+        return paraml_exp;
+    }
+    paraml_exp->ident = strn(p->curr_token->lexeme, p->curr_token->length);
+    paraml_exp->patts = make(paraml_exp->patts, R_SECN);
+    append_list(paraml_exp->patts, paraml_exp->ident);
+
+    while (expect_token(p, TK_COMMA)) {
+        char *curr_id = strn(p->curr_token->lexeme, p->curr_token->length);
+        //pattern * curr_p = parse_pattern(p);
+        append_list(paraml_exp->patts, curr_id);
+    }
+    if (!expect_token(p, TK_RPAREN)) {
+        /* error */
+        return NULL;
+    }
+    return paraml_exp;
 }
 
 expr *parse_function_lit(parser *p) {
+    fn_lit *fun_exp = make(fun_exp, R_SECN);
+    fun_exp->fn_param_l = parse_param_list(p);
+    next_token(p);
+
+    fun_exp->fn_p = parse_piece(p);
+    if (!expect_token(p, TK_END)) {
+        /*add error */
+        return NULL;
+    }
+
+    lit_expr *li_exp = make(li_exp, R_SECN);
+    li_exp->type = fn_lit_type;
+    li_exp->obj.fn_l = fun_exp;
+
+    expr *exp = make(exp, R_SECN);
+    exp->type = lit_expr_type;
+    exp->obj.le = li_exp;
+    return exp;
 }
 
 expr *parse_list_lit(parser *p) {
+    next_token(p);
+    list_lit *list_exp = make(list_exp, R_SECN);
+    list_exp->list_e = parse_expr(p, LOWEST_PREC);
+    if (list_exp->list_e == NULL) {
+        if (expect_token(p, TK_RBRACKET)) {
+            return list_exp;
+        } else {
+            /*error */
+            return NULL;
+        }
+    }
+    list_exp->list_exprs = make(list_exp->list_exprs, R_SECN);
+    append_list(list_exp->list_exprs, list_exp->list_e);
+    while (expect_token(p, TK_COMMA)) {
+        expr *curr_exp = parse_expr(p, LOWEST_PREC);
+        if (curr_exp == NULL)
+            break;
+        append_list(list_exp->list_exprs, curr_exp);
+    }
+    if (!expect_token(p, TK_RBRACKET)) {
+        /*error */
+        return NULL;
+    }
+
+    lit_expr *li_exp = make(li_exp, R_SECN);
+    li_exp->type = list_lit_type;
+    li_exp->obj.list_l = list_exp;
+
+    expr *exp = make(exp, R_SECN);
+    exp->type = lit_expr_type;
+    exp->obj.le = li_exp;
+    return exp;
+}
+
+record_field *parse_record(parser *p) {
+    record_field *rec_f = make(rec_f, R_SECN);
+    if (!expect_token(p, TK_IDENT)) {
+        /*error */
+        return NULL;
+    }
+    rec_f->name = strn(p->curr_token->lexeme, p->curr_token->length);
+    if (!expect_token(p, TK_COLON)) {
+        /*error */
+        return NULL;
+    }
+    next_token(p);
+    rec_f->experssion = parse_expr(p, LOWEST_PREC);
+    if (rec_f->experssion == NULL) {
+        /* Error */
+        return NULL;
+    }
+    return rec_f;
 }
 
 expr *parse_record_lit(parser *p) {
+    record_lit *record_l = make(record_l, R_SECN);
+    record_l->record_f = parse_record(p);
+    if (record_l->record_f == NULL) {
+        /*error */
+        return NULL;
+    }
+
+    record_l->record_fields = make(record_l->record_fields, R_SECN);
+    append_list(record_l->record_fields, record_l->record_f);
+    while (expect_token(p, TK_COMMA)) {
+        record_field *curr_record = parse_record(p);
+        if (curr_record == NULL)
+            break;
+        append_list(record_l->record_fields, curr_record);
+    }
+    if (!expect_token(p, TK_RBRACE)) {
+        /*error */
+        return NULL;
+    }
+
+    lit_expr *li_exp = make(li_exp, R_SECN);
+    li_exp->type = record_lit_type;
+    li_exp->obj.record_l = record_l;
+
+    expr *exp = make(exp, R_SECN);
+    exp->type = lit_expr_type;
+    exp->obj.le = li_exp;
+    return exp;
 }
 
 expr *parse_group_exp(parser *p) {
+    group_expr *group_exp = make(group_exp, R_SECN);
+    next_token(p);
+    group_exp->group_e = parse_expr(p, GROUP_PREC);
+
+    if (group_exp->group_e == NULL) { /*Error */
+        return NULL;
+    }
+    if (!expect_token(p, TK_RPAREN)) {
+        /* error */
+        return NULL;
+    }
+
+    expr *exp = make(exp, R_SECN);
+    exp->type = group_expr_type;
+    exp->obj.ge = group_exp;
+    return exp;
 }
 
 expr *parse_if_exp(parser *p) {
+    if_expr *if_exp = make(if_exp, R_SECN);
+    next_token(p);
+    if_exp->if_e = parse_expr(p, LOWEST_PREC);
+    if (if_exp->if_e == NULL) {
+        /*Error */
+        return NULL;
+    }
+    if (!expect_token(p, TK_DO)) {
+        /*error*/
+        return NULL;
+    }
+    next_token(p);
+    if_exp->if_p = parse_piece(p);
+    while (expect_token(p, TK_ELIF)) {
+        next_token(p);
+        if_exp->elif_e = parse_expr(p, LOWEST_PREC);
+
+        if (if_exp->elif_e == NULL) {
+            /*Error */
+            return NULL;
+        }
+        if (!expect_token(p, TK_DO)) {
+            /*error*/
+            return NULL;
+        }
+        next_token(p);
+        if_exp->elif_p = parse_piece(p);
+    }
+
+    if (expect_token(p, TK_ELSE)) {
+        if_exp->else_p = parse_piece(p);
+    }
+    if (!expect_token(p, TK_END)) {
+        /* error */
+        return NULL;
+    }
+    expr *exp = make(exp, R_SECN);
+    exp->type = if_expr_type;
+    exp->obj.if_e = if_exp;
+    return exp;
 }
 
 expr *parse_while_exp(parser *p) {
+    while_expr *while_exp = make(while_exp, R_SECN);
+    next_token(p);
+    while_exp->while_e = parse_expr(p, LOWEST_PREC);
+    if (while_exp->while_e == NULL) {
+        /*Error */
+        return NULL;
+    }
+    if (!expect_token(p, TK_DO)) {
+        /*error*/
+        return NULL;
+    }
+    next_token(p);
+    while_exp->while_p = parse_piece(p);
+    if (!expect_token(p, TK_END)) {
+        /* error */
+        return NULL;
+    }
+    expr *exp = make(exp, R_SECN);
+    exp->type = while_expr_type;
+    exp->obj.while_e = while_exp;
+    return exp;
 }
 
 expr *parse_for_exp(parser *p) {
+    for_expr *for_exp = make(for_exp, R_SECN);
+    if (!expect_token(p, TK_IDENT)) {
+        /*error*/
+        return NULL;
+    }
+    for_exp->for_e = parse_expr(p, LOWEST_PREC);
+    if (for_exp->for_e == NULL) {
+        /*Error */
+        return NULL;
+    }
+    if (!expect_token(p, TK_DO)) {
+        /*error*/
+        return NULL;
+    }
+    next_token(p);
+    for_exp->for_p = parse_piece(p);
+
+    if (!expect_token(p, TK_END)) {
+        /* error */
+        return NULL;
+    }
+    expr *exp = make(exp, R_SECN);
+    exp->type = for_expr_type;
+    exp->obj.while_e = for_exp;
+    return exp;
 }
 
 expr *parse_match_exp(parser *p) {
+    match_expr* match_exp= make(match_exp,R_SECN);
+    next_token(p);
+    match_exp->match_e=parse_expr(p,LOWEST_PREC);
+   if (!expect_token(p, TK_DO)) {
+        /*error*/
+        return NULL;
+    }
+    next_token(p);
+    match_exp->match_bs =make(match_exp->match_bs,R_SECN);
+    match_b * curr = parse_match_body(p);
+    if(curr == NULL){
+        /*error */ 
+        return NULL;
+    }
+    while(!expect_token(p,TK_END))
+    {
+        append_list(match_exp->match_bs, curr);
+        curr= parse_match_body(p);       
+    }
+    
+
 }
 
 prefix_type prefix_of(token_type type) {
@@ -268,7 +535,7 @@ prefix_type prefix_of(token_type type) {
         case TK_FALSE:
             return parse_false_lit;
         case TK_NIL:
-            return parse_literal_expr;
+            return parse_nil_lit;
         case TK_FN:
             return parse_function_lit;
         case TK_LBRACKET:
