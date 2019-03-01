@@ -7,6 +7,8 @@
 
 #include <stdint.h>
 #include "list.h"
+typedef struct expr expr;
+typedef struct pattern pattern;
 
 typedef struct {
     list *stmts;
@@ -24,37 +26,26 @@ typedef enum {
     BREAK,
     CONTINUE,
 } fixed_stmt;
-
-typedef struct {
-    stmt_type type;
-    union {
-        let_stmt * ls;
-        fn_stmt *fs;
-        ret_stmt *rs;
-        expr_stmt *es;
-        fixed_stmt *fs;
-    } obj;
-} stmt;
-
 /*
 fn_statement ::=
      "fn" name param_list piece "end";
-*/
-
-typedef struct {
-    char *n_ident;
-    param_list param_list;
-    piece fn_p;
-} fn_stmt;
-
-/*
-param_list ::= "(" [pattern {, pattern}] ")";
 */
 typedef struct {
    // pattern pattern;
     char* ident;
     list* patts;
 } param_list;
+
+typedef struct {
+    char *n_ident;
+    param_list *param_list;
+    piece *fn_p;
+} fn_stmt;
+
+/*
+param_list ::= "(" [pattern {, pattern}] ")";
+*/
+
 
 typedef struct {
     char *ident;
@@ -68,6 +59,21 @@ typedef struct {
 typedef struct {
     expr *expression;
 } expr_stmt;
+
+
+
+
+typedef struct {
+    stmt_type type;
+    union {
+        let_stmt * ls;
+        fn_stmt *fns;
+        ret_stmt *rs;
+        expr_stmt *es;
+        fixed_stmt fs;
+    } obj;
+} stmt;
+
 
 typedef enum {
     lit_expr_type,
@@ -83,24 +89,6 @@ typedef enum {
     match_expr_type,
     ident_expr_type,
 } expr_type;
-
-typedef struct {
-    expr_type type;
-    union {
-        lit_expr *le;
-        prefix_expr* pe;
-        infix_expr *ie;
-        index_expr *index_e;
-        access_expr* as;
-        group_expr *ge;
-        call_expr *ce;
-        if_expr *if_e;
-        for_expr *for_e;
-        while_expr *while_e;
-        match_expr *match_e;
-        char *ident_n;
-    } obj;
-} expr;
 
 typedef struct {
     expr *expression;
@@ -143,15 +131,17 @@ typedef struct {
 call_expression ::= 
     expression "(" expr_list ")";
 */
+
+typedef struct {
+    expr *expression;
+    list *exprs;
+} expr_list;
+
 typedef struct {
     expr *expr;
     expr_list *expression_l;
 } call_expr;
 
-typedef struct {
-    expr *expression;
-    list exprs;
-} expr_list;
 
 /*
 if_expression ::=
@@ -162,7 +152,7 @@ if_expression ::=
 typedef struct {
     expr *if_e;
     piece *if_p;
-    list *elif_e; 
+    expr *elif_e; 
     piece *elif_p;
     piece *else_p;
 } if_expr;
@@ -186,7 +176,6 @@ typedef struct {
     expr *while_e;
     piece *while_p;
 } while_expr;
-
 /*
 match_expression ::= 
     "match" expression "do" 
@@ -198,7 +187,7 @@ match_expression ::=
 */
 typedef struct {
     expr *match_e;
-    list *match_l; 
+    list *match_bs; 
 } match_expr;
 
 typedef enum {
@@ -213,20 +202,6 @@ typedef enum {
     false_type,
     nil_lit_type,
 } lit_type;
-
-typedef struct {
-    lit_type type;
-    union {
-        fn_lit *fn_l;
-        list_lit *list_l;
-        record_lit *record_l;
-        int_lit *i_val;
-        float_lit *f_val;
-        str_lit *s_val;
-        rstr_lit *rs_val;
-    } obj;
-} lit_expr;
-
 
 typedef struct {
     int64_t i;
@@ -245,8 +220,6 @@ typedef struct {
     char *s;
   
 } rstr_lit;
-
-
 
 /*
 fn_literal ::=
@@ -272,15 +245,50 @@ record_literal ::=
 record_field ::=
     name ":" expression;
 */
+
+
+typedef struct {
+    char *name;
+    expr *experssion;
+} record_field;
+
 typedef struct {
     record_field *record_f;
     list *record_fields;
 } record_lit;
 
 typedef struct {
-    char *name;
-    expr *experssion;
-} record_field;
+    lit_type type;
+    union {
+        fn_lit *fn_l;
+        list_lit *list_l;
+        record_lit *record_l;
+        int_lit *i_val;
+        float_lit *f_val;
+        str_lit *s_val;
+        rstr_lit *rs_val;
+    } obj;
+} lit_expr;
+
+
+ struct expr {
+    expr_type type;
+    union {
+        lit_expr *le;
+        prefix_expr* pe;
+        infix_expr *ie;
+        index_expr *index_e;
+        access_expr* as;
+        group_expr *ge;
+        call_expr *ce;
+        if_expr *if_e;
+        for_expr *for_e;
+        while_expr *while_e;
+        match_expr *match_e;
+        char *ident_n;
+    } obj;
+} ;
+
 
 /*
 match_expression ::= 
@@ -292,10 +300,7 @@ match_expression ::=
    "end";
 */
 
-typedef struct {
-    expr *match_e;
-    list *match_bs; 
-} match_expr;
+
 
 typedef enum {
     expr_body_type,
@@ -339,24 +344,22 @@ typedef enum {
     record_patt_type,
 } pattern_type;
 
-typedef struct {
-    pattern_type type;
-    union {
-        int_lit *i_val;
-        float_lit *f_val;
-        str_lit *s_val;
-        rstr_lit *rs_val;
-        char *ident_n; // ident_pattern
-        list_patt *list_pattern;
-        record_patt *record_pattern;
-    } obj;
-} pattern;
-
 /*
 list_pattern ::= "[" [pattern {, pattern}] "]"
                | pattern "::" pattern;
 */
 // TODO check: | pattern "::" pattern;
+
+typedef struct {
+    pattern *outer_p;
+    pattern *inner_p;
+} list_pattern_scope;
+
+typedef struct {
+    pattern *p;
+    list *patts;
+} list_patt_bruckt;
+
 typedef enum {
     patt_brucket_type,
     patt_scope_type,
@@ -370,23 +373,9 @@ typedef struct {
     } obj;
 } list_patt;
 
-typedef struct {
-    pattern *p;
-    list *patts;
-} list_patt_bruckt;
 
-typedef struct {
-    pattern *outer_p;
-    pattern *inner_p;
-} list_pattern_scope;
-/*
-record_pattern ::= 
-    "{" [pattern_field {, pattern_field}] "}";
-*/
-typedef struct {
-    patt_field *pf;
-    list *p_fields;
-} record_patt;
+
+
 /*
 pattern_field ::= name ":" pattern;
 */
@@ -394,3 +383,28 @@ typedef struct {
     char *name;
     pattern *p;
 } patt_field;
+/*
+record_pattern ::= 
+    "{" [pattern_field {, pattern_field}] "}";
+*/
+
+typedef struct {
+    patt_field *pf;
+    list *p_fields;
+} record_patt;
+
+
+ struct pattern {
+    pattern_type type;
+    union {
+        int_lit *i_val;
+        float_lit *f_val;
+        str_lit *s_val;
+        rstr_lit *rs_val;
+        char *ident_n; // ident_pattern
+        list_patt *list_pattern;
+        record_patt *record_pattern;
+    } obj;
+} ;
+
+

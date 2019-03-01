@@ -2,11 +2,31 @@
  *
  * (parser.c | 27 Feb 19 | Kareem Hamdy)
 */
+
+// for experssions parsing
+typedef enum {
+    LOWEST_PREC,
+    OR_PREC,
+    AND_PREC,
+    EQUALITY_PREC,
+    COMPARE_PREC,
+    BOR_PREC,  //B for Bitwise
+    BXOR_PREC,
+    BAND_PREC,
+    SHIFT_PREC,
+    LCONS_PREC,
+    CONCATENATION_PREC,
+    ADD_PREC,  /* add  muins */
+    MULT_PREC, /*mult  dived mode */
+    PREFIX_PREC,
+    GROUP_PREC /* group and index and access prec*/
+} precedence;
+
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "alloc.h"
-#include "ast.h"
 #include "lexer.h"
 #include "list.h"
 #include "parser.h"
@@ -27,26 +47,7 @@ void init_parser(parser *p, token *toks) {
 }
 
 #define next_token(p) p->curr_token = p->next_token++
-#define expect_token(p, t) p->next_token->type == t ? (next_token(p), 1) : 0
-
-// for experssions parsing
-typedef enum {
-    LOWEST_PREC,
-    OR_PREC,
-    AND_PREC,
-    EQUALITY_PREC,
-    COMPARE_PREC,
-    BOR_PREC,  //B for Bitwise
-    BXOR_PREC,
-    BAND_PREC,
-    SHIFT_PREC,
-    LCONS_PREC,
-    CONCATENATION_PREC,
-    ADD_PREC,  /* add  muins */
-    MULT_PREC, /*mult  dived mode */
-    PREFIX_PREC,
-    GROUP_PREC /* group and index and access prec*/
-} precedence;
+#define expect_token(p, t) (p->next_token->type == t) ? (next_token(p), 1) : 0
 
 precedence precedenc_of(token_type type) {
     switch (type) {
@@ -91,7 +92,7 @@ precedence precedenc_of(token_type type) {
             return GROUP_PREC; /* group and index and access prec*/
 
         default:
-            LOWEST_PREC;
+            return LOWEST_PREC;
     }
 }
 
@@ -135,24 +136,24 @@ expr *parse_int_lit(parser *p) {
             case 'x':
             case 'X':
                 /*hex number */
-                int_exp->i = strtol(str_number, end, 0);
+                int_exp->i = strtol(str_number, &end, 0);
                 break;
             case 'o':
             case 'O':
-                int_exp->i = strtol(str_number + 2, end, 0);
+                int_exp->i = strtol(str_number + 2, &end, 0);
                 break;
             case 'b':
             case 'B':
-                int_exp->i = strtol(str_number + 2, end, 2);
+                int_exp->i = strtol(str_number + 2, &end, 2);
                 break;
             default:
-                int_exp->i = strtol(str_number, end, 10);
+                int_exp->i = strtol(str_number, &end, 10);
         }
     } else {
-        int_exp->i = strtol(str_number, end, 10);
+        int_exp->i = strtol(str_number, &end, 10);
     }
 
-    if (*end != NULL) {
+    if (*end != '\0') {
         /*Error in function "strn" */
     }
 
@@ -171,9 +172,9 @@ expr *parse_float_lit(parser *p) {
     char *end = make(end, R_SECN);
     char *str_number = strn(p->curr_token->lexeme, p->curr_token->length);
 
-    float_exp->f = strtod(str_number, end);
+    float_exp->f = strtod(str_number, &end);
 
-    if (*end != NULL) {
+    if (*end != '\0') {
         /*Error in function strn */
     }
 
@@ -250,31 +251,32 @@ param_list *parse_param_list(parser *p) {
         //add Error
         return NULL;
     }
-    param_list *paraml_exp = make(paraml_exp, R_SECN);
+    param_list *paramter_ls = make(paramter_ls, R_SECN);
     if (expect_token(p, TK_RPAREN)) {
-        return paraml_exp;
+        return paramter_ls;
     }
-    paraml_exp->ident = strn(p->curr_token->lexeme, p->curr_token->length);
-    paraml_exp->patts = make(paraml_exp->patts, R_SECN);
-    append_list(paraml_exp->patts, paraml_exp->ident);
+    paramter_ls->ident = strn(p->curr_token->lexeme, p->curr_token->length);
+    paramter_ls->patts = make(paramter_ls->patts, R_SECN);
+    append_list(paramter_ls->patts, paramter_ls->ident);
 
     while (expect_token(p, TK_COMMA)) {
         if (!expect_token(p, TK_IDENT))
             break;
         char *curr_id = strn(p->curr_token->lexeme, p->curr_token->length);
         //pattern * curr_p = parse_pattern(p);
-        append_list(paraml_exp->patts, curr_id);
+        append_list(paramter_ls->patts, curr_id);
     }
     if (!expect_token(p, TK_RPAREN)) {
         /* error */
         return NULL;
     }
-    return paraml_exp;
+    return paramter_ls;
 }
 
 expr *parse_function_lit(parser *p) {
     fn_lit *fun_exp = make(fun_exp, R_SECN);
     fun_exp->fn_param_l = parse_param_list(p);
+    /*to pass ")" token */
     next_token(p);
 
     fun_exp->fn_p = parse_piece(p);
@@ -300,7 +302,14 @@ expr *parse_list_lit(parser *p) {
     list_exp->list_e = parse_expr(p, LOWEST_PREC);
     if (list_exp->list_e == NULL) {
         if (expect_token(p, TK_RBRACKET)) {
-            return list_exp;
+            lit_expr *li_exp = make(li_exp, R_SECN);
+            li_exp->type = list_lit_type;
+            li_exp->obj.list_l = list_exp;
+
+            expr *exp = make(exp, R_SECN);
+            exp->type = lit_expr_type;
+            exp->obj.le = li_exp;
+            return exp;
         } else {
             /*error */
             return NULL;
@@ -843,14 +852,16 @@ expr *parse_index_exp(parser *p, expr *left) {
     return exp;
 }
 
-list *parse_list_exp(parser *p) {
-    list *l_exp = make(l_exp, R_SECN);
+expr_list *parse_list_exp(parser *p) {
+    expr_list *l_exp = make(l_exp, R_SECN);
     expr *curr = parse_expr(p, LOWEST_PREC);
     if (curr == NULL) {
         /*Error */
         return NULL;
     }
-    append_list(l_exp, curr);
+    l_exp->expression = curr;
+    l_exp->exprs = make(l_exp->exprs, R_SECN);
+    append_list(l_exp->exprs, curr);
     while (expect_token(p, TK_COMMA)) {
         next_token(p);
         curr = parse_expr(p, LOWEST_PREC);
@@ -858,7 +869,7 @@ list *parse_list_exp(parser *p) {
             /*Error */
             return NULL;
         }
-        append_list(l_exp, curr);
+        append_list(l_exp->exprs, curr);
     }
 
     return l_exp;
@@ -942,7 +953,7 @@ expr *parse_expr(parser *p, precedence prec) {
     expr *left_expr = pre(p);
     while (!expect_token(p, TK_NL) &&
            !expect_token(p, TK_SEMICOLON) &&
-           prec < precedenc_of(p->next_token)) {
+           prec < precedenc_of(p->next_token->type)) {
         infix_type inf = infix_of(p->next_token->type);
         if (inf == NULL) {
             return left_expr;
@@ -988,13 +999,102 @@ stmt *parse_let_stmt(parser *p) {
     return s;
 }
 
+stmt *parse_fn_stmt(parser *p) {
+    fn_stmt *fun_s = make(fun_s, R_SECN);
+    if (!expect_token(p, TK_IDENT)) {
+        /*Error */
+        return NULL;
+    }
+    fun_s->n_ident = strn(p->curr_token->lexeme, p->curr_token->length);
+    fun_s->param_list = parse_param_list(p);
+    if (fun_s->param_list == NULL) {
+        /*Erorr*/
+        return NULL;
+    }
+    /*to pass ")"*/
+    next_token(p);
+    fun_s->fn_p = parse_piece(p);
+    if (fun_s->fn_p == NULL) {
+        /*Erorr*/
+        return NULL;
+    }
+    if (!expect_token(p, TK_END)) {
+        /*Erorr*/
+        return NULL;
+    }
+
+    stmt *s = make(s, R_SECN);
+    s->type = fn_stmt_type;
+    s->obj.fns = fun_s;
+    return s;
+}
+stmt *parse_assgin_stmt(parser *p) {
+    return NULL;
+}
+stmt *parse_break_stmt(parser *p) {
+    stmt *s = make(s, R_SECN);
+    s->type = fixed_stmt_type;
+    s->obj.fs = p->curr_token->type;
+    return s;
+}
+stmt *parse_continue_stmt(parser *p) {
+    stmt *s = make(s, R_SECN);
+    s->type = fixed_stmt_type;
+    s->obj.fs = p->curr_token->type;
+    return s;
+}
+stmt *parse_expr_stmt(parser *p) {
+    expr_stmt *exp_s = make(exp_s, R_SECN);
+    exp_s->expression = parse_expr(p, LOWEST_PREC);
+    if (exp_s->expression == NULL) {
+        /*error*/
+        return NULL;
+    }
+    if (!expect_token(p, TK_SEMICOLON) || !expect_token(p, TK_NL)) {
+        /*error*/
+        return NULL;
+    }
+
+    stmt *s = make(s, R_SECN);
+    s->type = expr_stmt_type;
+    s->obj.es = exp_s;
+    return s;
+}
+stmt *parse_return_stmt(parser *p) {
+    ret_stmt *r_s = make(r_s, R_SECN);
+    next_token(p);
+    r_s->expression = parse_expr(p, LOWEST_PREC);
+
+    if (r_s->expression == NULL) {
+        /*error*/
+        return NULL;
+    }
+    if (!expect_token(p, TK_SEMICOLON) || !expect_token(p, TK_NL)) {
+        /*error*/
+        return NULL;
+    }
+
+    stmt *s = make(s, R_SECN);
+    s->type = ret_stmt_type;
+    s->obj.rs = r_s;
+    return s;
+}
 stmt *parse_stmt(parser *p) {
     switch (p->curr_token->type) {
         case TK_LET:
             return parse_let_stmt(p);
-
+        case TK_FN:
+            return parse_fn_stmt(p);
+        case TK_IDENT:
+            return parse_assgin_stmt(p);
+        case TK_BREAK:
+            return parse_break_stmt(p);
+        case TK_CONTINUE:
+            return parse_continue_stmt(p);
+        case TK_RETURN:
+            return parse_return_stmt(p);
         default:
-            break;
+            return parse_expr_stmt(p);
     }
 }
 
