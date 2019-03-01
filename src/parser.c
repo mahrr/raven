@@ -545,6 +545,7 @@ match_body *parse_match_body(parser *p) {
             return NULL;
         }
     }
+    return m_body;
 }
 
 expr *parse_match_exp(parser *p) {
