@@ -491,27 +491,25 @@ expr *parse_for_exp(parser *p) {
 }
 
 expr *parse_match_exp(parser *p) {
-    match_expr* match_exp= make(match_exp,R_SECN);
+    match_expr *match_exp = make(match_exp, R_SECN);
     next_token(p);
-    match_exp->match_e=parse_expr(p,LOWEST_PREC);
-   if (!expect_token(p, TK_DO)) {
+    match_exp->match_e = parse_expr(p, LOWEST_PREC);
+    if (!expect_token(p, TK_DO)) {
         /*error*/
         return NULL;
     }
     next_token(p);
-    match_exp->match_bs =make(match_exp->match_bs,R_SECN);
-    match_b * curr = parse_match_body(p);
-    if(curr == NULL){
-        /*error */ 
+    match_exp->match_bs = make(match_exp->match_bs, R_SECN);
+    match_b *curr = parse_match_body(p);
+    if (curr == NULL) {
+        /*error */
         return NULL;
     }
-    while(!expect_token(p,TK_END))
-    {
+    while (expect_token(p, TK_CASE)) {
         append_list(match_exp->match_bs, curr);
-        curr= parse_match_body(p);       
+        curr = parse_match_body(p);
     }
-    
-
+    /* TODO  don't forget skip newlines........... */
 }
 
 prefix_type prefix_of(token_type type) {
