@@ -15,8 +15,6 @@ ret_statement ::= "return" expression delimiter;
 decl_statement ::= let_statement
                  | fn_statement;
 
-assign_statement ::= name_expr "=" expression delimiter;
-
 expr_statement ::= expression delimiter;
 
 fixed_statement ::= "break" | "continue";
@@ -24,10 +22,6 @@ fixed_statement ::= "break" | "continue";
 let_statement ::= "let" pattern "=" expression delimiter;
 
 fn_statement ::= "fn" name param_list piece "end";
-
-name_expr ::= name
-            | expression "[" expression "]"
-            | expression "." name;
 
 param_list ::= "(" [pattern {, pattern}] ")";
 
@@ -113,7 +107,7 @@ pattern_field ::= name ":" pattern;
 
 prefix_op ::= "-" | "~" | "not";
 
-infix_op ::= "." | "+" | "-" | "*" | "/" | "%" | ".." | "@"
+infix_op ::= "." | "+" | "-" | "*" | "/" | "%" | "@" | "="
            | "::" | "<<" | ">>" | "&" | "^" | "|" | "<" 
            | ">" | "<=" | ">=" | "==" | "!=" | "and" | "or";
 

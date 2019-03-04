@@ -155,13 +155,14 @@ not - ~   | Not, Negate, Complement | right
 == !=     | Equality                | left
 and       | Logical AND             | left
 or        | Logical OR              | left
+=         | Assign                  | right
 
 <br>
 
 ## Delimiters
 
 ```
-do end = -> ( ) [ ] { } ; ,
+do end = -> ( ) [ ] { } ; , NL
 ```
 
-Usually newlines could be used as expression delimiters, but you can also use semicolons to seperate expression on the same line.
+Usually newlines could be used as statements delimiters, but you can also use semicolons to seperate statements on the same line.
