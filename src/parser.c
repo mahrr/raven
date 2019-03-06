@@ -6,6 +6,7 @@
 // for experssions parsing
 typedef enum {
     LOWEST_PREC,
+    ASSING_PREC,
     OR_PREC,
     AND_PREC,
     EQUALITY_PREC,
@@ -51,6 +52,8 @@ void init_parser(parser *p, token *toks) {
 
 precedence precedenc_of(token_type type) {
     switch (type) {
+        case TK_EQ:
+            return ASSING_PREC ;
         case TK_OR:
             return OR_PREC;
         case TK_AND:
@@ -639,6 +642,22 @@ prefix_type prefix_of(token_type type) {
             return NULL;
     }
 }
+expr * parse_assign_infix(parser *p, expr *left){
+     infix_expr *inf_exp = make(inf_exp, R_SECN);
+    inf_exp->left = left;
+    inf_exp->op = p->curr_token->type;
+    /* to pass "+ - token " */
+    next_token(p);
+    inf_exp->right = parse_expr(p, ASSING_PREC);
+    if (inf_exp->right == NULL) {
+        /*Error */
+        return NULL;
+    }
+    expr *exp = make(exp, R_SECN);
+    exp->type = infix_expr_type;
+    exp->obj.ie = inf_exp;
+    return exp;
+}
 
 expr *parse_add_infix(parser *p, expr *left) {
     infix_expr *inf_exp = make(inf_exp, R_SECN);
@@ -898,6 +917,9 @@ expr *parse_call_exp(parser *p, expr *left) {
 
 infix_type infix_of(token_type type) {
     switch (type) {
+
+        case TK_EQ:
+            return parse_assign_infix;
         case TK_PLUS:
         case TK_MINUS:
             return parse_add_infix;
