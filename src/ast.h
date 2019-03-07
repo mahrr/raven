@@ -274,13 +274,13 @@ typedef struct {
  struct expr {
     expr_type type;
     union {
-        lit_expr *le;
-        prefix_expr* pe;
-        infix_expr *ie;
+        lit_expr *lit_e;
+        prefix_expr* pre_e;
+        infix_expr *inf_e;
         index_expr *index_e;
-        access_expr* as;
-        group_expr *ge;
-        call_expr *ce;
+        access_expr* access_e;
+        group_expr *group_e;
+        call_expr *call_e;
         if_expr *if_e;
         for_expr *for_e;
         while_expr *while_e;

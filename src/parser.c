@@ -3,6 +3,8 @@
  * (parser.c | 27 Feb 19 | Kareem Hamdy)
 */
 
+/* TODO check the strn cases */ 
+
 // for experssions parsing
 typedef enum {
     LOWEST_PREC,
@@ -36,7 +38,7 @@ typedef enum {
 expr *parse_expr(parser *, precedence);
 
 typedef expr *(*prefix_type)(parser *);
-typedef expr *(*infix_type)(parser *, expr *);
+typedef expr *(*infix_type)(parser *, expr *, precedence);
 
 void init_parser(parser *p, token *toks) {
     assert(toks != NULL);
@@ -53,7 +55,7 @@ void init_parser(parser *p, token *toks) {
 precedence precedenc_of(token_type type) {
     switch (type) {
         case TK_EQ:
-            return ASSING_PREC ;
+            return ASSING_PREC;
         case TK_OR:
             return OR_PREC;
         case TK_AND:
@@ -116,7 +118,7 @@ expr *parse_prefix_expr(parser *p) {
     /* assgin to big exp */
     expr *exp = make(exp, R_SECN);
     exp->type = infix_expr_type;
-    exp->obj.pe = pre_exp;
+    exp->obj.pre_e = pre_exp;
     return exp;
 }
 
@@ -130,7 +132,7 @@ expr *parse_ident_expr(parser *p) {
 
 expr *parse_int_lit(parser *p) {
     int_lit *int_exp = make(int_exp, R_SECN);
-    char *str_number = strn(p->curr_token->lexeme, p->curr_token->length);
+    char *str_number = p->curr_token->lexeme;
 
     char *end = make(end, R_SECN);
 
@@ -143,7 +145,7 @@ expr *parse_int_lit(parser *p) {
                 break;
             case 'o':
             case 'O':
-                int_exp->i = strtol(str_number + 2, &end, 0);
+                int_exp->i = strtol(str_number + 2, &end, 8);
                 break;
             case 'b':
             case 'B':
@@ -166,14 +168,14 @@ expr *parse_int_lit(parser *p) {
 
     expr *exp = make(exp, R_SECN);
     exp->type = lit_expr_type;
-    exp->obj.le = li_exp;
+    exp->obj.lit_e = li_exp;
     return exp;
 }
 
 expr *parse_float_lit(parser *p) {
     float_lit *float_exp = make(float_exp, R_SECN);
     char *end = make(end, R_SECN);
-    char *str_number = strn(p->curr_token->lexeme, p->curr_token->length);
+    char *str_number = p->curr_token->lexeme;
 
     float_exp->f = strtod(str_number, &end);
 
@@ -187,7 +189,7 @@ expr *parse_float_lit(parser *p) {
 
     expr *exp = make(exp, R_SECN);
     exp->type = lit_expr_type;
-    exp->obj.le = li_exp;
+    exp->obj.lit_e = li_exp;
     return exp;
 }
 
@@ -201,7 +203,7 @@ expr *parse_str_lit(parser *p) {
 
     expr *exp = make(exp, R_SECN);
     exp->type = lit_expr_type;
-    exp->obj.le = li_exp;
+    exp->obj.lit_e = li_exp;
     return exp;
 }
 
@@ -215,7 +217,7 @@ expr *parse_rstr_lit(parser *p) {
 
     expr *exp = make(exp, R_SECN);
     exp->type = lit_expr_type;
-    exp->obj.le = li_exp;
+    exp->obj.lit_e = li_exp;
     return exp;
 }
 
@@ -225,7 +227,7 @@ expr *parse_true_lit(parser *p) {
 
     expr *exp = make(exp, R_SECN);
     exp->type = lit_expr_type;
-    exp->obj.le = li_exp;
+    exp->obj.lit_e = li_exp;
     return exp;
 }
 
@@ -235,7 +237,7 @@ expr *parse_false_lit(parser *p) {
 
     expr *exp = make(exp, R_SECN);
     exp->type = lit_expr_type;
-    exp->obj.le = li_exp;
+    exp->obj.lit_e = li_exp;
     return exp;
 }
 
@@ -245,7 +247,7 @@ expr *parse_nil_lit(parser *p) {
 
     expr *exp = make(exp, R_SECN);
     exp->type = lit_expr_type;
-    exp->obj.le = li_exp;
+    exp->obj.lit_e = li_exp;
     return exp;
 }
 
@@ -294,7 +296,7 @@ expr *parse_function_lit(parser *p) {
 
     expr *exp = make(exp, R_SECN);
     exp->type = lit_expr_type;
-    exp->obj.le = li_exp;
+    exp->obj.lit_e = li_exp;
     return exp;
 }
 
@@ -311,7 +313,7 @@ expr *parse_list_lit(parser *p) {
 
             expr *exp = make(exp, R_SECN);
             exp->type = lit_expr_type;
-            exp->obj.le = li_exp;
+            exp->obj.lit_e = li_exp;
             return exp;
         } else {
             /*error */
@@ -342,7 +344,7 @@ expr *parse_list_lit(parser *p) {
 
     expr *exp = make(exp, R_SECN);
     exp->type = lit_expr_type;
-    exp->obj.le = li_exp;
+    exp->obj.lit_e = li_exp;
     return exp;
 }
 
@@ -396,7 +398,7 @@ expr *parse_record_lit(parser *p) {
 
     expr *exp = make(exp, R_SECN);
     exp->type = lit_expr_type;
-    exp->obj.le = li_exp;
+    exp->obj.lit_e = li_exp;
     return exp;
 }
 
@@ -416,7 +418,7 @@ expr *parse_group_exp(parser *p) {
 
     expr *exp = make(exp, R_SECN);
     exp->type = group_expr_type;
-    exp->obj.ge = group_exp;
+    exp->obj.group_e = group_exp;
     return exp;
 }
 
@@ -642,202 +644,25 @@ prefix_type prefix_of(token_type type) {
             return NULL;
     }
 }
-expr * parse_assign_infix(parser *p, expr *left){
-     infix_expr *inf_exp = make(inf_exp, R_SECN);
-    inf_exp->left = left;
-    inf_exp->op = p->curr_token->type;
-    /* to pass "+ - token " */
-    next_token(p);
-    inf_exp->right = parse_expr(p, ASSING_PREC);
-    if (inf_exp->right == NULL) {
-        /*Error */
-        return NULL;
-    }
-    expr *exp = make(exp, R_SECN);
-    exp->type = infix_expr_type;
-    exp->obj.ie = inf_exp;
-    return exp;
-}
 
-expr *parse_add_infix(parser *p, expr *left) {
+expr *parse_infix_expr(parser *p, expr *left, precedence prec) {
     infix_expr *inf_exp = make(inf_exp, R_SECN);
     inf_exp->left = left;
     inf_exp->op = p->curr_token->type;
     /* to pass "+ - token " */
     next_token(p);
-    inf_exp->right = parse_expr(p, ADD_PREC);
+    inf_exp->right = parse_expr(p, prec);
     if (inf_exp->right == NULL) {
         /*Error */
         return NULL;
     }
     expr *exp = make(exp, R_SECN);
     exp->type = infix_expr_type;
-    exp->obj.ie = inf_exp;
-    return exp;
-}
-expr *parse_muldivmod_infix(parser *p, expr *left) {
-    infix_expr *inf_exp = make(inf_exp, R_SECN);
-    inf_exp->left = left;
-    inf_exp->op = p->curr_token->type;
-    /* to pass "* / % token " */
-    next_token(p);
-    inf_exp->right = parse_expr(p, MULT_PREC);
-    if (inf_exp->right == NULL) {
-        /*Error */
-        return NULL;
-    }
-    expr *exp = make(exp, R_SECN);
-    exp->type = infix_expr_type;
-    exp->obj.ie = inf_exp;
+    exp->obj.inf_e = inf_exp;
     return exp;
 }
 
-expr *parse_lcons_infix(parser *p, expr *left) {
-    infix_expr *inf_exp = make(inf_exp, R_SECN);
-    inf_exp->left = left;
-    inf_exp->op = p->curr_token->type;
-    /* to pass "* / % token " */
-    next_token(p);
-    inf_exp->right = parse_expr(p, LCONS_PREC);
-    if (inf_exp->right == NULL) {
-        /*Error */
-        return NULL;
-    }
-    expr *exp = make(exp, R_SECN);
-    exp->type = infix_expr_type;
-    exp->obj.ie = inf_exp;
-    return exp;
-}
-expr *parse_concate_infix(parser *p, expr *left) {
-    infix_expr *inf_exp = make(inf_exp, R_SECN);
-    inf_exp->left = left;
-    inf_exp->op = p->curr_token->type;
-    /* to pass "* / % token " */
-    next_token(p);
-    inf_exp->right = parse_expr(p, CONCATENATION_PREC);
-    if (inf_exp->right == NULL) {
-        /*Error */
-        return NULL;
-    }
-    expr *exp = make(exp, R_SECN);
-    exp->type = infix_expr_type;
-    exp->obj.ie = inf_exp;
-    return exp;
-}
-expr *parse_shift_infix(parser *p, expr *left) {
-    infix_expr *inf_exp = make(inf_exp, R_SECN);
-    inf_exp->left = left;
-    inf_exp->op = p->curr_token->type;
-    /* to pass "* / % token " */
-    next_token(p);
-    inf_exp->right = parse_expr(p, SHIFT_PREC);
-    if (inf_exp->right == NULL) {
-        /*Error */
-        return NULL;
-    }
-    expr *exp = make(exp, R_SECN);
-    exp->type = infix_expr_type;
-    exp->obj.ie = inf_exp;
-    return exp;
-}
-expr *parse_bitw_and_infix(parser *p, expr *left) {
-    infix_expr *inf_exp = make(inf_exp, R_SECN);
-    inf_exp->left = left;
-    inf_exp->op = p->curr_token->type;
-    /* to pass "* / % token " */
-    next_token(p);
-    inf_exp->right = parse_expr(p, BAND_PREC);
-    if (inf_exp->right == NULL) {
-        /*Error */
-        return NULL;
-    }
-    expr *exp = make(exp, R_SECN);
-    exp->type = infix_expr_type;
-    exp->obj.ie = inf_exp;
-    return exp;
-}
-expr *parse_bitw_or_infix(parser *p, expr *left) {
-    infix_expr *inf_exp = make(inf_exp, R_SECN);
-    inf_exp->left = left;
-    inf_exp->op = p->curr_token->type;
-    /* to pass "* / % token " */
-    next_token(p);
-    inf_exp->right = parse_expr(p, BOR_PREC);
-    if (inf_exp->right == NULL) {
-        /*Error */
-        return NULL;
-    }
-    expr *exp = make(exp, R_SECN);
-    exp->type = infix_expr_type;
-    exp->obj.ie = inf_exp;
-    return exp;
-}
-expr *parse_bitw_xor_infix(parser *p, expr *left) {
-    infix_expr *inf_exp = make(inf_exp, R_SECN);
-    inf_exp->left = left;
-    inf_exp->op = p->curr_token->type;
-    /* to pass "* / % token " */
-    next_token(p);
-    inf_exp->right = parse_expr(p, BXOR_PREC);
-    if (inf_exp->right == NULL) {
-        /*Error */
-        return NULL;
-    }
-    expr *exp = make(exp, R_SECN);
-    exp->type = infix_expr_type;
-    exp->obj.ie = inf_exp;
-    return exp;
-}
-expr *parse_comparsion_infix(parser *p, expr *left) {
-    infix_expr *inf_exp = make(inf_exp, R_SECN);
-    inf_exp->left = left;
-    inf_exp->op = p->curr_token->type;
-    /* to pass "* / % token " */
-    next_token(p);
-    inf_exp->right = parse_expr(p, COMPARE_PREC);
-    if (inf_exp->right == NULL) {
-        /*Error */
-        return NULL;
-    }
-    expr *exp = make(exp, R_SECN);
-    exp->type = infix_expr_type;
-    exp->obj.ie = inf_exp;
-    return exp;
-}
-expr *parse_and_infix(parser *p, expr *left) {
-    infix_expr *inf_exp = make(inf_exp, R_SECN);
-    inf_exp->left = left;
-    inf_exp->op = p->curr_token->type;
-    /* to pass "* / % token " */
-    next_token(p);
-    inf_exp->right = parse_expr(p, AND_PREC);
-    if (inf_exp->right == NULL) {
-        /*Error */
-        return NULL;
-    }
-    expr *exp = make(exp, R_SECN);
-    exp->type = infix_expr_type;
-    exp->obj.ie = inf_exp;
-    return exp;
-}
-expr *parse_or_infix(parser *p, expr *left) {
-    infix_expr *inf_exp = make(inf_exp, R_SECN);
-    inf_exp->left = left;
-    inf_exp->op = p->curr_token->type;
-    /* to pass "* / % token " */
-    next_token(p);
-    inf_exp->right = parse_expr(p, OR_PREC);
-    if (inf_exp->right == NULL) {
-        /*Error */
-        return NULL;
-    }
-    expr *exp = make(exp, R_SECN);
-    exp->type = infix_expr_type;
-    exp->obj.ie = inf_exp;
-    return exp;
-}
-
-expr *parse_access_exp(parser *p, expr *left) {
+expr *parse_access_exp(parser *p, expr *left,  precedence prec) {
     access_expr *acc_exp = make(acc_exp, R_SECN);
     acc_exp->expression = left;
     if (!expect_token(p, TK_IDENT)) {
@@ -847,16 +672,16 @@ expr *parse_access_exp(parser *p, expr *left) {
     acc_exp->n_ident = strn(p->curr_token->lexeme, p->curr_token->length);
     expr *exp = make(exp, R_SECN);
     exp->type = access_expr_type;
-    exp->obj.as = acc_exp;
+    exp->obj.access_e = acc_exp;
     return exp;
 }
 
-expr *parse_index_exp(parser *p, expr *left) {
+expr *parse_index_exp(parser *p, expr *left, precedence prec) {
     index_expr *index_exp = make(index_exp, R_SECN);
     index_exp->outer_e = left;
     /* to pass "[" token */
     next_token(p);
-    index_exp->inner_e = parse_expr(p, GROUP_PREC);
+    index_exp->inner_e = parse_expr(p, prec);
     if (index_exp->inner_e == NULL) {
         /*Error */
         return NULL;
@@ -894,7 +719,7 @@ expr_list *parse_list_exp(parser *p) {
     return l_exp;
 }
 
-expr *parse_call_exp(parser *p, expr *left) {
+expr *parse_call_exp(parser *p, expr *left,  precedence prec) {
     call_expr *call_exp = make(call_exp, R_SECN);
     call_exp->expr = left;
     /*to pass  "(" token */
@@ -911,46 +736,34 @@ expr *parse_call_exp(parser *p, expr *left) {
 
     expr *exp = make(exp, R_SECN);
     exp->type = call_expr_type;
-    exp->obj.ce = call_exp;
+    exp->obj.call_e = call_exp;
     return exp;
 }
 
 infix_type infix_of(token_type type) {
     switch (type) {
-
         case TK_EQ:
-            return parse_assign_infix;
         case TK_PLUS:
         case TK_MINUS:
-            return parse_add_infix;
         case TK_ASTERISK:
         case TK_SLASH:
         case TK_PERCENT:
-            return parse_muldivmod_infix;
         case TK_AT:
-            return parse_concate_infix;
         case TK_COL_COL:
-            return parse_lcons_infix;
         case TK_GT_GT:
         case TK_LT_LT:
-            return parse_shift_infix;
         case TK_AMPERSAND:
-            return parse_bitw_and_infix;
         case TK_PIPE:
-            return parse_bitw_or_infix;
         case TK_CARET:
-            return parse_bitw_xor_infix;
         case TK_LT:
         case TK_GT:
         case TK_GT_EQ:
         case TK_LT_EQ:
         case TK_EQ_EQ:
         case TK_BANG_EQ:
-            return parse_comparsion_infix;
         case TK_AND:
-            return parse_and_infix;
         case TK_OR:
-            return parse_or_infix;
+            return parse_infix_expr;
         case TK_DOT:
             return parse_access_exp;
         case TK_LPAREN:
@@ -981,7 +794,7 @@ expr *parse_expr(parser *p, precedence prec) {
             return left_expr;
         }
         next_token(p);
-        left_expr = inf(p, left_expr);
+        left_expr = inf(p, left_expr, precedenc_of(p->curr_token->type));
     }
     return left_expr;
 }
