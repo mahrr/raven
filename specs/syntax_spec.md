@@ -85,6 +85,7 @@ record_field ::= name ":" expression;
 
 pattern ::= const_pattern
           | ident_pattern
+          | pair_pattern
           | list_pattern
           | record_pattern;
 
@@ -98,8 +99,9 @@ const_pattern ::= INTEGER
 
 ident_pattern ::= name;
 
-list_pattern ::= "[" [pattern {, pattern}] "]"
-               | pattern "::" pattern;
+list_pattern ::= "[" [pattern {, pattern}] "]";
+
+pair_pattern ::=  pattern "::" pattern;
 
 record_pattern ::= "{" [pattern_field {, pattern_field}] "}";
 
