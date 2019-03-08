@@ -7,6 +7,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <errno.h>
 
 #include "lexer.h"
 #include "alloc.h"
@@ -46,7 +48,8 @@ int main(int argc, char **argv) {
             /* load content file to src */
             char *src = scan_file(argv[i]);
             if (src == NULL)
-                fatal_error(1, "No such file or directory: %s", argv[i]);
+                fatal_error(1, "can't open: '%s' (%s)",
+                            argv[i], strerror(errno));
             
             /* initialize a lexer */
             lexer *lex = make(lex, R_SECN);
