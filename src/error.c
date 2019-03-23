@@ -1,8 +1,8 @@
 /*
- *
- * (lerror.c | 28 Nov 18 | Ahmad Maher)
+ * (error.c | 28 Nov 18 | Ahmad Maher)
  *
  * See error.h for full description.
+ *
 */
 
 /*

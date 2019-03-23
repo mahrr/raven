@@ -37,9 +37,8 @@ char *escape(char *unescaped, char *escaped, int size) {
                 i++; /* consumes 'x' */
 
                 /* terminated before digits*/
-                if (i+2 >= size+1) {
+                if (i+2 >= size+1)
                     return unescaped+i-1;
-                }
                 
                 /* the next two digits */
                 char digits[2];
@@ -50,9 +49,8 @@ char *escape(char *unescaped, char *escaped, int size) {
                 int conv = strtol(digits, e, 16);
 
                 /* invalid two digits */
-                if (*e == digits || *e == digits+1) {
+                if (*e != NULL)
                     return unescaped+i-1;
-                }
 
                 escaped[j] = (char)conv;
                 break;
@@ -62,9 +60,8 @@ char *escape(char *unescaped, char *escaped, int size) {
                 /* \NNN -> three ocatal format */
                 if (isdigit(unescaped[i])) {
                     /* terminated before three digits */
-                    if (i+3 >= size+1) {
+                    if (i+3 >= size+1)
                         return unescaped+i;
-                    }
 
                     char digits[3];
                     digits[0] = unescaped[i++];
@@ -76,16 +73,12 @@ char *escape(char *unescaped, char *escaped, int size) {
                     conv = strtol(digits, e, 8);
 
                     /* invalid three digits octal */
-                    if (*e == digits ||
-                        *e == digits+1 ||
-                        *e == digits+2) {
+                    if (*e != NULL)
                         return unescaped+i-2;
-                    }
 
                     /* the converted number above ASCII limit */
-                    if (conv > 255) {
+                    if (conv > 255)
                         return unescaped+i-2;
-                    }
 
                     escaped[j] = (char)conv;
                     break;

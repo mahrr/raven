@@ -1,8 +1,7 @@
 /*
- *
  * (error.h | 27 Nov 18 | Ahmad Maher)
  *
- * Error reporting facilities.
+ * Error reporting utilities
  *
 */
 

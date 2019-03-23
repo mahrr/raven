@@ -1,5 +1,4 @@
 /*
- *
  * (list.h | 28 Nov 18 | Ahmad Maher)
  *
  * linked list implementation suited for the allocation scheme.

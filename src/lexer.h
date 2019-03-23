@@ -1,7 +1,7 @@
 /*
  * (lexer.h | 22 Nov 18 | Ahmad Maher)
  *
- * l - lexcical analyzer
+ * lexcical analyzer
 */
 
 #ifndef lexer_h
@@ -92,8 +92,5 @@ extern token cons_token(lexer *l);
 
 /* allocate a copy of token struct t on region reg */
 extern token *alloc_token(token t, unsigned reg);
-
-/* print tokens; just for debugging puporse */
-extern void print_token(token *t);
 
 #endif

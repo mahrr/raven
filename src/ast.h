@@ -104,7 +104,7 @@ typedef struct {
 } group_expr;
 
 typedef struct {
-    char *name;
+    expr *func;
     list *exprs;
 } call_expr;
 
@@ -181,7 +181,7 @@ typedef struct {
     lit_type type;
     union {
         fn_lit *fn_l;
-        list *list_l;
+        list_lit *list_l;
         record_lit *record_l;
         int64_t *i_val;
         double *f_val;

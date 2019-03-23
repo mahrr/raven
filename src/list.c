@@ -1,8 +1,6 @@
 /*
- *
  * (list.c | 28 Nov 18 | Ahmad Maher)
  *
- * See list.h for full description.
 */
 
 #include <stdlib.h>

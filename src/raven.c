@@ -1,5 +1,5 @@
 /*
- * (l.c | 28 Nov 18 | Ahmad Maher)
+ * (raven.c | 28 Nov 18 | Ahmad Maher)
  *
  * The main entry for the interpreter.
  *
@@ -13,6 +13,7 @@
 #include "lexer.h"
 #include "alloc.h"
 #include "error.h"
+#include "debug.h"
 
 /* @@ just print tokens for now */
 

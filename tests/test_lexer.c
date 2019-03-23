@@ -1,5 +1,4 @@
 /*
- *
  * (test_lexer.c | 12 Feb 19 | Ahmad Maher)
  * 
  * test for the lexer.
@@ -13,6 +12,7 @@
 #include "../src/alloc.h"
 #include "../src/lexer.h"
 #include "../src/error.h"
+#include "../src/debug.h"
 #include "../src/list.h"
 
 #undef PRINT_TOKENS
