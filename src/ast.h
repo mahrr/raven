@@ -28,11 +28,6 @@ typedef enum {
     fixed_stmt_type
 } stmt_type;
 
-typedef enum {
-    BREAK,
-    CONTINUE,
-} fixed_stmt;
-
 typedef struct {
     char *name;
     list *params;
@@ -40,7 +35,7 @@ typedef struct {
 } fn_stmt;
 
 typedef struct {
-    char *ident;
+    char *name;
     expr *value;
 } let_stmt;
 
@@ -49,17 +44,17 @@ typedef struct {
 } ret_stmt;
 
 typedef struct {
-    expr *value;
+    expr *exp;
 } expr_stmt;
 
 typedef struct {
     stmt_type type;
     union {
-        let_stmt * ls;
+        let_stmt *ls;
         fn_stmt *fns;
         ret_stmt *rs;
         expr_stmt *es;
-        fixed_stmt fs;
+        token_type fs;
     } obj;
 } stmt;
 
@@ -105,7 +100,7 @@ typedef struct {
 
 typedef struct {
     expr *func;
-    list *exprs;
+    list *args;
 } call_expr;
 
 typedef struct {
@@ -158,8 +153,8 @@ typedef enum {
     float_lit_type,
     str_lit_type,
     rstr_lit_type,
-    true_type,
-    false_type,
+    true_lit_type,
+    false_lit_type,
     nil_lit_type,
 } lit_type;
 
@@ -183,9 +178,9 @@ typedef struct {
         fn_lit *fn_l;
         list_lit *list_l;
         record_lit *record_l;
-        int64_t *i_val;
-        double *f_val;
         char *s_val;
+        int64_t i_val;
+        double f_val;
     } obj;
 } lit_expr;
 
@@ -203,7 +198,7 @@ struct expr {
         for_expr *for_e;
         while_expr *while_e;
         match_expr *match_e;
-        char *ident_n;
+        char *ident;
     } obj;
 };
 

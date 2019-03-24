@@ -24,6 +24,7 @@ LEXER_TEST_RELATED = src/alloc.c \
 					src/lexer.c  \
 					src/error.c  \
 					src/list.c   \
+					src/debug.c  \
 					src/strutil.c
 
 # compile the lexer test and run it

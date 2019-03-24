@@ -49,7 +49,7 @@ char *escape(char *unescaped, char *escaped, int size) {
                 int conv = strtol(digits, e, 16);
 
                 /* invalid two digits */
-                if (*e != NULL)
+                if (**e != '\0')
                     return unescaped+i-1;
 
                 escaped[j] = (char)conv;
@@ -73,7 +73,7 @@ char *escape(char *unescaped, char *escaped, int size) {
                     conv = strtol(digits, e, 8);
 
                     /* invalid three digits octal */
-                    if (*e != NULL)
+                    if (**e != '\0')
                         return unescaped+i-2;
 
                     /* the converted number above ASCII limit */
