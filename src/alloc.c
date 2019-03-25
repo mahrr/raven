@@ -36,7 +36,7 @@ static block *freeblocks;
 
 void *alloc(unsigned long n, unsigned reg) {
     assert(n > 0);
-    assert(reg < REG_NUM);
+    assert(reg < 3);
     
     struct block *ap;
 

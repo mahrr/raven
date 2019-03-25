@@ -482,7 +482,7 @@ extern token cons_token(lexer *l) {
     return error_token(msg_UNREC);
 }
 
-extern token *alloc_token(token t, unsigned reg) {
+extern token *alloc_token(token t, Region_N reg) {
     token *tokp = make(tokp, reg);
     tokp->type = t.type;
     tokp->lexeme = t.lexeme;
@@ -495,8 +495,8 @@ extern token *alloc_token(token t, unsigned reg) {
 }
 
 extern token_list *cons_tokens(lexer *l) {
-    list *tokens = NULL;
-    list *error_tokens = NULL;
+    List_T tokens = List_new(R_FIRS);
+    List_T error_tokens = List_new(R_FIRS);
     int been_error = 0;
     
     token curr_tok = cons_token(l);
@@ -504,9 +504,9 @@ extern token_list *cons_tokens(lexer *l) {
         token *tp = alloc_token(curr_tok, R_FIRS);
         if (tp->type == TK_ERR) {
             been_error = 1;
-            error_tokens = append_list(error_tokens, tp);
+            error_tokens = List_append(error_tokens, tp);
         } else {
-            tokens = append_list(tokens, tp);
+            tokens = List_append(tokens, tp);
         }
         curr_tok = cons_token(l);
     }

@@ -7,7 +7,7 @@ CLIBS =
 
 # main
 default:
-	$(CC) $(CFLAGS) $(OUTDIR)/$(TARGET) $(SRCDIR)/*.c $(CLIBS)
+	@$(CC) $(CFLAGS) $(OUTDIR)/$(TARGET) $(SRCDIR)/*.c $(CLIBS)
 
 run:
 	@$(OUTDIR)/$(TARGET)

@@ -296,8 +296,12 @@ void test_file_lexing() {
         E_FTOKEN("`unterminate", 33, "unterminated string") 
     };
 
-    /* NOTE: run the test from the main directory,
-       not from the /bin directory */
+    /* 
+       NOTE: 
+       run the test from the main directory,
+       not from the /bin directory.
+    */
+    
     char *path = "tests/test_lexer.rav";
     char *buf = scan_file(path);
     assert(buf != NULL);
@@ -307,14 +311,14 @@ void test_file_lexing() {
     init_lexer(lex, buf, "test_lexer");
     
     token_list *tok_lst = cons_tokens(lex);
-    list *toks = tok_lst->tokens;
-    list *errs = tok_lst->error_tokens;
+    List_T toks = tok_lst->tokens;
+    List_T errs = tok_lst->error_tokens;
 
     /* there are lexing errors in the test file */
     assert(tok_lst->been_error);
 
     /* assert non-error tokens */
-    token *tok = iter_list(toks);
+    token *tok = List_iter(toks);
     for (int i = 0; tok != NULL; i++) {
 #ifdef PRINT_TOKENS
         print_token(tok);
@@ -322,11 +326,11 @@ void test_file_lexing() {
         puts("");
 #endif
         assert_token((*tok), tok_expected[i]);
-        tok = iter_list(toks);
+        tok = List_iter(toks);
     }
 
     /* assert error tokens */
-    tok = iter_list(errs);
+    tok = List_iter(errs);
     for (int i = 0; tok != NULL; i++) {
 #ifdef PRINT_TOKENS
         print_token(tok);
@@ -334,7 +338,7 @@ void test_file_lexing() {
         puts("");
 #endif
         assert_token((*tok), err_expected[i]);
-        tok = iter_list(errs);
+        tok = List_iter(errs);
     }
 
     puts("file\t\t==> passed");

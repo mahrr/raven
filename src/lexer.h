@@ -7,8 +7,7 @@
 #ifndef lexer_h
 #define lexer_h
 
-#include <stdint.h>
-
+#include "alloc.h"
 #include "list.h"
 
 typedef enum {
@@ -66,9 +65,9 @@ typedef struct {
 } token;
 
 typedef struct {
-    list *tokens;
+    List_T tokens;
     int been_error;
-    list *error_tokens;
+    List_T error_tokens;
 } token_list;
 
 typedef struct {
@@ -91,6 +90,6 @@ extern token_list *cons_tokens(lexer *l);
 extern token cons_token(lexer *l);
 
 /* allocate a copy of token struct t on region reg */
-extern token *alloc_token(token t, unsigned reg);
+extern token *alloc_token(token t, Region_N reg);
 
 #endif

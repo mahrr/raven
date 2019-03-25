@@ -27,19 +27,11 @@
 
 #include <string.h>
 
-#define REG_NUM 3     /* regions number */
-#define R_PERM 0      /* permanent Region */
-#define R_FIRS 1      /* first region */
-#define R_SECN 2      /* secondary region */
-
-#define make(p, reg) (alloc(sizeof *(p), (reg)))
-#define make_init(p, reg) memset(make((p), (reg)), 0, sizeof *(p))
-
-#define roundup(x, n) (((x) + ((n)-1)) & (~((n)-1)))
-
-/* allocate/deallocate region by its identifier reg */
-extern void  *alloc(unsigned long n, unsigned reg);
-extern void dealloc(unsigned reg);
+typedef enum {
+    R_PERM,      /* permanent Region */
+    R_FIRS,      /* first region */
+    R_SECN,      /* secondary region */
+} Region_N;
 
 /* Region is a linked list with large blocks of memory.
    Each block begins with a header defined by (struct block) */
@@ -48,5 +40,16 @@ typedef struct block {
     char *avail;        /* the first free location within the block */
     char *limit;        /* the end of the block */
 } block;
+
+#define make(p, reg) (alloc(sizeof *(p), (reg)))
+#define make_init(p, reg) memset(make((p), (reg)), 0, sizeof *(p))
+
+#define roundup(x, n) (((x) + ((n)-1)) & (~((n)-1)))
+
+/* allocate n bytes on region reg */
+extern void  *alloc(unsigned long n, Region_N reg);
+
+/* dealoocate a region reg */
+extern void dealloc(Region_N reg);
 
 #endif

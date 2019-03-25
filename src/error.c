@@ -5,16 +5,6 @@
  *
 */
 
-/*
- * ::NOTE::
- *
- * I'm keeping the implementation simple for now.
- * It could be improved by printing the source column
- * where the error occur, and point to the start/end
- * of the error. but i will defer that for later.
- *
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>

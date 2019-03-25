@@ -54,7 +54,7 @@ char *tok_types_str[] = {
 };
 
 void print_token(token *t) {
-    printf("[%s @line %ld] %.*s \t(%d) : %s\n",
+    printf("[%s @line %ld] %.*s (%d) : %s\n",
            t->file,
            t->line,
            t->length,
@@ -68,7 +68,7 @@ static int indent_level = -1;
 static char *indent = "  ";
 
 static void print_expr(expr*);
-static void print_exprs(list*);
+static void print_exprs(List_T);
 void print_ast(piece*);
 
 static void parenthesize(char *op, int n, ...) {
@@ -179,13 +179,14 @@ static void print_expr(expr *e) {
     case if_expr_type: {
         if_expr *ie = e->obj.if_e;
         paren_stmts("if", ie->cond, ie->body);
-        
-        list *t = ie->elifs;
-        while (t != NULL) {
-            paren_stmts("elif",
-                        ((elif_branch*)t->obj)->cond,
-                        ((elif_branch*)t->obj)->body);
-            t = t->link;
+
+        if (ie->elifs != NULL) {
+            void *obj;
+            while ((obj = List_iter(ie->elifs)) != NULL) {
+                paren_stmts("elif",
+                            ((elif_branch*)obj)->cond,
+                            ((elif_branch*)obj)->body);
+            }
         }
         
         if (ie->alter != NULL)
@@ -210,11 +211,11 @@ static void print_expr(expr *e) {
     }
 }
 
-static void print_exprs(list *exprs) {
-    while (exprs != NULL) {
+static void print_exprs(List_T exprs) {
+    void *obj;
+    while ((obj = List_iter(exprs)) != NULL) {
         putchar(' ');
-        print_expr(exprs->obj);
-        exprs = exprs->link;
+        print_expr(obj);
     }
 }
 
@@ -255,14 +256,14 @@ static void print_stmt(stmt *s) {
 }
 
 void print_ast(piece *p) {
-    list *t = p->stmts;
+    List_T t = p->stmts;
 
     indent_level++;
-    while (t != NULL) {
+    void *obj;
+    while ((obj = List_iter(t)) != NULL) {
         for (int i = 0; i < indent_level; i++)
             fputs(indent, stdout);
-        print_stmt(t->obj);
-        t = t->link;
+        print_stmt(obj);
     }
     indent_level--;
 }

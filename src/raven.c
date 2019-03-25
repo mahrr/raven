@@ -58,17 +58,17 @@ int main(int argc, char **argv) {
             /*start the lexing */
             token_list *tl = cons_tokens(lex);
             
-            list *toks;
+            List_T toks;
             token *tok;
             if (tl->been_error) {
                 toks = tl->error_tokens;
                 /* iterate over the error tokens list */
-                while ((tok = iter_list(toks)))
+                while ((tok = List_iter(toks)))
                     lex_error(src, tok);
             } else {
                 toks = tl->tokens;
                 /* iterate over the tokens list */
-                while ((tok = iter_list(toks)))
+                while ((tok = List_iter(toks)))
                     print_token(tok);
             }           
         }

@@ -17,7 +17,7 @@ typedef struct expr expr;
 typedef struct patt patt;
 
 typedef struct {
-    list *stmts;
+    List_T stmts;
 } piece;
 
 typedef enum {
@@ -30,7 +30,7 @@ typedef enum {
 
 typedef struct {
     char *name;
-    list *params;
+    List_T params;
     piece *body;
 } fn_stmt;
 
@@ -100,7 +100,7 @@ typedef struct {
 
 typedef struct {
     expr *func;
-    list *args;
+    List_T args;
 } call_expr;
 
 typedef struct {
@@ -111,7 +111,7 @@ typedef struct {
 typedef struct {
     expr *cond;
     piece *body;
-    list *elifs;
+    List_T elifs;
     piece *alter;
 } if_expr;
 
@@ -142,7 +142,7 @@ typedef struct {
 
 typedef struct {
     expr *value;
-    list *branches;
+    List_T branches;
 } match_expr;
 
 typedef enum {
@@ -159,17 +159,17 @@ typedef enum {
 } lit_type;
 
 typedef struct {
-    list *params;
+    List_T params;
     piece *body;
 } fn_lit;
 
 typedef struct {
-    list *exps;
+    List_T exps;
 } list_lit;
 
 typedef struct {
-    list *names;
-    list *values;
+    List_T names;
+    List_T values;
 } record_lit;
 
 typedef struct {
@@ -221,12 +221,12 @@ typedef struct {
 } pair_patt;
 
 typedef struct {
-    list *patts;
+    List_T patts;
 } list_patt;
 
 typedef struct {
-    list *names;
-    list *patts;
+    List_T names;
+    List_T patts;
 } record_patt;
 
 struct patt {
