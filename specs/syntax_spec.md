@@ -3,10 +3,9 @@
 ```EBNF
 program ::= piece;
 
-piece ::= {statement} [return_statment];
+piece ::= {statement} [ret_statment];
 
 statement ::= decl_statement
-            | assign_statement
             | expr_statement
             | fixed_statement;
 
@@ -23,7 +22,7 @@ let_statement ::= "let" pattern "=" expression delimiter;
 
 fn_statement ::= "fn" name param_list piece "end";
 
-param_list ::= "(" [pattern {, pattern}] ")";
+param_list ::= "(" [pattern {"," pattern}] ")";
 
 expression ::= literal_expression
              | prefix_expression
@@ -38,7 +37,7 @@ expression ::= literal_expression
              | match_expression
              | ident_expression;
 
-expr_list ::= expression [{, expression}];
+expr_list ::= [expression {"," expression}];
 
 literal_expression ::= fn_literal
                      | list_literal
@@ -77,9 +76,9 @@ ident_expression ::= name;
 
 fn_literal ::= "fn" "(" param_list ")" piece "end";
 
-list_literal ::= "[" [expression {, expression}] "]";
+list_literal ::= "[" expr_list "]";
 
-record_literal ::= "{" [record_field {, record_field}] "}";
+record_literal ::= "{" [record_field {"," record_field}] "}";
 
 record_field ::= name ":" expression;
 
@@ -99,11 +98,11 @@ const_pattern ::= INTEGER
 
 ident_pattern ::= name;
 
-list_pattern ::= "[" [pattern {, pattern}] "]";
+list_pattern ::= "[" [pattern {"," pattern}] "]";
 
 pair_pattern ::=  pattern "::" pattern;
 
-record_pattern ::= "{" [pattern_field {, pattern_field}] "}";
+record_pattern ::= "{" [pattern_field {"," pattern_field}] "}";
 
 pattern_field ::= name ":" pattern;
 
