@@ -67,19 +67,19 @@ void print_token(token *t) {
 static int indent_level = -1;
 static char *indent = "  ";
 
-static void print_expr(expr*);
+static void print_expr(AST_expr);
 static void print_exprs(List_T);
-void print_ast(piece*);
+void print_ast(AST_piece);
 
 static void parenthesize(char *op, int n, ...) {
     va_list ap;
     va_start(ap, n);
 
     printf("(%s", op);
-    expr *e;
+    AST_expr e;
     for (int i = 0; i < n; i++) {
         putchar(' ');
-        e = va_arg(ap, expr*);
+        e = va_arg(ap, AST_expr);
         print_expr(e);
     }
     printf(")");
@@ -87,7 +87,7 @@ static void parenthesize(char *op, int n, ...) {
     va_end(ap);
 }
 
-static void paren_stmts(char *op, expr *cond, piece *body) {
+static void paren_stmts(char *op, AST_expr cond, AST_piece body) {
     printf("|%s| ", op);
     if (cond != NULL)
         print_expr(cond);
@@ -95,33 +95,33 @@ static void paren_stmts(char *op, expr *cond, piece *body) {
     print_ast(body);
 }
 
-static void print_lit_expr(lit_expr *e) {
+static void print_lit_expr(AST_lit_expr e) {
     switch (e->type) {
-    case int_lit_type:
-        printf("%ld", e->obj.i_val);
+    case INT_LIT:
+        printf("%ld", e->obj.i);
         break;
 
-    case float_lit_type:
-        printf("%lf", e->obj.f_val);
+    case FLOAT_LIT:
+        printf("%Lf", e->obj.f);
         break;
 
-    case str_lit_type:
-        printf("'%s'", e->obj.s_val);
+    case STR_LIT:
+        printf("'%s'", e->obj.s);
         break;
 
-    case rstr_lit_type:
-        printf("`%s`", e->obj.s_val);
+    case RSTR_LIT:
+        printf("`%s`", e->obj.s);
         break;
 
-    case true_lit_type:
+    case TRUE_LIT:
         printf("true");
         break;
 
-    case false_lit_type:
+    case FALSE_LIT:
         printf("false");
         break;
 
-    case nil_lit_type:
+    case NIL_LIT:
         printf("nil");
         break;
 
@@ -130,45 +130,45 @@ static void print_lit_expr(lit_expr *e) {
     }
 }
 
-static void print_expr(expr *e) {
+static void print_expr(AST_expr e) {
     switch (e->type) {
 
-    case lit_expr_type:
-        print_lit_expr(e->obj.lit_e);
+    case LIT_EXPR:
+        print_lit_expr(e->obj.lit);
         break;
 
-    case ident_expr_type:
+    case IDENT_EXPR:
         printf("%s", e->obj.ident);
         break;
 
-    case prefix_expr_type: {
-        prefix_expr *pe = e->obj.pre_e;
+    case PREFIX_EXPR: {
+        AST_prefix_expr pe = e->obj.prefix;
         parenthesize(tok_types_str[pe->op],
                      1, pe->value);
         break;
     }
 
-    case infix_expr_type: {
-        infix_expr *ie = e->obj.inf_e;
+    case INFIX_EXPR: {
+        AST_infix_expr ie = e->obj.infix;
         parenthesize(tok_types_str[ie->op],
                      2, ie->left, ie->right);
         break;
     }
 
-    case index_expr_type: {
-        index_expr *ie = e->obj.index_e;
+    case INDEX_EXPR: {
+        AST_index_expr ie = e->obj.index;
         parenthesize("[]", 2, ie->object, ie->index);
         break;
     }
 
-    case group_expr_type: {
-        group_expr *ge = e->obj.group_e;
+    case GROUP_EXPR: {
+        AST_group_expr ge = e->obj.group;
         parenthesize("GR", 1, ge->exp);
         break;
     }
 
-    case call_expr_type: {
-        call_expr *ce = e->obj.call_e;
+    case CALL_EXPR: {
+        AST_call_expr ce = e->obj.call;
         putchar('(');
         print_expr(ce->func);
         print_exprs(ce->args);
@@ -176,16 +176,16 @@ static void print_expr(expr *e) {
         break;
     }
 
-    case if_expr_type: {
-        if_expr *ie = e->obj.if_e;
+    case IF_EXPR: {
+        AST_if_expr ie = e->obj.if_exp;
         paren_stmts("if", ie->cond, ie->body);
 
         if (ie->elifs != NULL) {
             void *obj;
             while ((obj = List_iter(ie->elifs)) != NULL) {
                 paren_stmts("elif",
-                            ((elif_branch*)obj)->cond,
-                            ((elif_branch*)obj)->body);
+                            ((AST_elif_branch)obj)->cond,
+                            ((AST_elif_branch)obj)->body);
             }
         }
         
@@ -194,14 +194,14 @@ static void print_expr(expr *e) {
         break;
     }
 
-    case for_expr_type: {
-        for_expr *fe = e->obj.for_e;
+    case FOR_EXPR: {
+        AST_for_expr fe = e->obj.for_exp;
         paren_stmts("for in", fe->iter, fe->body);
         break;
     }
 
-    case while_expr_type: {
-        while_expr *we = e->obj.while_e;
+    case WHILE_EXPR: {
+        AST_while_expr we = e->obj.while_exp;
         paren_stmts("while", we->cond, we->body);
         break;
     }
@@ -219,35 +219,35 @@ static void print_exprs(List_T exprs) {
     }
 }
 
-static void print_stmt(stmt *s) {
+static void print_stmt(AST_stmt s) {
     switch (s->type) {
 
-    case let_stmt_type: {
-        let_stmt *l = s->obj.ls;
+    case LET_STMT: {
+        AST_let_stmt l = s->obj.let;
         printf("{let %s ", l->name);
         print_expr(l->value);
         printf("}\n");
         break;
     }
 
-    case ret_stmt_type: {
-        ret_stmt *r = s->obj.rs;
+    case RET_STMT: {
+        AST_ret_stmt r = s->obj.ret;
         printf("{ret ");
-        print_expr(r->retval);
+        print_expr(r->value);
         printf("}\n");
         break;
     }
 
-    case expr_stmt_type: {
-        expr_stmt *e = s->obj.es;
+    case EXPR_STMT: {
+        AST_expr_stmt e = s->obj.expr;
         printf("{");
-        print_expr(e->exp);
+        print_expr(e->expr);
         printf("}\n");
         break;
     }
 
-    case fixed_stmt_type:
-        printf("{%s}\n", tok_types_str[s->obj.fs]);
+    case FIXED_STMT:
+        printf("{%s}\n", tok_types_str[s->obj.fixed]);
 
     default:
         break;
@@ -255,7 +255,7 @@ static void print_stmt(stmt *s) {
     }
 }
 
-void print_ast(piece *p) {
+void print_ast(AST_piece p) {
     List_T t = p->stmts;
 
     indent_level++;
