@@ -42,7 +42,7 @@ expr_list ::= expression [{, expression}];
 
 literal_expression ::= fn_literal
                      | list_literal
-                     | record_literal
+                     | hash_literal
                      | INTEGER
                      | FLOAT
                      | STRING
@@ -79,9 +79,9 @@ fn_literal ::= "fn" "(" param_list ")" piece "end";
 
 list_literal ::= "[" [expression {, expression}] "]";
 
-record_literal ::= "{" [record_field {, record_field}] "}";
+hash_literal ::= "{" [hash_field {, hash_field}] "}";
 
-record_field ::= name ":" expression;
+hash_field ::= name ":" expression;
 
 pattern ::= const_pattern
           | ident_pattern
@@ -101,17 +101,17 @@ ident_pattern ::= name;
 
 list_pattern ::= "[" [pattern {, pattern}] "]";
 
-pair_pattern ::=  pattern "::" pattern;
+pair_pattern ::=  "(" pattern "|" pattern ")";
 
 record_pattern ::= "{" [pattern_field {, pattern_field}] "}";
 
 pattern_field ::= name ":" pattern;
 
-prefix_op ::= "-" | "~" | "not";
+prefix_op ::= "-" | "not";
 
 infix_op ::= "." | "+" | "-" | "*" | "/" | "%" | "@" | "="
-           | "::" | "<<" | ">>" | "&" | "^" | "|" | "<" 
-           | ">" | "<=" | ">=" | "==" | "!=" | "and" | "or";
+           | "|" | "<" | ">" | "<=" | ">=" | "==" | "!=" 
+           | "and" | "or";
 
 name ::= IDENTIFIER;
 

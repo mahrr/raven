@@ -142,15 +142,11 @@ fn for if in let match nil return while true
 Operator | Function    | Associations
 ---------|-------------|-------------
 () [] .   | Group, Index, Access    | left
-not - ~   | Not, Negate, Complement | right
+not -     | Not, Negate             | right
 \* / %    | Multply, Divide, Module | left
 \+ -      | Add, Subtract           | left
 @         | Concatenation           | left
-::        | list Cons               | left
-<< >>     | Left, Right Shift       | left
-&         | Bitwise AND             | left
-^         | Bitwise XOR             | left
-\|        | Bitwise OR              | left
+|         | list Cons               | right
 < > <= >= | Comparsion              | left
 == !=     | Equality                | left
 and       | Logical AND             | left
