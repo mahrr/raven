@@ -12,4 +12,4 @@
 extern void print_token(token*);
 
 /* print (roughly) s-expression representation of an ast */
-extern void print_ast(AST_piece);
+extern void print_piece(AST_piece);
