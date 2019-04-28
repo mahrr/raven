@@ -59,6 +59,22 @@ List_T List_append(List_T l, void *obj) {
     return l;
 }
 
+void *List_curr(List_T l) {
+    assert(l != NULL);
+
+    return l->curr ? l->curr->object : NULL;
+}
+
+void *List_peek(List_T l) {
+    assert(l != NULL);
+
+    Block c = l->curr;
+    Block n;
+    
+    if (c && (n = c->link)) return n->object;
+    return NULL;
+}
+
 void *List_iter(List_T l) {
     assert(l != NULL);
     
