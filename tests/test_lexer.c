@@ -68,7 +68,7 @@ void test_literals(lexer *lex) {
 
     token expected[] = {
         A_TOKEN(TK_STR, "'foo'"),
-        A_TOKEN(TK_RSTR, "`bar`"),
+        A_TOKEN(TK_STR, "`bar`"),
         A_TOKEN(TK_INT, "123"),
         A_TOKEN(TK_INT, "0xA1F"),
         A_TOKEN(TK_INT, "0b101"),
@@ -126,9 +126,8 @@ void test_identifiers(lexer *lex) {
 
 void test_operators(lexer *lex) {
     char input[] = "and or not . @"
-        "+ - * / % ::"
-        "< > == != <= >="
-        "| & ^ ~ >> <<";
+        "+ - * / % |"
+        "< > == != <= >=";
 
     token expected[] = {
         N_TOKEN(TK_AND),
@@ -141,19 +140,13 @@ void test_operators(lexer *lex) {
         N_TOKEN(TK_ASTERISK),
         N_TOKEN(TK_SLASH),
         N_TOKEN(TK_PERCENT),
-        N_TOKEN(TK_COL_COL),
+        N_TOKEN(TK_PIPE),
         N_TOKEN(TK_LT),
         N_TOKEN(TK_GT),
         N_TOKEN(TK_EQ_EQ),
         N_TOKEN(TK_BANG_EQ),
         N_TOKEN(TK_LT_EQ),
-        N_TOKEN(TK_GT_EQ),
-        N_TOKEN(TK_PIPE),
-        N_TOKEN(TK_AMPERSAND),
-        N_TOKEN(TK_CARET),
-        N_TOKEN(TK_TILDE),
-        N_TOKEN(TK_GT_GT),
-        N_TOKEN(TK_LT_LT)
+        N_TOKEN(TK_GT_EQ)
     };
 
     assert_tokens(lex, input, expected, "test");
@@ -200,7 +193,7 @@ void test_escaping(lexer *lex) {
     };
 
     assert_tokens(lex, input, expected, "test");
-    puts("escapingt\t==> passed");
+    puts("escaping\t==> passed");
 }
 
 void test_errors(lexer *lex) {

@@ -160,7 +160,7 @@ static token cons_ident(lexer *l) {
     while (!at_end() && (isalnum(peek_char()) || peek_char() == '_'))
         cons_char();
 
-    /* @@ probably faster than hash table but need to be tested though */
+    /* probably faster than hash table but need to be tested though */
     switch (start_ch) {
     case 'a':
         if (match_keyword("nd"))
@@ -327,7 +327,8 @@ static token cons_str(lexer *l) {
 
     /* calculate the string size making sure that the string
        doesn't terminate on an escaped single or double quotes */
-    while (!at_end() && peek_char() != start_ch && peek_char() != '\n') {
+    while (!at_end() &&
+           peek_char() != start_ch && peek_char() != '\n') {
         if (peek_char() == '\\') {
             cons_char();
             if (peek_char() == '\n')
@@ -377,7 +378,7 @@ token cons_rstr(lexer *l) {
     if (at_end())
         return error_token(msg_UNTER);
 
-    return new_token(TK_RSTR);
+    return new_token(TK_STR);
 }
 
 extern token cons_token(lexer *l) {    
@@ -394,6 +395,8 @@ extern token cons_token(lexer *l) {
     /* one character tokens */
     case '@':
         return empty_token(TK_AT);
+    case '|':
+        return empty_token(TK_PIPE);
     case '+':
         return empty_token(TK_PLUS);
     case '*':
@@ -402,14 +405,6 @@ extern token cons_token(lexer *l) {
         return empty_token(TK_SLASH);
     case '%':
         return empty_token(TK_PERCENT);
-    case '|':
-        return empty_token(TK_PIPE);
-    case '&':
-        return empty_token(TK_AMPERSAND);
-    case '^':
-        return empty_token(TK_CARET);
-    case '~':
-        return empty_token(TK_TILDE);
     case '(':
         return empty_token(TK_LPAREN);
     case ')':
@@ -424,21 +419,21 @@ extern token cons_token(lexer *l) {
         return empty_token(TK_RBRACKET);
     case ',':
         return empty_token(TK_COMMA);
+    case '.':
+        return empty_token(TK_DOT);
+    case ':':
+        return empty_token(TK_COLON);
     case ';':
         return empty_token(TK_SEMICOLON);
         
     /* possible two character tokens */
     case '<':
-        if (match_char('<'))
-            return empty_token(TK_LT_LT);
-        else if (match_char('='))
+        if (match_char('='))
             return empty_token(TK_LT_EQ);
         return empty_token(TK_LT);
         
     case '>':
-        if (match_char('>'))
-            return empty_token(TK_GT_GT);
-        else if (match_char('='))
+        if (match_char('='))
             return empty_token(TK_GT_EQ);
         return empty_token(TK_GT);
 
@@ -451,11 +446,6 @@ extern token cons_token(lexer *l) {
         if (match_char('>'))
             return empty_token(TK_DASH_GT);
         return empty_token(TK_MINUS);
-
-    case ':':
-        if (match_char(':'))
-            return empty_token(TK_COL_COL);
-        return empty_token(TK_COLON);
 
     case '!':
         if (match_char('='))
@@ -475,6 +465,7 @@ extern token cons_token(lexer *l) {
            I will stick with the more technical solution and
            register it in the line '\n' character was found */
         return (token){TK_NL, NULL, 0, l->file_name, l->line-1, NULL};
+        
     case '\0':
     case EOF:
         return empty_token(TK_EOF);
@@ -510,6 +501,9 @@ extern token_list *cons_tokens(lexer *l) {
         }
         curr_tok = cons_token(l);
     }
+    
+    token *eof_tok = alloc_token(curr_tok, R_FIRS);
+    tokens = List_append(tokens, eof_tok);
 
     token_list *tl = make(tl, R_FIRS);
     tl->tokens = tokens;

@@ -33,18 +33,8 @@ typedef enum {
     R_SECN,      /* secondary region */
 } Region_N;
 
-/* Region is a linked list with large blocks of memory.
-   Each block begins with a header defined by (struct block) */
-typedef struct block {
-    struct block *next; /* the next block in the list */
-    char *avail;        /* the first free location within the block */
-    char *limit;        /* the end of the block */
-} block;
-
 #define make(p, reg) (alloc(sizeof *(p), (reg)))
 #define make_init(p, reg) memset(make((p), (reg)), 0, sizeof *(p))
-
-#define roundup(x, n) (((x) + ((n)-1)) & (~((n)-1)))
 
 /* allocate n bytes on region reg */
 extern void  *alloc(unsigned long n, Region_N reg);

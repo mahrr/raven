@@ -16,6 +16,14 @@
 /* strictest alignment type */
 typedef max_align_t align;
 
+/* Region is a linked list with large blocks of memory.
+   Each block begins with a header defined by (struct block) */
+typedef struct block {
+    struct block *next; /* the next block in the list */
+    char *avail;        /* the first free location within the block */
+    char *limit;        /* the end of the block */
+} block;
+
 /* ensures that avail in a property align address */
 typedef union {
     block b;
@@ -29,6 +37,8 @@ static block first[] = { {NULL}, {NULL}, {NULL} },
 /* list of the freed blocks which allocate 
    reuses instead of allocating new blocks */
 static block *freeblocks;
+
+#define roundup(x, n) (((x) + ((n)-1)) & (~((n)-1)))
 
 /* the space allocated with every blocks for future allocation
    besides the n bytes needed */

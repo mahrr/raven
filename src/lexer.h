@@ -13,8 +13,7 @@
 typedef enum {
     /* Literals */
     TK_INT, TK_FLOAT, TK_STR,
-    TK_RSTR, TK_FALSE, TK_TRUE,
-    TK_NIL,
+    TK_FALSE, TK_TRUE, TK_NIL,
 
     /* Keywords */
     TK_FN, TK_RETURN, TK_LET, TK_DO,
@@ -27,7 +26,7 @@ typedef enum {
     
     /* Operators */
     TK_AND, TK_OR, TK_NOT,
-    TK_DOT, TK_AT, TK_COL_COL,
+    TK_DOT, TK_AT, TK_PIPE,
 
     /* Arthimetik Operators */
     TK_PLUS, TK_MINUS, TK_ASTERISK,
@@ -37,10 +36,6 @@ typedef enum {
     TK_LT, TK_GT, TK_EQ_EQ,
     TK_BANG_EQ, TK_LT_EQ,
     TK_GT_EQ,
-
-    /* Logic Operators */
-    TK_PIPE, TK_AMPERSAND, TK_CARET,
-    TK_TILDE, TK_GT_GT, TK_LT_LT,
 
     /* Delimiters */
     TK_LPAREN, TK_RPAREN,
