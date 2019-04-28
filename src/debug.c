@@ -325,7 +325,7 @@ static void print_expr(AST_expr e) {
 
         AST_match_branch branch;
         
-        while (branch = (AST_match_branch)List_iter(match->branches)) {
+        while ((branch = (AST_match_branch)List_iter(match->branches))) {
             indent_level++;
             IDENT();
             printf("#");
