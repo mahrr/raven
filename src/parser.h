@@ -17,7 +17,7 @@
 typedef struct Parser *Parser;
 
 /* allocate a new parser on reg region with tokens list */
-extern Parser parser_new(List_T tokens, Region_N reg);
+extern Parser parser_new(List tokens, Region_N reg);
 
 /* predicate for parse error ocurrence */
 extern int parser_error(Parser p);

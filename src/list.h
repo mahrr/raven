@@ -10,8 +10,8 @@
 #ifndef list_h
 #define list_h
 
-typedef struct List_T *List_T;
-#define T List_T
+typedef struct List *List;
+#define T List
 
 /* 
    NOTE:
@@ -48,7 +48,7 @@ extern long List_len(T l);
 
 /* convert a list to an continuation vector allocated on
    region reg with terminated null. */
-extern void *List_to_vec(T l, Region_N reg);
+extern void *Listo_vec(T l, Region_N reg);
 
 #undef T
 #endif

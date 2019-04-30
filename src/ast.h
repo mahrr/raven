@@ -49,6 +49,7 @@ typedef enum {
     NIL_CPATT,
     PAIR_PATT,
     HASH_PATT,
+    RSTR_CPATT,
     STR_CPATT,
     TRUE_CPATT
 } Patt_VT;
@@ -62,6 +63,7 @@ typedef enum {
     INT_LIT,
     LIST_LIT,
     NIL_LIT,
+    RSTR_LIT,
     STR_LIT,
     TRUE_LIT
 } Lit_expr_VT;
@@ -120,7 +122,7 @@ typedef struct AST_list_patt  *AST_list_patt;
 
 /* main nodes (stmt, expr, patt) */
 struct AST_piece {
-    List_T stmts;
+    List stmts;
 };
 
 struct AST_stmt {
@@ -130,7 +132,7 @@ struct AST_stmt {
         AST_fn_stmt fn;
         AST_let_stmt let;
         AST_ret_stmt ret;
-        token_type fixed;  /* fixed statements */
+        TK_type fixed;  /* fixed statements */
     } obj;
 };
 
@@ -173,7 +175,7 @@ struct AST_expr_stmt {
 
 struct AST_fn_stmt {
     char *name;
-    List_T params;  /* of AST_patt */
+    List params;  /* of AST_patt */
     AST_piece body;
 };
 
@@ -198,14 +200,14 @@ struct AST_assign_expr {
 };
 
 struct AST_binary_expr {
-    token_type op;
+    TK_type op;
     AST_expr left;
     AST_expr right;
 };
 
 struct AST_call_expr {
     AST_expr func;
-    List_T args;
+    List args;
 };
 
 struct AST_for_expr {
@@ -226,7 +228,7 @@ struct AST_elif_branch {
 struct AST_if_expr {
     AST_expr cond;
     AST_piece then;
-    List_T elifs;    /* of AST_elif_branch */
+    List elifs;    /* of AST_elif_branch */
     AST_piece alter;
 };
 
@@ -258,11 +260,11 @@ struct AST_match_branch {
 
 struct AST_match_expr {
     AST_expr value;
-    List_T branches; /* of AST_match_branch */
+    List branches; /* of AST_match_branch */
 };
 
 struct AST_unary_expr {
-    token_type op;
+    TK_type op;
     AST_expr operand;
 };
 
@@ -273,27 +275,27 @@ struct AST_while_expr {
 
 /* literal expressions sub nodes */
 struct AST_fn_lit {
-    List_T params; /* of AST_patt */
+    List params; /* of AST_patt */
     AST_piece body;
 };
 
 struct AST_hash_lit {
-    List_T names;  /* of (char*) */
-    List_T values; /* of AST_expr */
+    List names;  /* of (char*) */
+    List values; /* of AST_expr */
 };
 
 struct AST_list_lit {
-    List_T values;   /* of AST_expr */
+    List values;   /* of AST_expr */
 };
 
 /* patterns sub nodes */
 struct AST_hash_patt {
-    List_T names;  /* of (char*) */
-    List_T patts;  /* pf AST_patt */
+    List names;  /* of (char*) */
+    List patts;  /* pf AST_patt */
 };
 
 struct AST_list_patt {
-    List_T patts;  /* of AST_patt */
+    List patts;  /* of AST_patt */
 };
 
 struct AST_pair_patt {

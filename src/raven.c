@@ -21,22 +21,21 @@
 
 void repl() {
     char buf[MAX_LINE];
-    token tok;
-    lexer *lex = make(lex, R_FIRS);
-    
+    Lexer l = lexer_new("", "", R_FIRS);
+
     for (;;) {
         fputs("#> ", stdout);
         fgets(buf, MAX_LINE, stdin);
-        init_lexer(lex, buf, "stdin");
-        
-        tok = cons_token(lex);
-        while (tok.type != TK_EOF) {
-            
-            if (tok.type == TK_ERR)
-                lex_error(buf, &tok);
+
+        init_lexer(l, buf, "stdin");
+        Token tok = cons_token(l);
+
+        while (tok->type != TK_EOF) {
+            if (tok->type == TK_ERR)
+                lex_error(buf, tok);
             else
-                print_token(&tok);
-            tok = cons_token(lex);
+                print_token(tok);
+            tok = cons_token(l);
         }
     }
 }
@@ -53,22 +52,22 @@ int main(int argc, char **argv) {
                             argv[i], strerror(errno));
             
             /* initialize a lexer */
-            lexer *lex = make(lex, R_SECN);
-            init_lexer(lex, src, argv[i]);
+            Lexer lex = lexer_new(src, argv[i], R_FIRS);
+
             /*start the lexing */
-            token_list *tl = cons_tokens(lex);
+            List tokens = cons_tokens(lex);
             
-            List_T toks;
-            token *tok;
-            if (tl->been_error) {
-                toks = tl->error_tokens;
+            /* check for error */
+            if (tokens == NULL) {
+                List errors = lexer_errors(lex);
+                Token error;
                 /* iterate over the error tokens list */
-                while ((tok = List_iter(toks)))
-                    lex_error(src, tok);
+                while ((error = List_iter(errors)))
+                    lex_error(src, error);
             } else {
-                toks = tl->tokens;
+                Token tok;
                 /* iterate over the tokens list */
-                while ((tok = List_iter(toks)))
+                while ((tok = List_iter(tokens)))
                     print_token(tok);
             }           
         }

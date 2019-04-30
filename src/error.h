@@ -12,7 +12,8 @@
 
 /* reports internal fatal errors */
 extern void fatal_error(int status, const char *msg, ...);
+
 /* reports errors occurs at lexing phase */
-extern void lex_error(char *src, token *tok);
+extern void lex_error(char *src, Token tok);
 
 #endif

@@ -13,7 +13,7 @@
 /* string representation of each token type */
 char *tok_types_str[] = {
     /* Literals */
-    "INT", "FLOAT", "STR",
+    "INT", "FLOAT", "STR", "RSTR",
     "FALSE", "TRUE", "NIL",
     
     /* Keywords */
@@ -48,12 +48,12 @@ char *tok_types_str[] = {
     "ERR", "EOF",
 };
 
-void print_token(token *t) {
+void print_token(Token t) {
     printf("[%s @line %ld] %.*s (%d) : %s\n",
            t->file,
            t->line,
            t->length,
-           t->lexeme == NULL ? "\t" : t->lexeme,
+           t->lexeme,
            t->length,
            tok_types_str[t->type]);
 }
@@ -65,14 +65,14 @@ static char *indent = "  ";
 /* buffer for some strings concatenation */
 static char buff[128];
 
-#define IDENT()                             \
-    for (int i = 0; i < indent_level; i++)  \
+#define INDENT()                             \
+    for (int i = 0; i < indent_level; i++)   \
         fputs(indent, stdout);
 
 static void print_expr(AST_expr);
-static void print_exprs(List_T);
+static void print_exprs(List);
 static void print_patt(AST_patt);
-static void print_patts(List_T);
+static void print_patts(List);
 
 void print_piece(AST_piece);
 
@@ -161,6 +161,10 @@ static void print_lit_expr(AST_lit_expr e) {
         printf("'%s'", e->obj.s);
         break;
 
+    case RSTR_LIT:
+        printf("`%s`", e->obj.s);
+        break;
+
     case TRUE_LIT:
         printf("true");
         break;
@@ -224,8 +228,12 @@ static void print_patt(AST_patt p) {
         printf("nil");
         break;
 
+    case RSTR_CPATT:
+        printf("`%s`", p->obj.s);
+        break;
+
     case STR_CPATT:
-        printf("%s", p->obj.s);
+        printf("'%s'", p->obj.s);
         break;
 
     case TRUE_CPATT:
@@ -234,7 +242,7 @@ static void print_patt(AST_patt p) {
     }
 }
 
-static void print_patts(List_T patts) {
+static void print_patts(List patts) {
     void *patt;
     while ((patt = List_iter(patts))) {
         putchar(' ');
@@ -327,7 +335,7 @@ static void print_expr(AST_expr e) {
         
         while ((branch = (AST_match_branch)List_iter(match->branches))) {
             indent_level++;
-            IDENT();
+            INDENT();
             printf("#");
             print_patt(branch->patt);
             printf(" -> ");
@@ -360,7 +368,7 @@ static void print_expr(AST_expr e) {
     }
 }
 
-static void print_exprs(List_T exprs) {
+static void print_exprs(List exprs) {
     void *expr;
     while ((expr = List_iter(exprs))) {
         putchar(' ');
@@ -414,12 +422,12 @@ static void print_stmt(AST_stmt s) {
 }
 
 void print_piece(AST_piece p) {
-    List_T t = p->stmts;
+    List t = p->stmts;
 
     indent_level++;
     AST_stmt stmt;
     while ((stmt = (AST_stmt)List_iter(t)) != NULL) {
-        IDENT();
+        INDENT();
         print_stmt(stmt);
     }
     indent_level--;
