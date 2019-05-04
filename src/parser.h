@@ -16,6 +16,9 @@
 
 typedef struct Parser *Parser;
 
+/* initialize a parser state with tokens list */
+extern void init_parser(Parser p, List tokens);
+
 /* allocate a new parser on reg region with tokens list */
 extern Parser parser_new(List tokens, Region_N reg);
 

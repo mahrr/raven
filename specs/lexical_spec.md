@@ -146,7 +146,7 @@ not -     | Not, Negate             | right
 \* / %    | Multply, Divide, Module | left
 \+ -      | Add, Subtract           | left
 @         | Concatenation           | left
-|         | list Cons               | right
+\|        | list Cons               | right
 < > <= >= | Comparsion              | left
 == !=     | Equality                | left
 and       | Logical AND             | left

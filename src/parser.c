@@ -1174,7 +1174,7 @@ static AST_stmt statement(Parser p, int n, va_list ap) {
     case TK_BREAK:
         stmt = fixed_stmt(p);
         break;
-
+        
     default:
         stmt = expr_stmt(p);
         break;
@@ -1252,8 +1252,7 @@ static AST_piece piece(Parser p, int n, ...) {
 
 /*** INTERFACE ***/
 
-Parser parser_new(List tokens, Region_N reg) {
-    Parser p = make(p, reg);
+void init_parser(Parser p, List tokens) {
     p->tokens = tokens;
     p->errors = List_new(R_SECN);
     p->been_error = 0;
@@ -1261,7 +1260,12 @@ Parser parser_new(List tokens, Region_N reg) {
     p->curr = (Token)List_curr(tokens);
     p->peek = (Token)List_peek(tokens);
     p->prev = NULL;
+}
 
+Parser parser_new(List tokens, Region_N reg) {
+    Parser p = make(p, reg);
+    init_parser(p, tokens);
+    
     return p;
 }
 
@@ -1272,11 +1276,14 @@ int parser_error(Parser p) {
 void parser_log(Parser p, FILE *out) {
     Parse_error error;
 
+    /* temporary! will be changed */
     while ((error = (Parse_error)List_iter(p->errors))) {
-        fprintf(out, "syntax error: [line (%ld)] at '%s' : %s.\n",
-                error->where->line,
-                error->where->lexeme,
-                error->msg); /* temporary! will be changed */
+        Token t = error->where;
+        fprintf(out, "syntax error: [line (%ld)] at '%.*s' : %s.\n",
+                t->line,
+                t->type == TK_EOF ? 3 : t->length,
+                t->type == TK_EOF ? "EOF" : t->lexeme,
+                error->msg);
     }
 }
 
