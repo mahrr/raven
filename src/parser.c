@@ -116,7 +116,8 @@ static int curr_token_not(Parser p, int n, va_list ap) {
 static void reg_error(Parser p, char *msg) {
     Parse_error error = make(error, R_SECN);
     error->msg = str(msg);
-    error->where = curr_token(p);
+    error->where = curr_token_is(p, TK_NL) ?
+        p->prev : curr_token(p);
     List_append(p->errors, error);
     p->been_error = 1;
 }
@@ -128,7 +129,7 @@ static Token expect_token(Parser p, TK_type t, char *expected) {
     if (curr_token_is(p, t)) {
         return next_token(p);   /* consume current */
     } else {
-        sprintf(error_msg, "%s is expected.", expected);
+        sprintf(error_msg, "%s is expected", expected);
         reg_error(p, error_msg);
     }
     
@@ -779,7 +780,9 @@ static AST_expr hash_literal(Parser p) {
 
     /* not an empty hash */
     if (!match_token(p, TK_RBRACE)) {
+        skip_newlines(p);
         do {
+            skip_newlines(p);
             Token name = expect_token(p, TK_IDENT, "field name");
             if (name == NULL) return NULL;
 
@@ -792,7 +795,8 @@ static AST_expr hash_literal(Parser p) {
             List_append(names, ident_of(name));
             List_append(values, value);
         } while (match_token(p, TK_COMMA));
-
+        skip_newlines(p);
+        
         if (!expect_token(p, TK_RBRACE, "}"))
             return NULL;
     }
@@ -1091,12 +1095,15 @@ patterns(Parser p, TK_type dl, TK_type end, char *end_name) {
     AST_patt patt;
 
     if (!match_token(p, end)) {
+        skip_newlines(p);
         do {
+            skip_newlines(p);
             patt = pattern(p);
             if (patt == NULL) return NULL;
             List_append(patts, patt);
         } while(match_token(p, dl));
-
+        skip_newlines(p);
+        
         if (!expect_token(p, end, end_name))
             return NULL;
     }
@@ -1137,12 +1144,15 @@ expressions(Parser p, TK_type dl, TK_type end, char *end_name) {
     AST_expr expr;
 
     if (!match_token(p, end)) {
+        skip_newlines(p);
         do {
+            skip_newlines(p);
             expr = expression(p, R_SECN);
             if (expr == NULL) return NULL;
             List_append(exprs, expr);
         } while (match_token(p, dl));
-
+        skip_newlines(p);
+        
         if (!expect_token(p, end, end_name))
             return NULL;
     }
@@ -1279,7 +1289,8 @@ void parser_log(Parser p, FILE *out) {
     /* temporary! will be changed */
     while ((error = (Parse_error)List_iter(p->errors))) {
         Token t = error->where;
-        fprintf(out, "syntax error: [line (%ld)] at '%.*s' : %s.\n",
+        fprintf(out, "syntax error: [%s | line %ld] at '%.*s' : %s.\n",
+                t->file,
                 t->line,
                 t->type == TK_EOF ? 3 : t->length,
                 t->type == TK_EOF ? "EOF" : t->lexeme,
