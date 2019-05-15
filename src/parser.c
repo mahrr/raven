@@ -475,6 +475,7 @@ static AST_expr cons_expr(Parser p, AST_expr head) {
     AST_binary_expr binary = make(binary, R_SECN);
     binary->left = head;
     binary->right = tail;
+    binary->op = TK_PIPE;
 
     AST_expr expr = make(expr, R_SECN);
     expr->type = BINARY_EXPR;
