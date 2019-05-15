@@ -396,7 +396,9 @@ static AST_expr access_expr(Parser p, AST_expr object) {
 
 static AST_expr assign_expr(Parser p, AST_expr lvalue) {
     /* left side of '=' not an identifier */
-    if (lvalue->type != IDENT_EXPR) {
+    if (lvalue->type != IDENT_EXPR &&
+        lvalue->type != INDEX_EXPR &&
+        lvalue->type != ACCESS_EXPR) {
         reg_error(p, "invalid assignment target");
         return NULL;
     }
@@ -404,7 +406,7 @@ static AST_expr assign_expr(Parser p, AST_expr lvalue) {
     next_token(p); /* consume '=' token */
 
     /* ignore any newlines inside of the expressions
-       (e.g. "x = y <nl> = z ") */
+       (e.g. "x = <nl> y = <nl> z ") */
     skip_newlines(p);
 
     /* LOW_PREC is the precedence below ASSIGN_PREC which allow
@@ -676,7 +678,7 @@ static AST_expr match_expr(Parser p) {
 static AST_expr unary_expr(Parser p) {
     Token op = next_token(p);  /* the unary operator */
 
-    AST_expr operand = expression(p, LOW_PREC);
+    AST_expr operand = expression(p, UNARY_PREC);
     if (operand == NULL) return NULL;
 
     AST_unary_expr unary = make(unary, R_SECN);
@@ -1131,6 +1133,9 @@ static AST_expr expression(Parser p, Prec prec) {
             return expr;
 
         expr = infix(p, expr);
+
+        if (expr == NULL)
+            return NULL;
     }
     
     return expr;
