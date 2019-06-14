@@ -299,11 +299,9 @@ static void print_expr(AST_expr e) {
         AST_if_expr if_expr = e->obj.if_expr;
         paren_block("if", if_expr->cond, if_expr->then);
 
-        void *obj;
-        while ((obj = List_iter(if_expr->elifs)) != NULL) {
-            paren_block("elif",
-                        ((AST_elif_branch)obj)->cond,
-                        ((AST_elif_branch)obj)->body);
+        AST_elif_branch elif;
+        while ((elif = (AST_elif_branch)List_iter(if_expr->elifs))) {
+            paren_block("elif", elif->cond, elif->then);
         }
         
         if (if_expr->alter != NULL)

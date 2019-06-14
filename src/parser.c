@@ -542,11 +542,11 @@ static AST_elif_branch elif_branch(Parser p) {
     if (!expect_token(p, TK_DO, "'do'"))
         return NULL;
 
-    AST_piece body = piece(p, 3, TK_ELIF, TK_ELSE, TK_END);
+    AST_piece then = piece(p, 3, TK_ELIF, TK_ELSE, TK_END);
 
     AST_elif_branch elif = make(elif, R_SECN);
     elif->cond = cond;
-    elif->body = body;
+    elif->then = then;
 
     return elif;
 }
@@ -1279,7 +1279,8 @@ void parser_log(Parser p, FILE *out) {
     /* temporary! will be changed */
     while ((error = (Parse_error)List_iter(p->errors))) {
         Token t = error->where;
-        fprintf(out, "syntax error: [line (%ld)] at '%.*s' : %s.\n",
+        fprintf(out, "syntax error: [%s | line %ld] at '%.*s' : %s.\n",
+                t->file,
                 t->line,
                 t->type == TK_EOF ? 3 : t->length,
                 t->type == TK_EOF ? "EOF" : t->lexeme,

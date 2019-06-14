@@ -43,12 +43,12 @@ typedef enum {
 typedef enum {
     FALSE_CPATT,
     FLOAT_CPATT,
+    HASH_PATT,
     IDENT_PATT,
     INT_CPATT,
     LIST_PATT,
     NIL_CPATT,
     PAIR_PATT,
-    HASH_PATT,
     RSTR_CPATT,
     STR_CPATT,
     TRUE_CPATT
@@ -222,7 +222,7 @@ struct AST_group_expr {
 
 struct AST_elif_branch {
     AST_expr cond;
-    AST_piece body;
+    AST_piece then;
 };
 
 struct AST_if_expr {
