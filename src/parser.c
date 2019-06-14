@@ -1050,7 +1050,7 @@ static AST_stmt fixed_stmt(Parser p) {
     AST_stmt stmt = make(stmt, R_SECN);
     stmt->type = FIXED_STMT;
     stmt->obj.fixed = fixed->type;
-
+    
     return stmt;
 }
 
@@ -1058,29 +1058,40 @@ static AST_stmt fixed_stmt(Parser p) {
 
 static AST_patt pattern(Parser p) {
     Token curr = curr_token(p);
+    AST_patt patt;
     
     switch(curr->type) {
     case TK_LBRACE:
-        return hash_patt(p);
+        patt = hash_patt(p);
+        break;
 
     case TK_LBRACKET:
-        return list_patt(p);
+        patt = list_patt(p);
+        break;
 
     case TK_LPAREN:
-        return pair_patt(p);
+        patt = pair_patt(p);
+        break;
 
     case TK_IDENT:
-        return ident_patt(p);
+        patt = ident_patt(p);
+        break;
 
     case TK_STR:
     case TK_INT:
     case TK_FLOAT:
-        return const_patt(p);
+        patt = const_patt(p);
+        break;
 
     default:
         reg_error(p, "invalid pattern");
         return NULL;
     }
+
+    if (patt != NULL)
+        patt->where = curr; /* pattern location (by token) */
+
+    return patt;
 }
 
 /* return list of zero or more AST_patt delimited by 
@@ -1105,7 +1116,8 @@ patterns(Parser p, TK_type dl, TK_type end, char *end_name) {
 }
 
 static AST_expr expression(Parser p, Prec prec) {
-    Prefix_F prefix = prefix_of(curr_token(p));
+    Token curr = curr_token(p);
+    Prefix_F prefix = prefix_of(curr);
     
     if (prefix == NULL) {
         reg_error(p, "unexpected symbol");
@@ -1125,6 +1137,9 @@ static AST_expr expression(Parser p, Prec prec) {
 
         expr = infix(p, expr);
     }
+
+    if (expr != NULL)
+        expr->where = curr;  /* expression location (by token) */
     
     return expr;
 }
@@ -1152,8 +1167,9 @@ expressions(Parser p, TK_type dl, TK_type end, char *end_name) {
 
 static AST_stmt statement(Parser p, int n, va_list ap) {
     AST_stmt stmt;
-
-    switch (curr_token(p)->type) {
+    Token curr = curr_token(p);
+        
+    switch (curr->type) {
     case TK_FN:
         /* check first if it's 'fn_stmt' and not a 'fn_literal' */
         if (peek_token_is(p, TK_IDENT))
@@ -1188,7 +1204,8 @@ static AST_stmt statement(Parser p, int n, va_list ap) {
             reg_error(p, "expect ';' or newline after statement");
             return NULL;
         }
-        next_token(p); /* if ';' or newline, consume it */
+        next_token(p);         /* if ';' or newline, consume it */
+        stmt->where = curr;   /* statement location (by token) */
     }
 
     return stmt;

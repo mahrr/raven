@@ -127,6 +127,7 @@ struct AST_piece {
 
 struct AST_stmt {
     Stmt_VT type;
+    Token where;
     union {
         AST_expr_stmt expr;
         AST_fn_stmt fn;
@@ -138,6 +139,7 @@ struct AST_stmt {
 
 struct AST_expr {
     Expr_VT type;
+    Token where;
     union {
         AST_access_expr access;
         AST_assign_expr assign;
@@ -157,6 +159,7 @@ struct AST_expr {
 
 struct AST_patt {
     Patt_VT type;
+    Token where;
     union {
         AST_hash_patt hash;
         AST_list_patt list;
