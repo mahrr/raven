@@ -29,8 +29,8 @@ typedef struct Table {
     List *entries;   /* array of linked lists of elements blocks */
 } Table;
 
-#define table_size(table) ((table)->size);
-#define table_len(table) ((table)->len);
+#define table_size(table) ((table)->size);   /* get number of entries */
+#define table_elems(table) ((table)->elems); /* get number of elements */
 
 /**
  * Initialize a table. set its attributes and allocate
@@ -41,6 +41,7 @@ typedef struct Table {
  * hash: function used for key hashing.
  * free: function used for table elements deallocation.
  * comp: function used for comparing two keys.
+ *       it returns 1 if the two keys are equal, 0 otherwise.
  *
 */
 void init_table(Table *table, int size, Hash_Fn hash,
