@@ -14,7 +14,22 @@
 #include "error.h"
 
 /* strictest alignment type */
+#if __STDC_VERSION__ <= 199901L
+
+typedef union {
+    long double ld;
+    double d;
+    float f;
+    long l;
+    int i;
+    void *p;
+} align;
+
+#elif __STDC_VERSION__ == 201112L
+
 typedef max_align_t align;
+
+#endif
 
 /* Region is a linked list with large blocks of memory.
    Each block begins with a header defined by (struct block) */

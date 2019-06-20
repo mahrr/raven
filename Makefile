@@ -1,13 +1,24 @@
 CC = gcc
-CFLAGS = -std=c11 -g -Wall -o
+CFLAGS = -std=c99 -g -Wall -DPRINT_AST -o
+PFLAGS = -std=c99 -g -Wall -pg -O2 -o 
+OFLAGS = -std=c99 -march=native -g -Wall -O2 -o
 SRCDIR = ./src
 OUTDIR = ./bin
 TARGET = raven
 CLIBS =
 
-# main
+# debug
 default:
 	@$(CC) $(CFLAGS) $(OUTDIR)/$(TARGET) $(SRCDIR)/*.c $(CLIBS)
+
+# profiling
+profile:
+	@$(CC) $(PFLAGS) $(OUTDIR)/$(TARGET) $(SRCDIR)/*.c $(CLIBS)
+
+# release
+opt:
+	@$(CC) $(OFLAGS) $(OUTDIR)/$(TARGET) $(SRCDIR)/*.c $(CLIBS)
+
 
 run:
 	@$(OUTDIR)/$(TARGET)
@@ -26,7 +37,7 @@ LEX_TEST_RELATED = src/alloc.c  \
 				   src/list.c   \
 				   src/debug.c  \
 				   src/strutil.c
-				   
+
 LEX_INCLUDE = -I./src
 LEX_PRINT = -DPRINT_TOKENS
 

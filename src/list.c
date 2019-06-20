@@ -19,6 +19,7 @@ struct Block {
 
 struct List {
     Block entry;  /* the first block of the list */
+    Block end;    /* the end block of the list */
     Block curr;   /* the current block for the iteration */
     long count;   /* the number of blocks in the list */
     Region_N reg; /* the region which the list been allocated in */
@@ -27,6 +28,7 @@ struct List {
 List List_new(Region_N reg) {
     List l = make(l, reg);
     l->entry = NULL;
+    l->end = NULL;
     l->curr = NULL;
     l->count = 0;
     l->reg = reg;
@@ -42,18 +44,18 @@ List List_append(List l, void *obj) {
         l->entry = make(l->entry, l->reg);
         l->entry->object = obj;
         l->entry->link = NULL;
+        l->end = l->entry;
         l->curr = l->entry;
         l->count++;
         return l;
     }
 
-    Block b = l->entry;
-    /* get to the end of the list */
-    while (b->link != NULL) b = b->link;
+    Block b = l->end;
     
     b->link = make(b->link, l->reg);
     b->link->object = obj;
     b->link->link = NULL;
+    l->end = b->link;
     l->count++;
 
     return l;

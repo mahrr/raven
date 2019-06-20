@@ -43,12 +43,12 @@ typedef enum {
 typedef enum {
     FALSE_CPATT,
     FLOAT_CPATT,
+    HASH_PATT,
     IDENT_PATT,
     INT_CPATT,
     LIST_PATT,
     NIL_CPATT,
     PAIR_PATT,
-    HASH_PATT,
     RSTR_CPATT,
     STR_CPATT,
     TRUE_CPATT
@@ -127,6 +127,7 @@ struct AST_piece {
 
 struct AST_stmt {
     Stmt_VT type;
+    Token where;
     union {
         AST_expr_stmt expr;
         AST_fn_stmt fn;
@@ -138,6 +139,7 @@ struct AST_stmt {
 
 struct AST_expr {
     Expr_VT type;
+    Token where;
     union {
         AST_access_expr access;
         AST_assign_expr assign;
@@ -157,6 +159,7 @@ struct AST_expr {
 
 struct AST_patt {
     Patt_VT type;
+    Token where;
     union {
         AST_hash_patt hash;
         AST_list_patt list;
@@ -222,7 +225,7 @@ struct AST_group_expr {
 
 struct AST_elif_branch {
     AST_expr cond;
-    AST_piece body;
+    AST_piece then;
 };
 
 struct AST_if_expr {
