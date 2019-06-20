@@ -1,19 +1,21 @@
 CC = gcc
-CFLAGS = -std=c99 -g -Wall -o
-PFLAGS = -std=c99 -g -Wall -pg -o
+CFLAGS = -std=c99 -g -Wall -DPRINT_AST -o
+PFLAGS = -std=c99 -g -Wall -pg -O2 -o 
 OFLAGS = -std=c99 -march=native -g -Wall -O2 -o
 SRCDIR = ./src
 OUTDIR = ./bin
 TARGET = raven
 CLIBS =
 
-# main
+# debug
 default:
 	@$(CC) $(CFLAGS) $(OUTDIR)/$(TARGET) $(SRCDIR)/*.c $(CLIBS)
 
+# profiling
 profile:
 	@$(CC) $(PFLAGS) $(OUTDIR)/$(TARGET) $(SRCDIR)/*.c $(CLIBS)
 
+# release
 opt:
 	@$(CC) $(OFLAGS) $(OUTDIR)/$(TARGET) $(SRCDIR)/*.c $(CLIBS)
 

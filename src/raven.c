@@ -10,12 +10,14 @@
 #include <string.h>
 #include <errno.h>
 
-#include "ast.h"
 #include "alloc.h"
+#include "ast.h"
+#include "debug.h"
+#include "error.h"
+#include "eval.h"
 #include "lexer.h"
 #include "parser.h"
-#include "error.h"
-#include "debug.h"
+#include "resolver.h"
 
 #define MAX_LINE 1024   /* the maximum size for repl line */
 
@@ -23,6 +25,11 @@ void repl() {
     char buf[MAX_LINE];
     Lexer l = lexer_new("", "", R_FIRS);
     Parser p = parser_new(List_new(R_FIRS), R_FIRS);
+    Resolver *r = malloc(sizeof(Resolver));
+    Evaluator *e = malloc(sizeof(Evaluator));
+
+    init_resolver(r, e);
+    init_eval(e, 507);
 
     for (;;) {
         fputs("#> ", stdout);
@@ -43,11 +50,23 @@ void repl() {
         init_parser(p, tokens);
         AST_piece piece = parse_piece(p);
 
-        /* parsing error occur */
-        if (parser_error(p))
+        /* parsing error occurs */
+        if (parser_error(p)) {
             parser_log(p, stdout);
-        else
-            print_piece(piece);
+            continue;
+        }
+
+#ifdef PRINT_AST
+        print_piece(piece);
+#endif        
+
+        /* semantic error occurs */
+        if (resolve(r, piece)) {
+            resolver_log(r, stdout);
+            continue;
+        }
+
+        walk(e, piece);
     }
 }
 
