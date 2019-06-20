@@ -409,11 +409,15 @@ void resolver_log(Resolver *r, FILE *out) {
 }
 
 int resolve(Resolver *r, AST_piece piece) {
-    /* push the global scope. it's persist between
-       resolve calls for the same resolver. this is
-       mainly useful in repl sessions. */
-    push_scope(r);
+    /* push the global scope. if it's not already
+       pushed. the global scope should be persist 
+       between resolve calls for the same resolver,
+       until the resolver is freed. this is mainly
+       useful in repl sessions. */
+    if (r->scopes.len == 0) {
+        push_scope(r);
+    }
+    
     resolve_stmts(r, piece->stmts);
-
     return r->been_error;
 }
