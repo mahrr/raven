@@ -1,11 +1,14 @@
 /*
  * (lexer.h | 22 Nov 18 | Ahmad Maher)
  *
- * lexcical analyzer
+ * Lexcical Analyzer Interface
+ * 
 */
 
 #ifndef lexer_h
 #define lexer_h
+
+#include <stdio.h>
 
 #include "alloc.h"
 #include "list.h"
@@ -27,7 +30,7 @@ typedef enum {
     
     /* Operators */
     TK_AND, TK_OR, TK_NOT,
-    TK_DOT, TK_AT, TK_COL_COL,
+    TK_DOT, TK_AT, TK_PIPE,
 
     /* Arthimetik Operators */
     TK_PLUS, TK_MINUS, TK_ASTERISK,
@@ -37,10 +40,6 @@ typedef enum {
     TK_LT, TK_GT, TK_EQ_EQ,
     TK_BANG_EQ, TK_LT_EQ,
     TK_GT_EQ,
-
-    /* Logic Operators */
-    TK_PIPE, TK_AMPERSAND, TK_CARET,
-    TK_TILDE, TK_GT_GT, TK_LT_LT,
 
     /* Delimiters */
     TK_LPAREN, TK_RPAREN,
@@ -53,43 +52,42 @@ typedef enum {
 
     /* Error and end of file */
     TK_ERR, TK_EOF,
-} token_type;
+} TK_type;
 
-typedef struct {
-    token_type type;  /* the type of the token */
-    char *lexeme;     /* pointer to the start of the token in the src */
-    int length;       /* the length of the token */
-    char *file;       /* the name of the source file */
-    long line;        /* the line of the token */
-    char *err_msg;    /* the associated message if TK_ERR consumed */
-} token;
+typedef struct Token {
+    TK_type type;        /* the type of the token */
+    const char *lexeme;  /* pointer to the start of the token in the src */
+    int length;          /* the length of the token */
+    const char *file;    /* the name of the source file */
+    long line;           /* the line of the token */
+    const char *err_msg; /* the associated message if TK_ERR consumed */
+} *Token;
 
-typedef struct {
-    List_T tokens;
-    int been_error;
-    List_T error_tokens;
-} token_list;
+typedef struct Lexer *Lexer;
 
-typedef struct {
-    char *current;    /* the current unconsumed char in the source */
-    char *fixed;      /* the start of the current token */
-    char *file_name;  /* the source file name */
-    long line;        /* the current line number */
-} lexer;
-
-/* extract the file content to a buffer */
+/* extract the file content to a newly allocated
+   buffer and return pointer to that buffer.*/
 extern char *scan_file(const char *file);
 
-/* initialize a lexer state */
-extern void init_lexer(lexer *l, char *src, const char *file);
+/* allocate and initialize a new lexer state. */
+extern Lexer lexer_new(const char *src, const char *file, Region_N reg);
 
-/* consumes all tokens in the current source */
-extern token_list *cons_tokens(lexer *l);
+/* initialize a lexer state. */
+extern void init_lexer(Lexer l, const char *src, const char *file);
 
-/* consume token on demand */
-extern token cons_token(lexer *l);
+/* return a consumed token on demand including
+   error tokens and add this token to the Lexer
+   token lists. */
+extern Token cons_token(Lexer);
 
-/* allocate a copy of token struct t on region reg */
-extern token *alloc_token(token t, Region_N reg);
+/* return a list of consumed valid tokens. */
+extern List cons_tokens(Lexer);
+
+/* check if there is a lexing error. */
+extern int lexer_been_error(Lexer);
+
+/* return a list of the lexer tokens error and NULL
+   if there is no errors. */
+extern List lexer_errors(Lexer);
 
 #endif

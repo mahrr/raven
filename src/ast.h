@@ -1,7 +1,7 @@
 /*
  * (ast.h | 8 Mar 19 | Amr Anwar)
  * 
- * The abstract syntax trees structs
+ * the AST interface.
  * 
 */
 
@@ -13,232 +13,297 @@
 #include "list.h"
 #include "lexer.h"
 
-typedef struct expr expr;
-typedef struct patt patt;
+/** nodes value types **/
 
-typedef struct {
-    List_T stmts;
-} piece;
+/* main nodes value types */
+typedef enum {
+    EXPR_STMT,
+    FIXED_STMT,
+    FN_STMT,
+    LET_STMT,
+    RET_STMT
+} Stmt_VT;
 
 typedef enum {
-    let_stmt_type,
-    fn_stmt_type,
-    ret_stmt_type,
-    expr_stmt_type,
-    fixed_stmt_type
-} stmt_type;
-
-typedef struct {
-    char *name;
-    List_T params;
-    piece *body;
-} fn_stmt;
-
-typedef struct {
-    char *name;
-    expr *value;
-} let_stmt;
-
-typedef struct {
-    expr *retval;
-} ret_stmt;
-
-typedef struct {
-    expr *exp;
-} expr_stmt;
-
-typedef struct {
-    stmt_type type;
-    union {
-        let_stmt *ls;
-        fn_stmt *fns;
-        ret_stmt *rs;
-        expr_stmt *es;
-        token_type fs;
-    } obj;
-} stmt;
+    ACCESS_EXPR,
+    ASSIGN_EXPR,
+    BINARY_EXPR,
+    CALL_EXPR,
+    FOR_EXPR,
+    GROUP_EXPR,
+    IDENT_EXPR,
+    IF_EXPR,
+    INDEX_EXPR,
+    LIT_EXPR,
+    MATCH_EXPR,
+    UNARY_EXPR,
+    WHILE_EXPR
+} Expr_VT;
 
 typedef enum {
-    lit_expr_type,
-    prefix_expr_type,
-    infix_expr_type,
-    index_expr_type,
-    access_expr_type,
-    group_expr_type,
-    call_expr_type,
-    if_expr_type,
-    for_expr_type,
-    while_expr_type,
-    match_expr_type,
-    ident_expr_type,
-} expr_type;
+    FALSE_CPATT,
+    FLOAT_CPATT,
+    HASH_PATT,
+    IDENT_PATT,
+    INT_CPATT,
+    LIST_PATT,
+    NIL_CPATT,
+    PAIR_PATT,
+    RSTR_CPATT,
+    STR_CPATT,
+    TRUE_CPATT
+} Patt_VT;
 
-typedef struct {
-    expr *object;
-    char *field;
-} access_expr;
-
-typedef struct {
-    token_type op;
-    expr *left;
-    expr *right;
-} infix_expr;
-
-typedef struct {
-    token_type op;
-    expr *value;
-} prefix_expr;
-
-typedef struct {
-    expr *object;
-    expr *index;
-} index_expr;
-
-typedef struct {
-    expr *exp;
-} group_expr;
-
-typedef struct {
-    expr *func;
-    List_T args;
-} call_expr;
-
-typedef struct {
-    expr *cond;
-    piece *body;
-} elif_branch;
-
-typedef struct {
-    expr *cond;
-    piece *body;
-    List_T elifs;
-    piece *alter;
-} if_expr;
-
-typedef struct {
-    char *name;
-    expr *iter;
-    piece *body;
-} for_expr;
-
-typedef struct {
-    expr *cond;
-    piece *body;
-} while_expr;
+/* sub nodes value types*/
+typedef enum {
+    FALSE_LIT,
+    FLOAT_LIT,
+    FN_LIT,
+    HASH_LIT,
+    INT_LIT,
+    LIST_LIT,
+    NIL_LIT,
+    RSTR_LIT,
+    STR_LIT,
+    TRUE_LIT
+} Lit_expr_VT;
 
 typedef enum {
-    expr_branch_type,
-    piece_branch_type,
-} match_branch_type;
+    EXPR_MATCH_BRANCH,
+    PIECE_MATCH_BRANCH
+} Match_branch_VT;
 
-typedef struct {
-    match_branch_type type;
-    char* patt;
+
+/** nodes declaration **/
+
+/* main nodes */
+typedef struct AST_piece *AST_piece;
+typedef struct AST_stmt  *AST_stmt;
+typedef struct AST_expr  *AST_expr;
+typedef struct AST_patt  *AST_patt;
+
+/* statements sub nodes */
+typedef struct AST_expr_stmt *AST_expr_stmt;
+typedef struct AST_fn_stmt   *AST_fn_stmt;
+typedef struct AST_let_stmt  *AST_let_stmt;
+typedef struct AST_ret_stmt  *AST_ret_stmt;
+
+/* expressions sub nodes */
+typedef struct AST_access_expr *AST_access_expr;
+typedef struct AST_assign_expr *AST_assign_expr;
+typedef struct AST_binary_expr *AST_binary_expr;
+typedef struct AST_call_expr   *AST_call_expr;
+typedef struct AST_for_expr    *AST_for_expr;
+typedef struct AST_group_expr  *AST_group_expr;
+typedef struct AST_if_expr     *AST_if_expr;
+typedef struct AST_index_expr  *AST_index_expr;
+typedef struct AST_lit_expr    *AST_lit_expr;
+typedef struct AST_match_expr  *AST_match_expr;
+typedef struct AST_unary_expr  *AST_unary_expr;
+typedef struct AST_while_expr  *AST_while_expr;
+
+/* branches sub nodes */
+typedef struct AST_elif_branch  *AST_elif_branch;
+typedef struct AST_match_branch *AST_match_branch;
+
+/* literal expressions sub nodes */
+typedef struct AST_fn_lit   *AST_fn_lit;
+typedef struct AST_hash_lit *AST_hash_lit;
+typedef struct AST_list_lit *AST_list_lit;
+
+/* patterns sub nodes */
+typedef struct AST_const_patt *AST_const_patt;
+typedef struct AST_hash_patt  *AST_hash_patt;
+typedef struct AST_pair_patt  *AST_pair_patt;
+typedef struct AST_list_patt  *AST_list_patt;
+
+
+/** nodes definition **/
+
+/* main nodes (stmt, expr, patt) */
+struct AST_piece {
+    List stmts;
+};
+
+struct AST_stmt {
+    Stmt_VT type;
+    Token where;
     union {
-        expr *e;
-        piece *p;
-    } obj;
-} match_body;
-
-typedef struct {
-    expr *value;
-    List_T branches;
-} match_expr;
-
-typedef enum {
-    fn_lit_type,
-    list_lit_type,
-    record_lit_type,
-    int_lit_type,
-    float_lit_type,
-    str_lit_type,
-    rstr_lit_type,
-    true_lit_type,
-    false_lit_type,
-    nil_lit_type,
-} lit_type;
-
-typedef struct {
-    List_T params;
-    piece *body;
-} fn_lit;
-
-typedef struct {
-    List_T exps;
-} list_lit;
-
-typedef struct {
-    List_T names;
-    List_T values;
-} record_lit;
-
-typedef struct {
-    lit_type type;
-    union {
-        fn_lit *fn_l;
-        list_lit *list_l;
-        record_lit *record_l;
-        char *s_val;
-        int64_t i_val;
-        double f_val;
-    } obj;
-} lit_expr;
-
-struct expr {
-    expr_type type;
-    union {
-        lit_expr *lit_e;
-        prefix_expr* pre_e;
-        infix_expr *inf_e;
-        index_expr *index_e;
-        access_expr* access_e;
-        group_expr *group_e;
-        call_expr *call_e;
-        if_expr *if_e;
-        for_expr *for_e;
-        while_expr *while_e;
-        match_expr *match_e;
-        char *ident;
+        AST_expr_stmt expr;
+        AST_fn_stmt fn;
+        AST_let_stmt let;
+        AST_ret_stmt ret;
+        TK_type fixed;  /* fixed statements */
     } obj;
 };
 
-typedef enum {
-    int_patt_type,
-    float_patt_type,
-    str_patt_type,
-    rstr_patt_type,
-    true_patt_type,
-    false_patt_type,
-    nil_patt_type,
-    ident_patt_type,
-    list_patt_type,
-    record_patt_type,
-} patt_type;
-
-typedef struct {
-    patt *hd;
-    patt *tl;
-} pair_patt;
-
-typedef struct {
-    List_T patts;
-} list_patt;
-
-typedef struct {
-    List_T names;
-    List_T patts;
-} record_patt;
-
-struct patt {
-    patt_type type;
+struct AST_expr {
+    Expr_VT type;
+    Token where;
     union {
-        char *name;
-        int64_t *i_const;
-        double *f_const;
-        char *s_const;
-        list_patt *l_patt;
-        record_patt *r_patt;
+        AST_access_expr access;
+        AST_assign_expr assign;
+        AST_binary_expr binary;
+        AST_call_expr call;
+        AST_for_expr for_expr;
+        AST_group_expr group;
+        AST_if_expr if_expr;
+        AST_index_expr index;
+        AST_lit_expr lit;
+        AST_match_expr match;
+        AST_unary_expr unary;
+        AST_while_expr while_expr;
+        char *ident;  /* identifier expression */
     } obj;
+};
+
+struct AST_patt {
+    Patt_VT type;
+    Token where;
+    union {
+        AST_hash_patt hash;
+        AST_list_patt list;
+        AST_pair_patt pair;
+        char *ident;       /* identifier(variable) pattern */
+        int64_t i;         /* literal int pattern */
+        long double f;     /* literal float pattern */
+        char *s;           /* literal string pattern */
+    } obj;
+};
+
+/* statements sub nodes */
+struct AST_expr_stmt {
+    AST_expr expr;
+};
+
+struct AST_fn_stmt {
+    char *name;
+    List params;  /* of AST_patt */
+    AST_piece body;
+};
+
+struct AST_let_stmt {
+    AST_patt patt;
+    AST_expr value;
+};
+
+struct AST_ret_stmt {
+    AST_expr value;
+};
+
+/* expressions sub nodes */
+struct AST_access_expr {
+    AST_expr object;
+    char *field;
+};
+
+struct AST_assign_expr {
+    AST_expr lvalue;
+    AST_expr value;
+};
+
+struct AST_binary_expr {
+    TK_type op;
+    AST_expr left;
+    AST_expr right;
+};
+
+struct AST_call_expr {
+    AST_expr func;
+    List args;
+};
+
+struct AST_for_expr {
+    char *name;
+    AST_expr iter;
+    AST_piece body;
+};
+
+struct AST_group_expr {
+    AST_expr expr;
+};
+
+struct AST_elif_branch {
+    AST_expr cond;
+    AST_piece then;
+};
+
+struct AST_if_expr {
+    AST_expr cond;
+    AST_piece then;
+    List elifs;    /* of AST_elif_branch */
+    AST_piece alter;
+};
+
+struct AST_index_expr {
+    AST_expr object;
+    AST_expr index;
+};
+
+struct AST_lit_expr {
+    Lit_expr_VT type;
+    union {
+        AST_fn_lit fn;
+        AST_hash_lit hash;
+        AST_list_lit list;
+        long double f; /* float literal */
+        int64_t i;     /* integer literal */
+        char *s;       /* string literal */
+    } obj;
+};
+
+struct AST_match_branch {
+    Match_branch_VT type;
+    AST_patt patt;
+    union {
+        AST_expr e;
+        AST_piece p;
+    } obj;
+};
+
+struct AST_match_expr {
+    AST_expr value;
+    List branches; /* of AST_match_branch */
+};
+
+struct AST_unary_expr {
+    TK_type op;
+    AST_expr operand;
+};
+
+struct AST_while_expr {
+    AST_expr cond;
+    AST_piece body;
+};
+
+/* literal expressions sub nodes */
+struct AST_fn_lit {
+    List params; /* of AST_patt */
+    AST_piece body;
+};
+
+struct AST_hash_lit {
+    List names;  /* of (char*) */
+    List values; /* of AST_expr */
+};
+
+struct AST_list_lit {
+    List values;   /* of AST_expr */
+};
+
+/* patterns sub nodes */
+struct AST_hash_patt {
+    List names;  /* of (char*) */
+    List patts;  /* pf AST_patt */
+};
+
+struct AST_list_patt {
+    List patts;  /* of AST_patt */
+};
+
+struct AST_pair_patt {
+    AST_patt hd;
+    AST_patt tl;
 };
 
 #endif

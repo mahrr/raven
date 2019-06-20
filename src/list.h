@@ -10,8 +10,8 @@
 #ifndef list_h
 #define list_h
 
-typedef struct List_T *List_T;
-#define T List_T
+typedef struct List *List;
+#define T List
 
 /* 
    NOTE:
@@ -25,10 +25,20 @@ extern T List_new(Region_N reg);
 /* appends a list l with object obj. */
 extern T List_append(T l, void *obj);
 
-/* iterate over a list l. return the next object or NULL on finish.
-   doesn't support nested iteration for the same list 
+/* iterate over a list l and return the next object or NULL on finish.
+   The next call after the iteration ends will unwind the list to the 
+   beginning. 
+   It doesn't support nested iteration for the same list 
    (i.e. the nested iteration will continue from the outer iteration).*/
 extern void *List_iter(T l);
+
+/* return the current object of the iteration process without any
+   incrementation and NULL on finish. */
+extern void *List_curr(T l);
+
+/* return the next object of the iteration process without any
+   incrementation and NULL on finish. */
+extern void *List_peek(T l);
 
 /* unwind the list iteration to the beginning of the list. */
 extern void List_unwind(T l);
@@ -38,7 +48,7 @@ extern long List_len(T l);
 
 /* convert a list to an continuation vector allocated on
    region reg with terminated null. */
-extern void *List_to_vec(T l, Region_N reg);
+extern void *Listo_vec(T l, Region_N reg);
 
 #undef T
 #endif

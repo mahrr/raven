@@ -10,68 +10,102 @@
 #include <string.h>
 #include <errno.h>
 
-#include "lexer.h"
 #include "alloc.h"
-#include "error.h"
+#include "ast.h"
 #include "debug.h"
-
-/* @@ just print tokens for now */
+#include "error.h"
+#include "eval.h"
+#include "lexer.h"
+#include "parser.h"
+#include "resolver.h"
 
 #define MAX_LINE 1024   /* the maximum size for repl line */
 
 void repl() {
     char buf[MAX_LINE];
-    token tok;
-    lexer *lex = make(lex, R_FIRS);
-    
+    Lexer l = lexer_new("", "", R_FIRS);
+    Parser p = parser_new(List_new(R_FIRS), R_FIRS);
+    Resolver *r = malloc(sizeof(Resolver));
+    Evaluator *e = malloc(sizeof(Evaluator));
+
+    init_resolver(r, e);
+    init_eval(e, 507);
+
     for (;;) {
         fputs("#> ", stdout);
         fgets(buf, MAX_LINE, stdin);
-        init_lexer(lex, buf, "stdin");
-        
-        tok = cons_token(lex);
-        while (tok.type != TK_EOF) {
-            
-            if (tok.type == TK_ERR)
-                lex_error(buf, &tok);
-            else
-                print_token(&tok);
-            tok = cons_token(lex);
+
+        init_lexer(l, buf, "stdin");
+        List tokens = cons_tokens(l);
+
+        /* lexing error occur */
+        if (tokens == NULL) {
+            List errors = lexer_errors(l);
+            Token error;
+
+            while ((error = (Token)List_iter(errors)))
+                lex_error(buf, error);
         }
+        
+        init_parser(p, tokens);
+        AST_piece piece = parse_piece(p);
+
+        /* parsing error occurs */
+        if (parser_error(p)) {
+            parser_log(p, stdout);
+            continue;
+        }
+
+#ifdef PRINT_AST
+        print_piece(piece);
+#endif        
+
+        /* semantic error occurs */
+        if (resolve(r, piece)) {
+            resolver_log(r, stdout);
+            continue;
+        }
+
+        walk(e, piece);
     }
 }
 
 int main(int argc, char **argv) {
-    if (argc == 1) {
-        repl();
-    } else {
-        for (int i = 1; i < argc; i++) {
-            /* load content file to src */
-            char *src = scan_file(argv[i]);
-            if (src == NULL)
-                fatal_error(1, "can't open: '%s' (%s)",
-                            argv[i], strerror(errno));
+    for (int i = 1; i < argc; i++) {
+        /* load content file to src */
+        char *src = scan_file(argv[i]);
+        if (src == NULL)
+            fatal_error(1, "can't open: '%s' (%s)",
+                        argv[i], strerror(errno));
             
-            /* initialize a lexer */
-            lexer *lex = make(lex, R_SECN);
-            init_lexer(lex, src, argv[i]);
-            /*start the lexing */
-            token_list *tl = cons_tokens(lex);
+        Lexer lex = lexer_new(src, argv[i], R_FIRS);
+        List tokens = cons_tokens(lex);
             
-            List_T toks;
-            token *tok;
-            if (tl->been_error) {
-                toks = tl->error_tokens;
-                /* iterate over the error tokens list */
-                while ((tok = List_iter(toks)))
-                    lex_error(src, tok);
-            } else {
-                toks = tl->tokens;
-                /* iterate over the tokens list */
-                while ((tok = List_iter(toks)))
-                    print_token(tok);
-            }           
+        /* lexing error */
+        if (tokens == NULL) {
+            List errors = lexer_errors(lex);
+            Token error;
+            /* iterate over the error tokens list */
+            while ((error = List_iter(errors)))
+                lex_error(src, error);
+
+            return 1;
         }
-    }  
+
+        Parser parser = parser_new(tokens, R_FIRS);
+        AST_piece piece = parse_piece(parser);
+
+        /* parsing error */
+        if (parser_error(parser)) {
+            parser_log(parser, stdout);
+            return 1;
+        }
+
+        print_piece(piece);
+    }
+    
+    if (argc == 1)
+        repl();
+    
     return 0;
 }

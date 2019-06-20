@@ -17,16 +17,18 @@ struct Block {
     Block link;
 };
 
-struct List_T {
+struct List {
     Block entry;  /* the first block of the list */
+    Block end;    /* the end block of the list */
     Block curr;   /* the current block for the iteration */
     long count;   /* the number of blocks in the list */
     Region_N reg; /* the region which the list been allocated in */
 };
 
-List_T List_new(Region_N reg) {
-    List_T l = make(l, reg);
+List List_new(Region_N reg) {
+    List l = make(l, reg);
     l->entry = NULL;
+    l->end = NULL;
     l->curr = NULL;
     l->count = 0;
     l->reg = reg;
@@ -34,7 +36,7 @@ List_T List_new(Region_N reg) {
     return l;
 }
 
-List_T List_append(List_T l, void *obj) {
+List List_append(List l, void *obj) {
     assert(l != NULL);
     
     /* empty list */
@@ -42,24 +44,40 @@ List_T List_append(List_T l, void *obj) {
         l->entry = make(l->entry, l->reg);
         l->entry->object = obj;
         l->entry->link = NULL;
+        l->end = l->entry;
         l->curr = l->entry;
         l->count++;
         return l;
     }
 
-    Block b = l->entry;
-    /* get to the end of the list */
-    while (b->link != NULL) b = b->link;
+    Block b = l->end;
     
     b->link = make(b->link, l->reg);
     b->link->object = obj;
     b->link->link = NULL;
+    l->end = b->link;
     l->count++;
 
     return l;
 }
 
-void *List_iter(List_T l) {
+void *List_curr(List l) {
+    assert(l != NULL);
+
+    return l->curr ? l->curr->object : NULL;
+}
+
+void *List_peek(List l) {
+    assert(l != NULL);
+
+    Block c = l->curr;
+    Block n;
+    
+    if (c && (n = c->link)) return n->object;
+    return NULL;
+}
+
+void *List_iter(List l) {
     assert(l != NULL);
     
     /* reaching the end of the list causes unwinding */
@@ -74,17 +92,17 @@ void *List_iter(List_T l) {
     return object;
 }
 
-void List_unwind(List_T l) {
+void List_unwind(List l) {
     assert(l != NULL);
     l->curr = l->entry;
 }
 
-long List_len(List_T l) {
+long List_len(List l) {
     assert(l != NULL);
     return l->count;
 }
 
-void *List_to_vec(List_T l, Region_N reg) {
+void *Listo_vec(List l, Region_N reg) {
     assert(l != NULL);
 
     long size = List_len(l) * sizeof (void*);
