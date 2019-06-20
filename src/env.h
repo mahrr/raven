@@ -18,6 +18,10 @@
 #include "array.h"
 #include "object.h"
 
+/* forward declaration to avoid cyclic include 
+   problem with 'object.h' */
+typedef struct Rav_obj Rav_obj;
+
 typedef struct Env {
     struct Env *enclosing;
     ARRAY(Rav_obj*) vars;

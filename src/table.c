@@ -20,12 +20,23 @@
 #include "list.h"
 #include "table.h"
 
-/* element block */
-typedef struct Elem {
-    const void *key;
-    uint64_t hash;
-    void *data;
-} Elem;
+/* return the table element with specified key */
+Elem *get_elem(Table *table, const void *key) {
+    uint64_t hash = table->hash(key);
+    unsigned index = hash % table->size;
+
+    Elem *elem;
+    while ((elem = List_iter(table->entries[index]))) {
+        /* hash comparsion is done first, as it's likely faster
+           than key comparsion, especially if the keys are strings. */
+        if (hash == elem->hash && table->comp(elem->key, key)) {
+            List_unwind(table->entries[index]);
+            return elem;
+        }
+    }
+
+    return NULL;
+}
 
 void init_table(Table *table, int size, Hash_Fn hash,
                 Free_Fn free, Comp_Fn comp) {
@@ -44,38 +55,27 @@ void init_table(Table *table, int size, Hash_Fn hash,
 }
 
 int table_lookup(Table *table, const void *key) {
-    uint64_t hash = table->hash(key);
-    unsigned index = hash % table->size;
-
-    Elem *elem;
-    while ((elem = List_iter(table->entries[index]))) {
-        /* hash comparsion is done first, as it's likely faster
-           than key comparsion, especially if the keys are strings. */
-        if (hash == elem->hash && table->comp(elem->key, key))
-            return 1;
-    }
+    if (get_elem(table, key) != NULL)
+        return 1;
 
     /* element not found */
     return 0;
 }
 
 void *table_put(Table *table, const void *key, void *data) {
-    uint64_t hash = table->hash(key);
-    unsigned index = hash % table->size;
-
-    Elem *elem;
+    /* check if an element with the same key exists */
+    Elem *elem = get_elem(table, key);
     void *prev;
 
-    /* check if an element with the same key exists */
-    while ((elem = List_iter(table->entries[index]))) {
-        if (hash == elem->hash && table->comp(elem->key, key)) {
-            prev = elem->data;  /* the old associated element */
-            elem->data = data;  /* put the new element */
-            return prev;        /* return the old element */
-        }
+    if (elem != NULL) {
+        prev = elem->data;  /* the old associated element */
+        elem->data = data;  /* put the new element */
+        return prev;        /* return the old element */
     }
 
     /* no element with the same key exists */
+    uint64_t hash = table->hash(key);
+    unsigned index = hash % table->size;
 
     /* allocate a new element block */
     elem = malloc(sizeof(Elem));
@@ -90,17 +90,8 @@ void *table_put(Table *table, const void *key, void *data) {
 }
 
 void *table_get(Table *table, const void *key) {
-    uint64_t hash = table->hash(key);
-    unsigned index = hash % table->size;
-    
-    Elem *elem;
-    while ((elem = List_iter(table->entries[index]))) {
-        if (hash == elem->hash && table->comp(elem->key, key))
-            return elem->data;
-    }
-
-    /* element not found */
-    return NULL;
+    Elem *elem = get_elem(table, key);
+    return elem ? elem->data : NULL;
 }
 
 void *table_remove(Table *table, const void *key) {
@@ -119,7 +110,7 @@ void *table_remove(Table *table, const void *key) {
     return NULL;
 }
 
-void table_free(Table *table) {
+void free_table(Table *table) {
     /* deallocating the table elements */
     for (int i = 0; i < table->size; i++)
         ;//list_free(table->entries[i], table->free);

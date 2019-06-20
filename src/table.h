@@ -20,6 +20,13 @@ typedef uint64_t (*Hash_Fn)(const void *key);
 typedef int      (*Comp_Fn)(const void *key1, const void *key2);
 typedef void     (*Free_Fn)(void *data);
 
+/* element block */
+typedef struct Elem {
+    const void *key;
+    uint64_t hash;
+    void *data;
+} Elem;
+
 typedef struct Table {
     int elems;       /* number of elements in the table */
     int size;        /* number of entries in the table */
@@ -29,8 +36,8 @@ typedef struct Table {
     List *entries;   /* array of linked lists of elements blocks */
 } Table;
 
-#define table_size(table) ((table)->size);   /* get number of entries */
-#define table_elems(table) ((table)->elems); /* get number of elements */
+#define table_size(table) ((table)->size)   /* get number of entries */
+#define table_elems(table) ((table)->elems) /* get number of elements */
 
 /**
  * Initialize a table. set its attributes and allocate

@@ -1125,6 +1125,10 @@ static AST_expr expression(Parser p, Prec prec) {
     }
 
     AST_expr expr = prefix(p);
+
+    if (expr != NULL)
+        expr->where = curr;  /* expression location (by token) */
+
     while (!at_end(p) &&
            !curr_token_is(p, TK_NL) &&
            !curr_token_is(p, TK_SEMICOLON) &&
@@ -1137,9 +1141,6 @@ static AST_expr expression(Parser p, Prec prec) {
 
         expr = infix(p, expr);
     }
-
-    if (expr != NULL)
-        expr->where = curr;  /* expression location (by token) */
     
     return expr;
 }

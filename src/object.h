@@ -8,13 +8,17 @@
 #ifndef object_h
 #define object_h
 
-//#include <stdint.h>
+#include <stdint.h>
 
 #include "array.h"
 #include "ast.h"
 #include "env.h"
 #include "list.h"
 #include "table.h"
+
+/* forward declaration to avoid cyclic include 
+   problem with 'env.h' */
+typedef struct Env Env;
 
 typedef struct Rav_obj Rav_obj;
 typedef struct Cl_obj Cl_obj;
@@ -47,7 +51,7 @@ typedef enum {
 /* closure object */
 struct Cl_obj {
     /* the environemt in which the function was defined */
-    struct Env *env;
+    Env *env;
     /* list of parameters (AST_patt) */
     List params;
     AST_piece body;
