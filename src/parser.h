@@ -10,34 +10,44 @@
 
 #include <stdio.h>
 
-#include "alloc.h"
 #include "list.h"
 #include "ast.h"
+#include "token.h"
 
-typedef struct Parser *Parser;
+typedef struct Parser {
+    Token *tokens;      /* array of generated tokens */
+    int ident_num;      /* number of AST_expr_ident nodes int the src */
+    int been_error;     /* error flag */
+    ARRAY(SErr) errors; /* parse error */
 
-/* initialize a parser state with tokens list */
-extern void init_parser(Parser p, List tokens);
+    /* state of parser */
+    Token *curr;
+    Token *prev;
+    Token *peek;
+} Parser;
 
-/* allocate a new parser on reg region with tokens list */
-extern Parser parser_new(List tokens, Region_N reg);
-
-/* predicate for parse error ocurrence */
-extern int parser_error(Parser p);
-
-/* print parse errors, if any, to a stream 'out' */
-extern void parser_log(Parser p, FILE *out);
+/* initialize a parser state with tokens array */
+void init_parser(Parser *parser, Token *tokens);
 
 /* parse AST_piece node */
-extern AST_piece parse_piece(Parser p);
+AST_piece parse_piece(Parser *parser);
 
 /* parse AST_stmt node */
-extern AST_stmt parse_stmt(Parser p);
+AST_stmt parse_stmt(Parser *parser);
 
 /* parse AST_expr node */
-extern AST_expr parse_expr(Parser p);
+AST_expr parse_expr(Parser *parser);
 
 /* parse AST_patt node */
-extern AST_patt parse_patt(Parser p);
+AST_patt parse_patt(Parser *parser);
+
+/* 1 if there is a parsing error, 0 otherwise. */
+#define parser_error(parser) ((parser)->been_error)
+
+/* a pointer to the array of the parser (SErr) errors. */
+#define parser_errors(parser) ((parser)->errors.elems)
+
+/* number of parsing errors. */
+#define parser_errnum(parser) ((parser)->errors.len)
 
 #endif

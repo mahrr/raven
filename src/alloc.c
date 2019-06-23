@@ -81,7 +81,7 @@ void *alloc(unsigned long n, unsigned reg) {
             ap = ap->next;
             if (ap == NULL) {
                 /* @@ for now */
-                fatal_error(1, "not enough memory\n");
+                fatal_err(1, "not enough memory\n");
             }
             ap->limit = (char *)ap + m;
             ap->avail = (char *)((header *)ap + 1);

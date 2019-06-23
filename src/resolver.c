@@ -6,14 +6,17 @@
 */
 
 #include <assert.h>
+#include <stdio.h>   /* FILE */
 
 #include "array.h"
 #include "ast.h"
 #include "env.h"
+#include "error.h"
 #include "eval.h"
 #include "hashing.h"
 #include "resolver.h"
 #include "table.h"
+#include "token.h"
 
 
 /** TYPES **/
@@ -68,15 +71,14 @@ void pop_scope(Resolver *r) {
 }
 
 /* register an error in the resolver error array */
-static void reg_error(Resolver *r, Token where, char *msg) {
+static void reg_error(Resolver *r, Token *where, const char *msg) {
     r->been_error = 1;
-    
-    SError error = {msg, where};
+    SErr error = {*where, msg};
     ARR_ADD(&r->errors, error);
 }
 
 /* add a variable in the innermost scope of the resolver */
-static void define(Resolver *r, Token where, const char *name) {
+static void define(Resolver *r, Token *where, const char *name) {
     /* peek the scope on the top of stack */
     int depth = r->scopes.len - 1;
     Table *scope = r->scopes.elems[depth];
@@ -387,25 +389,16 @@ void init_resolver(Resolver *r, Evaluator *e) {
     r->state = 0;
     
     ARR_INIT(&r->scopes, Table*);
-    ARR_INIT(&r->errors, SError);
+    ARR_INIT(&r->errors, SErr);
 }
 
 void free_resolver(Resolver *r) {
     /* remove the global scope. */
     pop_scope(r);
 
+    /* free the resolver arrays */
     ARR_FREE(&r->scopes);
     ARR_FREE(&r->errors);
-}
-
-void resolver_log(Resolver *r, FILE *out) {
-    for (int i = 0; i < r->errors.len; i++) {
-        Token t = r->errors.elems[i].where;
-        fprintf(out, "syntax error: [%s | line %ld] %s.\n",
-                t->file,
-                t->line,
-                r->errors.elems[i].msg);
-    }
 }
 
 int resolve(Resolver *r, AST_piece piece) {

@@ -3,15 +3,31 @@
  *  
 */
 
-#include <stdlib.h>
 #include <ctype.h>
 #include <limits.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "strutil.h"
-#include "alloc.h"
-#include "salloc.h"
 
-char *escape(char *unescaped, char *escaped, int size) {
+char *strdup(const char *s) {
+    char *dup = malloc(strlen(s));
+    strcpy(dup, s);
+    return dup;
+}
+
+char *strndup(const char *s, size_t n) {
+    size_t slen = strlen(s);
+    size_t ssize = slen > n ? n : slen;
+
+    char *dup = malloc(ssize + 1);
+    strncpy(dup, s, n);
+    dup[ssize] = '\0';
+    
+    return dup;
+}
+
+char *escape(const char *unescaped, char *escaped, int size) {
     int i, j; /* string counters */
     
     for (i = 0, j = 0; i < size; i++, j++) {
@@ -41,19 +57,19 @@ char *escape(char *unescaped, char *escaped, int size) {
 
             /* terminated before digits*/
             if (i+2 >= size+1)
-                return unescaped+i-1;
+                return (char*)(unescaped+i-1);  /* at the 'x' */
                 
             /* the next two digits */
             char digits[2];
             digits[0] = unescaped[i++];
             digits[1] = unescaped[i];
                 
-            char **e = make(e, R_SECN);
-            int conv = strtol(digits, e, 16);
+            char *e;
+            int conv = strtol(digits, &e, 16);
 
             /* invalid two digits */
-            if (**e != '\0')
-                return unescaped+i-1;
+            if (*e != '\0')
+                return (char*)(unescaped+i-1); /* at the 'x' */
 
             escaped[j] = (char)conv;
             break;
@@ -64,55 +80,32 @@ char *escape(char *unescaped, char *escaped, int size) {
             if (isdigit(unescaped[i])) {
                 /* terminated before three digits */
                 if (i+3 >= size+1)
-                    return unescaped+i;
+                    return (char*)(unescaped+i);
 
                 char digits[3];
                 digits[0] = unescaped[i++];
                 digits[1] = unescaped[i++];
                 digits[2] = unescaped[i];
 
-                char **e = make(e, R_SECN);
-                int conv;
-                conv = strtol(digits, e, 8);
+                char *e;
+                int conv = strtol(digits, &e, 8);
 
                 /* invalid three digits octal */
-                if (**e != '\0')
-                    return unescaped+i-2;
+                if (*e != '\0')
+                    return (char*)(unescaped+i-2); /* at first digit */
 
                 /* the converted number above ASCII limit */
                 if (conv > 255)
-                    return unescaped+i-2;
+                    return (char*)(unescaped+i-2); /* at first digit */
 
                 escaped[j] = (char)conv;
                 break;
             }
-            return unescaped+i;
+            return (char*)(unescaped+i);
         }
         }
     }
     
     escaped[++j] = '\0';
     return NULL;
-}
-
-char *strd(long n) {
-    char buf[25];
-    /*from the buffer end */
-    char *s = buf + sizeof (buf);
-    /* works with unsigned because C permits different machines
-       to works with signed modulus on negative values differently */
-    unsigned long m;
-
-    if (n == LONG_MIN)
-        m = (unsigned)LONG_MAX + 1;
-    else
-        m = (n < 0) ? -n : n;
-
-    do
-        *--s = m%10 + '0';
-    while ((m/10) != 0);
-
-    if (n < 0) *--s = '-';
-
-    return strn(s, buf + sizeof (buf) - s);
 }

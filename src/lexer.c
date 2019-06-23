@@ -1,7 +1,7 @@
 /*
  * (lexer.c | 22 Nov 18 | Ahmad Maher)
  *
- * Raven lexer.
+ * Raven Lexer
  * 
 */
 
@@ -11,23 +11,10 @@
 #include <ctype.h>
 #include <assert.h>
 
+#include "error.h"
 #include "lexer.h"
-#include "alloc.h"
-#include "salloc.h"
 #include "strutil.h"
-#include "list.h"
-
-
-struct Lexer {
-    const char *current; /* the current unconsumed char in the source */
-    const char *fixed;   /* the start of the current token */
-    const char *file;    /* the source file name */
-    long line;           /* the current line number */
-    Region_N reg;        /* the allocation region for the tokens */
-    int been_error;      /* lexing error flag */
-    List tokens;       /* list of the consumed tokens */
-    List errors;       /* list of the tokens errors */
-};
+#include "token.h"
 
 /* hardcoded lexical errors messages */
 #define MSG_UNREC "unrecognize syntax"
@@ -35,101 +22,124 @@ struct Lexer {
 #define MSG_INVLD "invalid escape sequence"
 #define MSG_MALSC "malformed scientific notation"
 
-/* allocate a new token using the lexer current state. */
-static Token new_token(Lexer l, TK_type type, char *err_msg) {
-    Token tok = make(tok, l->reg);
-    tok->type = type;
-    tok->lexeme = l->fixed;
-    tok->length = l->current - l->fixed;
-    tok->file = l->file;
-    tok->line = l->line;
-    tok->err_msg = err_msg;
-
-    return tok;
-}
-
-/* small wrappers around new_token for less typing. */
-#define error_token(l, msg) new_token(l, TK_ERR, msg)
-#define valid_token(l, type) new_token(l, type, NULL)
+/** INTERNALS **/
 
 /* checks if the lexer reached the end of the source */
-#define at_end() (*(l->current) == '\0')
+#define at_end(l) (*((l)->current) == '\0')
 
 /* consumes the current char, and returns it */
-#define cons_char() at_end() ? '\0' : *l->current++
+#define cons_char(l) at_end(l) ? '\0' : *(l)->current++
 
 /* returns the current char without consuming it */
-#define peek_char() *l->current
+#define peek_char(l) *(l)->current
 
-/* return the next char without consuming it */
-#define peek_next() at_end() ? '\0' : *(l->current+1)
+/* returns the next char without consuming it */
+#define peek_next(l) at_end(l) ? '\0' : *((l)->current+1)
 
-/* return the last consumed character */
-#define prev_char() *(l->current-1)
+/* returns the previous consumed character */
+#define prev_char(l) *((l)->current-1)
 
-/* consumes the current char if it was c 
-   and returns true, else returns false */
-#define match_char(c) c == *l->current ? (l->current++, 1) : 0
+/* consume the current char if it was c */
+#define match_char(l, c)                            \
+    (c) == *(l)->current ? ((l)->current++, 1) : 0
 
-/* skips the short comments */
-static void line_comment(Lexer l) {
-    while (!at_end() && peek_char() != '\n')
-        cons_char();
+/* token struct literal on the fly */
+#define new_token(l, type)                          \
+    (Token){type,                                   \
+            l->file,                                \
+            l->fixed,                               \
+            l->current - l->fixed,                  \
+            l->line}
+
+/*
+ * register a lexing (syntax) error at token where,
+ * with specific error message.
+*/
+static void reg_error(Lexer *l, Token *where, const char *msg) {
+    SErr err = (SErr){*where, msg};
+    l->been_error = 1;
+    ARR_ADD(&l->errors, err);
+}
+
+/* 
+ * add token to the lexer tokens array, 
+ * and return its address.
+*/
+static Token *add_token(Lexer *l, TK_type type) {
+    ARR_ADD(&l->tokens, new_token(l, type));
+    return &l->tokens.elems[l->tokens.len-1];
+}
+
+/*
+ * register an lexing error with specified message,
+ * and add an error token to the lexer tokens array.
+ * it returns the address of the error token.
+*/
+static Token *add_error(Lexer *l, char *msg) {
+    Token *err = add_token(l, TK_ERR);
+    reg_error(l, err, msg);
+    return err;
+}
+
+/* skips the short one-line comments */
+static void line_comment(Lexer *l) {
+    while (!at_end(l) && peek_char(l) != '\n')
+        cons_char(l);
     
-    /* not to consume the newline at the end 
-       of the comment as a token*/
-    if (peek_char() == '\n') {
+    /* skip the newline at the end of the comment,
+       as not to consume it as token */
+    if (peek_char(l) == '\n') {
         l->line++;
-        cons_char();
+        cons_char(l);
     }
 }
 
 /* skips the long comments */
-static void long_comment(Lexer l) {    
-    cons_char(); /* '#' */
-    cons_char(); /* '-' */
+static void long_comment(Lexer *l) {    
+    cons_char(l); /* '#' */
+    cons_char(l); /* '-' */
 
     int unclosed = 1; /* number of unclosed '#-' */
 
     while (unclosed) {
-        while (!at_end() && ((peek_char() != '-') ||
-                             (peek_next() != '#'))) {
-            cons_char();
+        while (!at_end(l) &&
+               ((peek_char(l) != '-') || (peek_next(l) != '#'))) {
+            cons_char(l);
 
             /* '#-' found */
-            if ((peek_char() == '#') && (peek_next() == '-'))
+            if ((peek_char(l) == '#') && (peek_next(l) == '-'))
                 unclosed++;
         
-            if (peek_char() == '\n')
+            if (peek_char(l) == '\n')
                 l->line++;
         }
 
         /* '-#' found */
-        if (!at_end()) {
+        if (!at_end(l)) {
             unclosed--;
-            cons_char(); /* '-' */
-            cons_char(); /* '#' */
+            cons_char(l); /* '-' */
+            cons_char(l); /* '#' */
         } else {
             return; /* unterminated long comment is not an error */
         }
     }
 
-    if (peek_char() == '-') {
-        cons_char(); /* '-' */
-        cons_char(); /* '#' */
+    if (peek_char(l) == '-') {
+        cons_char(l);  /* '-' */
+        cons_char(l);  /* '#' */
     }
 }
 
-static void skip_whitespace(Lexer l) {    
+static void skip_whitespace(Lexer *l) {
     for (;;) {
-        switch (peek_char()) {
+        switch (peek_char(l)) {
         case ' ':
         case '\t':
         case '\r':
-            cons_char();
+            cons_char(l);
             break;
         case '#':
-            if (peek_next() == '-')
+            if (peek_next(l) == '-')
                 long_comment(l);
             else
                 line_comment(l);
@@ -137,110 +147,118 @@ static void skip_whitespace(Lexer l) {
         default:
             return;
         }
-    }           
+    }
 }
 
-/* match the rest of the keyword with the rest of the token */
-#define match_keyword(rest)                                 \
-    (sizeof(rest) - 1 == l->current - l->fixed - 1 &&       \
+/* 
+ * check if the rest of the keyword match with 
+ * the rest of the current token being consumed.
+ * rest is encoded string, so it's okay to use
+ * (sizeof(rest)-1) for its length.
+*/
+#define match_keyword(l, rest)                              \
+    ((sizeof(rest) - 1) == (l->current - l->fixed - 1) &&   \
      !strncmp(rest, l->fixed + 1, sizeof(rest) - 1))
 
-/* consumes a keywords if matched, otherwise an identifiers */
-static Token cons_ident(Lexer l) {
+/* consumes a keywords if matches, otherwise an identifiers */
+static Token *cons_ident(Lexer *l) {
     /* extract the whole token first */
-    char start_ch = prev_char();
-    
-    while (!at_end() && (isalnum(peek_char()) || peek_char() == '_'))
-        cons_char();
+    char start_ch = prev_char(l);
+
+    /* consume characters until end of a name */
+    while (!at_end(l) &&
+           (isalnum(peek_char(l)) || peek_char(l) == '_'))
+        cons_char(l);
 
     /* probably faster than hash table but need to be tested though */
     switch (start_ch) {
     case 'a':
-        if (match_keyword("nd"))
-            return valid_token(l, TK_AND);
+        if (match_keyword(l, "nd"))
+            return add_token(l, TK_AND);
         break;
         
     case 'b':
-        if (match_keyword("reak"))
-            return valid_token(l, TK_BREAK);
+        if (match_keyword(l, "reak"))
+            return add_token(l, TK_BREAK);
         break;
         
     case 'c':
-        if (match_keyword("ase"))
-            return valid_token(l, TK_CASE);
-        else if (match_keyword("ontinue"))
-            return valid_token(l, TK_CONTINUE);
+        if (match_keyword(l, "ase"))
+            return add_token(l, TK_CASE);
+        else if (match_keyword(l, "ontinue"))
+            return add_token(l, TK_CONTINUE);
         break;
         
     case 'd':
-        if (match_keyword("o"))
-            return valid_token(l, TK_DO);
+        if (match_keyword(l, "o"))
+            return add_token(l, TK_DO);
         break;
         
     case 'e':
-        if (match_keyword("lif"))
-            return valid_token(l, TK_ELIF);
-        else if (match_keyword("lse"))
-            return valid_token(l, TK_ELSE);
-        else if (match_keyword("nd"))
-            return valid_token(l, TK_END);
+        if (match_keyword(l, "lif"))
+            return add_token(l, TK_ELIF);
+        else if (match_keyword(l, "lse"))
+            return add_token(l, TK_ELSE);
+        else if (match_keyword(l, "nd"))
+            return add_token(l, TK_END);
         break;
         
     case 'f':
-        if (match_keyword("alse"))
-            return valid_token(l, TK_FALSE);
-        else if (match_keyword("n"))
-            return valid_token(l, TK_FN);
-        else if (match_keyword("or"))
-            return valid_token(l, TK_FOR);
+        if (match_keyword(l, "alse"))
+            return add_token(l, TK_FALSE);
+        else if (match_keyword(l, "n"))
+            return add_token(l, TK_FN);
+        else if (match_keyword(l, "or"))
+            return add_token(l, TK_FOR);
         break;
         
     case 'i':
-        if (match_keyword("f"))
-            return valid_token(l, TK_IF);
-        else if (match_keyword("n"))
-            return valid_token(l, TK_IN);
+        if (match_keyword(l, "f"))
+            return add_token(l, TK_IF);
+        else if (match_keyword(l, "n"))
+            return add_token(l, TK_IN);
         break;
         
     case 'l':
-        if (match_keyword("et"))
-            return valid_token(l, TK_LET);
+        if (match_keyword(l, "et"))
+            return add_token(l, TK_LET);
         break;
         
     case 'm':
-        if (match_keyword("atch"))
-            return valid_token(l, TK_MATCH);
+        if (match_keyword(l, "atch"))
+            return add_token(l, TK_MATCH);
         break;
         
     case 'n':
-        if (match_keyword("il"))
-            return valid_token(l, TK_NIL);
-        else if (match_keyword("ot"))
-            return valid_token(l, TK_NOT);
+        if (match_keyword(l, "il"))
+            return add_token(l, TK_NIL);
+        else if (match_keyword(l, "ot"))
+            return add_token(l, TK_NOT);
         break;
         
     case 'o':
-        if (match_keyword("r"))
-            return valid_token(l, TK_OR);
+        if (match_keyword(l, "r"))
+            return add_token(l, TK_OR);
         break;
         
     case 'r':
-        if (match_keyword("eturn"))
-            return valid_token(l, TK_RETURN);
+        if (match_keyword(l, "eturn"))
+            return add_token(l, TK_RETURN);
         break;
         
     case 't':
-        if (match_keyword("rue"))
-            return valid_token(l, TK_TRUE);
+        if (match_keyword(l, "rue"))
+            return add_token(l, TK_TRUE);
         break;
         
     case 'w':
-        if (match_keyword("hile"))
-            return valid_token(l, TK_WHILE);
-        break;        
+        if (match_keyword(l, "hile"))
+            return add_token(l, TK_WHILE);
+        break;
     }
 
-    return valid_token(l, TK_IDENT);  
+    /* not a keyword */
+    return add_token(l, TK_IDENT);  
 }
 
 #define is_hexa_digit(n)                        \
@@ -254,133 +272,146 @@ static Token cons_ident(Lexer l) {
 #define is_bin_digit(n)                         \
     (n == '0' || n == '1')
 
-/* consumes number types */
-Token cons_num(Lexer l) {
+/* consume numeric tokens */
+Token *cons_num(Lexer *l) {
     
-    char start_ch = prev_char();
-    int is_float = 0;
+    char start_ch = prev_char(l);
+    int is_float = 0;  /* a flag for floating point numbers */
 
-    /* case of hexa, octal and binary numbers */
+    /* case of hexadecimal, octal and binary numbers */
     if (start_ch == '0') {
-        switch (peek_char()) {
+        switch (peek_char(l)) {
         case 'x':
         case 'X':
-            cons_char();
-            while (is_hexa_digit(peek_char())) cons_char();
-            return valid_token(l, TK_INT);
+            cons_char(l);
+            while (is_hexa_digit(peek_char(l)))
+                cons_char(l);
+            return add_token(l, TK_INT);
         case 'o':
         case 'O':
-            cons_char();
-            while (is_octal_digit(peek_char())) cons_char();
-            return valid_token(l, TK_INT);
+            cons_char(l);
+            while (is_octal_digit(peek_char(l)))
+                cons_char(l);
+            return add_token(l, TK_INT);
         case 'b':
         case 'B':
-            cons_char();
-            while(is_bin_digit(peek_char())) cons_char();
-            return valid_token(l, TK_INT);
+            cons_char(l);
+            while(is_bin_digit(peek_char(l)))
+                cons_char(l);
+            return add_token(l, TK_INT);
         }
     }
-    
-    while (!at_end() && isdigit(peek_char()))
-        cons_char();
 
-    /* regular decimal point number */
-    if (peek_char() == '.' && isdigit(peek_next())) {
+    /* decimal form */
+    while (!at_end(l) && isdigit(peek_char(l)))
+        cons_char(l);
+
+    /* decimal point form */
+    if (peek_char(l) == '.' && isdigit(peek_next(l))) {
         is_float = 1;
-        cons_char();
-        while (!at_end() && isdigit(peek_char()))
-            cons_char();
+        cons_char(l);  /* the decimal point */
+        while (!at_end(l) && isdigit(peek_char(l)))
+            cons_char(l);
     }
 
     /* scientific notation */
-    if ((peek_char() == 'e' || peek_char() == 'E')
-        && (isdigit(peek_next())
-            || (peek_next() == '+')
-            || (peek_next() == '-'))) {
+    if ((peek_char(l) == 'e' || peek_char(l) == 'E')
+        && (isdigit(peek_next(l))
+            || (peek_next(l) == '+')
+            || (peek_next(l) == '-'))) {
         is_float = 1;
         
-        cons_char();  /* consume 'e/E' */
-        cons_char();  /* consume '+/-/<digit> */
+        cons_char(l);  /* consume 'e/E' */
+        cons_char(l);  /* consume '+/-/<digit> */
         
         /* malformed scientific notation (ex. '1e+') */
-        if (!isdigit(prev_char()) && !isdigit(peek_char()))
-            return error_token(l, MSG_MALSC);
+        if (!isdigit(prev_char(l)) && !isdigit(peek_char(l)))
+            return add_error(l, MSG_MALSC);
         
-        while (!at_end() && isdigit(peek_char()))
-            cons_char();
+        while (!at_end(l) && isdigit(peek_char(l)))
+            cons_char(l);
     }
 
-    return valid_token(l, is_float ? TK_FLOAT : TK_INT);
+    return add_token(l, is_float ? TK_FLOAT : TK_INT);
 }
 
 /* consumes escaped strings */
-static Token cons_str(Lexer l) {    
-    char start_ch = prev_char();
-    char *str_start = (char*)((l->current)-1);
+static Token *cons_str(Lexer *l) {
+    /* single or double quote */
+    char quote = prev_char(l);
+
+    /* the beginning of the string */
+    /* char *str_start = (char*)((l->current)-1); */
 
     /* calculate the string size making sure that the string
        doesn't terminate on an escaped single or double quotes */
-    while (!at_end() &&
-           peek_char() != start_ch && peek_char() != '\n') {
-        if (peek_char() == '\\') {
-            cons_char();
-            if (peek_char() == '\n')
+    while (!at_end(l) && peek_char(l) != quote && peek_char(l) != '\n') {
+        if (peek_char(l) == '\\') {
+            cons_char(l);  /* the back slash */
+            if (peek_char(l) == '\n')
                 break;
-            cons_char();
-        } else
-            cons_char();
+            cons_char(l); /* the char after back slash */
+            continue;
+        }
+        
+        cons_char(l);
     }
     
-    if (at_end() || peek_char() == '\n')
-        return error_token(l, MSG_UNTER);
+    if (at_end(l) || peek_char(l) == '\n')
+        return add_error(l, MSG_UNTER);
 
-    cons_char();   /* consume the final quote */
+    cons_char(l);  /* consume the final quote */
     
-    char *str_end = (char*)l->current;
-    int size = str_end - str_start;
+    /* char *str_end = (char*)l->current; */
+    /* int size = str_end - str_start; */
+    int size = l->current - l->fixed;
 
-    /* check for escaping erros */
-    char *buf = alloc(size, R_SECN);  /* escape string buffer */
-    char *res = escape(str_start, buf, size);
-
+    
+    /* check for escaping errors */
+    char *buf = malloc(size);  /* escape string buffer */
+    char *res = escape(l->fixed, buf, size);
+    free(buf);
+    
     /* escape error */
     if (res != NULL) {
-        Token err = error_token(l, MSG_INVLD);
-        err->lexeme = res;  /* the lexeme point to the escape error */
+        Token *err = add_token(l, TK_ERR);
+        /* the lexeme point to the escape error,
+         * not the start of the token. */
+        err->lexeme = res;
         err->length = l->current - res;
+        reg_error(l, err, MSG_INVLD);
         return err;
     }
     
     /* note that the used lexeme is the original unescaped
        string, the actual escaping happen in the runtime. */
-    return valid_token(l, TK_STR);
+    return add_token(l, TK_STR);
 }
 
 /* consume raw strings without any escaping */
-Token cons_rstr(Lexer l) {
-    char start_ch = prev_char();
+static Token *cons_rstr(Lexer *l) {
+    char quote = prev_char(l);
 
-    while (!at_end() && peek_char() != start_ch) {
-        if (peek_char() == '\n') l->line++;
-        cons_char();
+    while (!at_end(l) && peek_char(l) != quote) {
+        if (peek_char(l) == '\n') l->line++;
+        cons_char(l);
     }
 
-    /* the final qoute */
-    cons_char();
-    
-    if (at_end())
-        return error_token(l, MSG_UNTER);
+    if (at_end(l))
+        return add_error(l, MSG_UNTER);
 
-    return valid_token(l, TK_RSTR);
+    cons_char(l); /* the final quote */
+
+    return add_token(l, TK_RSTR);
 }
 
 /* consume the current token, then return it. */
-static Token consume(Lexer l) {    
+static Token *consume(Lexer *l) {    
     /* ignore any whitespace characters */
     skip_whitespace(l);
 
     l->fixed = l->current;
-    char c = cons_char();
+    char c = cons_char(l);
      
     if (isalpha(c) || c == '_') return cons_ident(l);
     if (isdigit(c)) return cons_num(l);
@@ -388,62 +419,62 @@ static Token consume(Lexer l) {
     switch(c) {      
     /* one character tokens */
     case '@':
-        return valid_token(l, TK_AT);
+        return add_token(l, TK_AT);
     case '|':
-        return valid_token(l, TK_PIPE);
+        return add_token(l, TK_PIPE);
     case '+':
-        return valid_token(l, TK_PLUS);
+        return add_token(l, TK_PLUS);
     case '*':
-        return valid_token(l, TK_ASTERISK);
+        return add_token(l, TK_ASTERISK);
     case '/':
-        return valid_token(l, TK_SLASH);
+        return add_token(l, TK_SLASH);
     case '%':
-        return valid_token(l, TK_PERCENT);
+        return add_token(l, TK_PERCENT);
     case '(':
-        return valid_token(l, TK_LPAREN);
+        return add_token(l, TK_LPAREN);
     case ')':
-        return valid_token(l, TK_RPAREN);
+        return add_token(l, TK_RPAREN);
     case '{':
-        return valid_token(l, TK_LBRACE);
+        return add_token(l, TK_LBRACE);
     case '}':
-        return valid_token(l, TK_RBRACE);
+        return add_token(l, TK_RBRACE);
     case '[':
-        return valid_token(l, TK_LBRACKET);
+        return add_token(l, TK_LBRACKET);
     case ']':
-        return valid_token(l, TK_RBRACKET);
+        return add_token(l, TK_RBRACKET);
     case ',':
-        return valid_token(l, TK_COMMA);
+        return add_token(l, TK_COMMA);
     case '.':
-        return valid_token(l, TK_DOT);
+        return add_token(l, TK_DOT);
     case ':':
-        return valid_token(l, TK_COLON);
+        return add_token(l, TK_COLON);
     case ';':
-        return valid_token(l, TK_SEMICOLON);
+        return add_token(l, TK_SEMICOLON);
         
     /* possible two character tokens */
     case '<':
-        if (match_char('='))
-            return valid_token(l, TK_LT_EQ);
-        return valid_token(l, TK_LT);
+        if (match_char(l, '='))
+            return add_token(l, TK_LT_EQ);
+        return add_token(l, TK_LT);
         
     case '>':
-        if (match_char('='))
-            return valid_token(l, TK_GT_EQ);
-        return valid_token(l, TK_GT);
+        if (match_char(l, '='))
+            return add_token(l, TK_GT_EQ);
+        return add_token(l, TK_GT);
 
     case '=':
-        if (match_char('='))
-            return valid_token(l, TK_EQ_EQ);
-        return valid_token(l, TK_EQ);
+        if (match_char(l, '='))
+            return add_token(l, TK_EQ_EQ);
+        return add_token(l, TK_EQ);
 
     case '-':
-        if (match_char('>'))
-            return valid_token(l, TK_DASH_GT);
-        return valid_token(l, TK_MINUS);
+        if (match_char(l, '>'))
+            return add_token(l, TK_DASH_GT);
+        return add_token(l, TK_MINUS);
 
     case '!':
-        if (match_char('='))
-            return valid_token(l, TK_BANG_EQ);
+        if (match_char(l, '='))
+            return add_token(l, TK_BANG_EQ);
 
 
     case '"':
@@ -454,8 +485,8 @@ static Token consume(Lexer l) {
         return cons_rstr(l);
             
     case '\n': {
-        Token tok = valid_token(l, TK_NL);
-        tok->lexeme = "";
+        Token *tok = add_token(l, TK_NL);
+        /* to avoid printing newlines at debugging */
         tok->length = 0;
 
         l->line++;
@@ -464,21 +495,21 @@ static Token consume(Lexer l) {
         
     case '\0':
     case EOF:
-        return valid_token(l, TK_EOF);
+        return add_token(l, TK_EOF);
     }
-    return error_token(l, MSG_UNREC);
+
+    return add_error(l, MSG_UNREC);
 }
 
 /** INTERFACE **/
 
 char *scan_file(const char *file) {
     FILE *f = fopen(file, "rb");
-    if (f == NULL)
-        return NULL;
+    if (f == NULL) return NULL;
     
     fseek(f, 0, SEEK_END);
     size_t size = ftell(f)+1;
-    char *buff = alloc(size, R_PERM);
+    char *buff = malloc(size);
 
     fseek(f, 0, SEEK_SET);
     fread(buff, 1, size, f);
@@ -487,49 +518,29 @@ char *scan_file(const char *file) {
     return buff;
 }
 
-void init_lexer(Lexer l, const char *src, const char *file) {
-    l->current = src;
-    l->fixed = src;
-    l->file = str(file);
-    l->line = 1;
-    l->been_error = 0;
-    l->tokens = List_new(l->reg);
-    l->errors = List_new(l->reg);
+void init_lexer(Lexer *lexer, const char *src, const char *file) {
+    lexer->current = src;
+    lexer->fixed = src;
+    lexer->file = file;
+    lexer->line = 1;
+    lexer->been_error = 0;
+    ARR_INIT(&lexer->tokens, Token);
+    ARR_INIT(&lexer->errors, SErr);
 }
 
-Lexer lexer_new(const char *src, const char *file, Region_N reg) {
-    Lexer l = make(l, reg);
-    l->reg = reg;
-    init_lexer(l, src, file);
-
-    return l;
+void free_lexer(Lexer *lexer) {
+    ARR_FREE(&lexer->tokens);
+    ARR_FREE(&lexer->errors);
 }
 
-Token cons_token(Lexer l) {
-    return consume(l);
+Token *cons_token(Lexer *lexer) {
+    return consume(lexer);
 }
 
-List cons_tokens(Lexer l) {
-    Token tok = cons_token(l);
+Token *cons_tokens(Lexer *lexer) {
+    Token *tok = consume(lexer);
+    while (tok->type != TK_EOF)
+        tok = consume(lexer);
 
-    while (tok->type != TK_EOF) {
-        if (tok->type == TK_ERR) {
-            l->been_error = 1;
-            List_append(l->errors, tok);
-        } else {
-            List_append(l->tokens, tok);
-        }
-        tok = cons_token(l);
-    }
-
-    List_append(l->tokens, tok);  /* EOF token */
-    return l->tokens; 
-}
-
-int lexer_been_error(Lexer l) {
-    return l->been_error;
-}
-
-List lexer_errors(Lexer l) {
-    return l->been_error ? l->errors : NULL;
+    return lexer->tokens.elems;
 }

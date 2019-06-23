@@ -1,7 +1,7 @@
 /*
  * (lexer.h | 22 Nov 18 | Ahmad Maher)
  *
- * Lexcical Analyzer Interface
+ * Lexer Interface
  * 
 */
 
@@ -10,84 +10,61 @@
 
 #include <stdio.h>
 
-#include "alloc.h"
-#include "list.h"
+#include "array.h"
+#include "error.h"
+#include "token.h"
 
-typedef enum {
-    /* Literals */
-    TK_INT, TK_FLOAT, TK_STR,
-    TK_RSTR, TK_FALSE, TK_TRUE,
-    TK_NIL,
+typedef struct Lexer {
+    const char *current;  /* the current unconsumed char in the source */
+    const char *fixed;    /* the start of the current token */
+    const char *file;     /* the source file name */
+    long line;            /* the current line number */
+    int been_error;       /* lexing error flag */
+    ARRAY(Token) tokens;  /* array of the consumed tokens */
+    ARRAY(SErr) errors;   /* array of the lexing (syntax) errors */
+} Lexer;
 
-    /* Keywords */
-    TK_FN, TK_RETURN, TK_LET, TK_DO,
-    TK_END, TK_IF, TK_ELIF, TK_ELSE,
-    TK_FOR, TK_WHILE, TK_CONTINUE,
-    TK_BREAK, TK_MATCH, TK_CASE,
-
-    /* Identefier */
-    TK_IDENT,
-    
-    /* Operators */
-    TK_AND, TK_OR, TK_NOT,
-    TK_DOT, TK_AT, TK_PIPE,
-
-    /* Arthimetik Operators */
-    TK_PLUS, TK_MINUS, TK_ASTERISK,
-    TK_SLASH, TK_PERCENT,
-
-    /* Ordering Operators */
-    TK_LT, TK_GT, TK_EQ_EQ,
-    TK_BANG_EQ, TK_LT_EQ,
-    TK_GT_EQ,
-
-    /* Delimiters */
-    TK_LPAREN, TK_RPAREN,
-    TK_LBRACE, TK_RBRACE,
-    TK_LBRACKET, TK_RBRACKET,
-    TK_COMMA, TK_DASH_GT,
-    TK_COLON, TK_SEMICOLON,
-    TK_EQ, TK_IN,
-    TK_NL, 
-
-    /* Error and end of file */
-    TK_ERR, TK_EOF,
-} TK_type;
-
-typedef struct Token {
-    TK_type type;        /* the type of the token */
-    const char *lexeme;  /* pointer to the start of the token in the src */
-    int length;          /* the length of the token */
-    const char *file;    /* the name of the source file */
-    long line;           /* the line of the token */
-    const char *err_msg; /* the associated message if TK_ERR consumed */
-} *Token;
-
-typedef struct Lexer *Lexer;
-
-/* extract the file content to a newly allocated
-   buffer and return pointer to that buffer.*/
-extern char *scan_file(const char *file);
-
-/* allocate and initialize a new lexer state. */
-extern Lexer lexer_new(const char *src, const char *file, Region_N reg);
+/* 
+ * extract the file content to a newly allocated
+ * buffer and return pointer to that buffer.
+*/
+char *scan_file(const char *file);
 
 /* initialize a lexer state. */
-extern void init_lexer(Lexer l, const char *src, const char *file);
+void init_lexer(Lexer *lexer, const char *src, const char *file);
 
-/* return a consumed token on demand including
-   error tokens and add this token to the Lexer
-   token lists. */
-extern Token cons_token(Lexer);
+/* 
+ * free the lexer internal resources (tokens and errors
+ * arrays). the lexer cannot be used after call to this
+ * function, init_lexer is needed to be called first.
+*/
+void free_lexer(Lexer *lexer);
 
-/* return a list of consumed valid tokens. */
-extern List cons_tokens(Lexer);
+/* 
+ * consume a token on demand add the token to the lexer
+ * token array and return pointer to the consumed token. 
+*/
+Token *cons_token(Lexer *lexer);
 
-/* check if there is a lexing error. */
-extern int lexer_been_error(Lexer);
+/*
+ * consume tokens until EOF is encountered. the consumed
+ * tokens are added to the lexer token array, and any
+ * lexing (syntax) errors are added to the lexer errors
+ * array. it returns a pointer to the tokens array.
+*/
+Token *cons_tokens(Lexer *lexer);
 
-/* return a list of the lexer tokens error and NULL
-   if there is no errors. */
-extern List lexer_errors(Lexer);
+
+/* number of consumed tokens */
+#define lexer_toknum(lexer) ((lexer)->tokens.len)
+
+/* 1 if there is a lexing error, 0 otherwise. */
+#define lexer_error(lexer) ((lexer)->been_error)
+
+/* a pointer to the array of the lexer (SErr) errors. */
+#define lexer_errors(lexer) ((lexer)->errors.elems)
+
+/* number of lexing errors. */
+#define lexer_errnum(lexer) ((lexer)->errors.len)
 
 #endif

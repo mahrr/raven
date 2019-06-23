@@ -7,8 +7,8 @@
 #include <stdarg.h>
 
 #include "ast.h"
-#include "lexer.h"
 #include "list.h"
+#include "token.h"
 
 /* string representation of each token type */
 char *tok_types_str[] = {
@@ -48,7 +48,7 @@ char *tok_types_str[] = {
     "ERR", "EOF",
 };
 
-void print_token(Token t) {
+void print_token(Token *t) {
     printf("[%s @line %ld] %.*s (%d) : %s\n",
            t->file,
            t->line,

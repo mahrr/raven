@@ -13,20 +13,15 @@
 #define resolver_h
 
 #include "ast.h"
+#include "error.h"
 #include "eval.h"
-
-/* semantic errors */
-typedef struct SError {
-    char *msg;
-    Token where;
-} SError;
 
 typedef struct Resolver {
     Evaluator *evaluator;
     int been_error;          /* error flag */
     unsigned state;          /* the current state of the resolver */
     ARRAY(Table*) scopes;    /* stack of scopes */
-    ARRAY(SError) errors;    /* resolving errors */
+    ARRAY(SErr) errors;      /* resolving errors */
 } Resolver;
 
 /**
@@ -46,7 +41,13 @@ void free_resolver(Resolver *r);
    any other integer on errors */
 int resolve(Resolver *r, AST_piece p);
 
-/* dump resulting errors from the resolving to 'out' stream */
-void resolver_log(Resolver *r, FILE *out);
+/* 1 if there is a semantic error, 0 otherwise. */
+#define resolve_error(r) ((r)->been_error)
+
+/* a pointer to the array of the resolver errors. */
+#define resolver_errors(r) ((r)->errors.elems)
+
+/* */
+#define resolver_errnum(r) ((r)->errors.len);
 
 #endif

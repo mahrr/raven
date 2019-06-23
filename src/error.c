@@ -1,17 +1,16 @@
 /*
  * (error.c | 28 Nov 18 | Ahmad Maher)
  *
- * See error.h for full description.
- *
 */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
 
-#include "lexer.h"
+#include "error.h"
+#include "token.h"
 
-extern void fatal_error(int status, const char *msg, ...) {
+void fatal_err(int status, const char *msg, ...) {
     va_list ap;
     va_start(ap, msg);
     vfprintf(stderr, msg, ap);
@@ -19,11 +18,19 @@ extern void fatal_error(int status, const char *msg, ...) {
     exit(status);
 }
 
-extern void lex_error(char *src, Token tok) {
-    fprintf(stderr, "[%s:%ld] syntax error: %s\n",
-            tok->file, tok->line, tok->err_msg);
+void log_serr(SErr *error, int n, FILE *out) {
+    for (int i = 0; i < n; i++) {
+        Token *where = &error[i].where;
+    
+        fprintf(out, "[%s | %ld] Syntax Error at '%.*s': %s.\n",
+                where->file,
+                where->line,
+                where->type == TK_EOF ? 3 : where->length,
+                where->type == TK_EOF ? "EOF" : where->lexeme,
+                error->message);
+    }
 
-    /* get the beginning of the line */
+    /* 
     const char *begin = tok->lexeme;
     int count = 0;
     while (*begin != '\n' && begin != src) {
@@ -42,4 +49,5 @@ extern void lex_error(char *src, Token tok) {
     int len = count - tok->length + 1;
     while (--len) putchar(' ');
     puts("^--");
+    */
 }
