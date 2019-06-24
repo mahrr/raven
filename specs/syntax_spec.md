@@ -65,7 +65,7 @@ call_expression ::= expression "(" expr_list ")";
 if_expression ::= "if" expression "do" piece 
   {"elif" expression "do" piece} ["else" piece] "end";
 
-for_expression ::= "for" name "in" expression "do" piece "end";
+for_expression ::= "for" pattern "in" expression "do" piece "end";
 
 while_expression ::= "while" expression "do" piece "end";
 
@@ -80,7 +80,9 @@ list_literal ::= "[" expr_list "]";
 
 hash_literal ::= "{" [hash_field {"," hash_field}] "}";
 
-hash_field ::= name ":" expression;
+hash_field ::= [expression] ":" expression
+             | name ":" expression
+             | expression;
 
 pattern ::= const_pattern
           | ident_pattern
@@ -104,7 +106,9 @@ pair_pattern ::=  "(" pattern "|" pattern ")";
 
 record_pattern ::= "{" [pattern_field {"," pattern_field}] "}";
 
-pattern_field ::= name ":" pattern;
+pattern_field ::= [expression] ":" pattern
+                | name ":" pattern
+                | pattern;
 
 prefix_op ::= "-" | "not";
 
