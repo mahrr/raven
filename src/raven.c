@@ -63,6 +63,10 @@ void run_line(const char *line, Resolver *r, Evaluator *e) {
         SErr *errors = resolver_errors(r);
         int errnum = resolver_errnum(r);
         log_serr(errors, errnum, stderr);
+
+        /* reset the resolver errors */
+        r->been_error = 0;
+        r->errors.len = 0;
         return;
     }
 

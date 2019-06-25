@@ -283,7 +283,12 @@ static void print_expr(AST_expr e) {
 
     case FOR_EXPR: {
         AST_for_expr for_expr = e->obj.for_expr;
-        paren_block("for in", for_expr->iter, for_expr->body);
+        printf("|for| ");
+        print_patt(for_expr->patt);
+        printf(" in ");
+        print_expr(for_expr->iter);
+        putchar('\n');
+        print_piece(for_expr->body);
         break;
     }
 

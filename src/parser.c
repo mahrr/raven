@@ -430,8 +430,8 @@ static AST_expr cons_expr(Parser *p, AST_expr head) {
 static AST_expr for_expr(Parser *p) {
     next_token(p);  /* consume 'for' token */
 
-    Token *name = expect_token(p, TK_IDENT, "name");
-    if (name == NULL) return NULL;
+    AST_patt patt = pattern(p);
+    if (patt == NULL) return NULL;
 
     if (!expect_token(p, TK_IN, "'in'"))
         return NULL;
@@ -439,10 +439,13 @@ static AST_expr for_expr(Parser *p) {
     AST_expr iter = expression(p, LOW_PREC);
     if (iter == NULL) return NULL;
 
+    if (!expect_token(p, TK_DO, "'do'"))
+        return NULL;
+
     AST_piece body = piece(p, 1, TK_END);
 
     AST_for_expr for_expr = malloc(sizeof (*for_expr));
-    for_expr->name = ident_of_tok(name);
+    for_expr->patt = patt;
     for_expr->iter = iter;
     for_expr->body = body;
 

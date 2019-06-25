@@ -108,15 +108,15 @@ static void resolve_local(Resolver *r, AST_expr expr) {
     for (int i = inner; i >= 0; i--) {
         /* current outer most scope */
         Table *scope = r->scopes.elems[i];
+        Var *var = table_get(scope, name);
 
         /* check if the scope contains the variable */
-        if (table_lookup(scope, name)) {
+        if (var) {
             /* the evaluator variables lookup table */
             Table *eval_vars = r->evaluator->vars;
 
             /* the index of the variable in the 
                scope where it's defined */
-            Var *var = table_get(scope, name);
             int slot = var->slot;
 
             /* array of two ints, contains the current used 
@@ -129,7 +129,6 @@ static void resolve_local(Resolver *r, AST_expr expr) {
             /* put the location array in the evaluator
                variable lookup table */
             table_put(eval_vars, expr, loc);
-
             return;
         }
     }
@@ -268,10 +267,16 @@ static void resolve_expr(Resolver *r, AST_expr expr) {
         break;
         
     case FOR_EXPR: {
+        AST_for_expr for_expr = expr->obj.for_expr;
         unsigned prev_state = r->state;
         r->state |= IN_LOOP;
-        resolve_expr(r, expr->obj.for_expr->iter);
-        resolve_piece(r, expr->obj.for_expr->body);
+        
+        resolve_expr(r, for_expr->iter);
+        push_scope(r);
+        resolve_patt(r, for_expr->patt);
+        resolve_stmts(r, for_expr->body->stmts);
+        pop_scope(r);
+        
         r->state = prev_state;
         break;
     }

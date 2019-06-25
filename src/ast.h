@@ -227,7 +227,7 @@ struct AST_call_expr {
 };
 
 struct AST_for_expr {
-    char *name;
+    AST_patt patt;
     AST_expr iter;
     AST_piece body;
 };
