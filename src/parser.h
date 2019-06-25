@@ -12,6 +12,7 @@
 
 #include "array.h"
 #include "ast.h"
+#include "error.h"
 #include "token.h"
 
 typedef struct Parser {

@@ -18,7 +18,6 @@
 /* function types */
 typedef uint64_t (*Hash_Fn)(const void *key);
 typedef int      (*Comp_Fn)(const void *key1, const void *key2);
-typedef void     (*Free_Fn)(void *data);
 
 /* element block */
 typedef struct Elem {
@@ -33,7 +32,7 @@ typedef struct Table {
     Hash_Fn hash;    /* key hashing function */
     Comp_Fn comp;    /* key comparing function */
     Free_Fn free;    /* element deallocation function */
-    List *entries;   /* array of linked lists of elements blocks */
+    List **entries;  /* array of linked lists of elements blocks */
 } Table;
 
 #define table_size(table) ((table)->size)   /* get number of entries */

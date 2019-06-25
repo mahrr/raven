@@ -3,116 +3,188 @@
  *
 */
 
+#include <stdarg.h>
 #include <stdlib.h>
-#include <assert.h>
 
 #include "list.h"
-#include "alloc.h"
-#include "error.h"
 
-typedef struct Block *Block;
+List *list_append(List *list, List *tail) {
+    List **p = &list;
 
-struct Block {
-    void *object;
-    Block link;
-};
+    while (*p)
+        p = &(*p)->tail;
+    *p = tail;
 
-struct List {
-    Block entry;  /* the first block of the list */
-    Block end;    /* the end block of the list */
-    Block curr;   /* the current block for the iteration */
-    long count;   /* the number of blocks in the list */
-    Region_N reg; /* the region which the list been allocated in */
-};
-
-List List_new(Region_N reg) {
-    List l = make(l, reg);
-    l->entry = NULL;
-    l->end = NULL;
-    l->curr = NULL;
-    l->count = 0;
-    l->reg = reg;
-
-    return l;
+    return list;
 }
 
-List List_append(List l, void *obj) {
-    assert(l != NULL);
+void *list_remove(List *list, int pos) {
+    for (int i = 0; i < pos; i++)
+        list = list->tail;
     
-    /* empty list */
-    if (l->entry == NULL) {
-        l->entry = make(l->entry, l->reg);
-        l->entry->object = obj;
-        l->entry->link = NULL;
-        l->end = l->entry;
-        l->curr = l->entry;
-        l->count++;
-        return l;
+    List *rem = list->tail;
+    void *x = rem->head;
+
+    list->tail = rem->tail;
+    free(rem);
+    return x;
+}
+
+List *list_add(List *list, void *x) {
+    List **p = &list;
+    
+    while (*p)
+        p = &(*p)->tail;
+
+    *p = malloc(sizeof (**p));
+    (*p)->head = x;
+    (*p)->tail = NULL;
+
+    return list;
+}
+
+List *list_push(List *list, void *x) {
+    List *cell = malloc(sizeof (*cell));
+    cell->head = x;
+    cell->tail = list;
+    return cell;
+}
+
+List *list_pop(List *list, void **x) {
+    if (list) {
+        List *head = list->tail;
+        if (x) *x = list->head;
+        free(list);
+        return head;
+    }
+    return list;
+}
+
+List *list_rev(List *list) {
+    List *head = NULL;
+    List *tail;
+
+    for ( ; list; list = tail) {
+        tail = list->tail;
+        list->tail = head;
+        head = list;
     }
 
-    Block b = l->end;
-    
-    b->link = make(b->link, l->reg);
-    b->link->object = obj;
-    b->link->link = NULL;
-    l->end = b->link;
-    l->count++;
-
-    return l;
+    return head;
 }
 
-void *List_curr(List l) {
-    assert(l != NULL);
+List *list_map(List *list, Map_Fn f) {
+    List *head, **p = &head;
 
-    return l->curr ? l->curr->object : NULL;
+    for ( ; list; list = list->tail) {
+        *p = malloc(sizeof (**p));
+        (*p)->head = f(list->head);
+        p = &(*p)->tail;
+    }
+    *p = NULL;
+    return head;    
 }
 
-void *List_peek(List l) {
-    assert(l != NULL);
-
-    Block c = l->curr;
-    Block n;
-    
-    if (c && (n = c->link)) return n->object;
-    return NULL;
+List *list_copy(List *list, Copy_Fn f) {
+    return list_map(list, f);
 }
 
-void *List_iter(List l) {
-    assert(l != NULL);
-    
-    /* reaching the end of the list causes unwinding */
-    if (l->curr == NULL) {
-        l->curr = l->entry;
-        return NULL;
+List *list_filter(List *list, Pred_Fn f, Copy_Fn cpy) {
+    List *head, **p = &head;
+
+    for ( ; list; list = list->tail) {
+        if (!f(list->head))
+            continue;
+        
+        *p = malloc(sizeof (**p));
+        (*p)->head = cpy(list->head);
+        p = &(*p)->tail;
     }
 
-    void *object = l->curr->object;
-    l->curr = l->curr->link;
+    return head;
+}
+
+void *list_foldl(List *list, Fold_Fn f, void *b) {
+    for ( ; list; list = list->tail)
+        b = f(b, list->head);
+
+    return b;
+}
+
+void *list_foldr(List *list, Fold_Fn f, void *b) {
+    if (!list)
+        return b;
     
-    return object;
+    b = list_foldr(list->tail, f, b);
+    b = f(list->head, b);
+    return b;
 }
 
-void List_unwind(List l) {
-    assert(l != NULL);
-    l->curr = l->entry;
+void list_iter(List *list, Iter_Fn f) {
+    for ( ; list; list = list->tail)
+        f(list->head);
 }
 
-long List_len(List l) {
-    assert(l != NULL);
-    return l->count;
+int list_exists(List *list, Pred_Fn f) {
+    for ( ; list; list = list->tail)
+        if (f(list->head)) return 1;
+
+    return 0;
 }
 
-void *Listo_vec(List l, Region_N reg) {
-    assert(l != NULL);
+int list_forall(List *list, Pred_Fn f) {
+    for ( ; list; list = list->tail)
+        if (!f(list->head)) return 0;
 
-    long size = List_len(l) * sizeof (void*);
-    void **vec = alloc(size, reg);
+    return 1;
+}
 
-    int i = 0;
-    void *obj;
-    while ((obj = List_iter(l)))
-        vec[i++] = obj;
+int list_len(List *list) {
+    int n;
+    for (n = 0; list; list = list->tail)
+        n++;
 
-    vec[++i] = NULL;
+    return n;
+}
+
+List *list_of(void *x, ...) {
+    List *list, **p = &list;
+        
+    va_list ap;
+    va_start(ap, x);
+    
+    for ( ; x; x = va_arg(ap, void*)) {
+        *p = malloc(sizeof (**p));
+        (*p)->head = x;
+        p = &(*p)->tail;
+    }
+    *p = NULL;
+
+    va_end(ap);
+    return list;
+}
+
+void **list_to_vec(List *list) {
+    int len = list_len(list);
+    void **vec = malloc((len+1) * sizeof (*vec));
+
+    int i;
+    for (i = 0; i < len; i++) {
+        vec[i] = list->head;
+        list = list->tail;
+    }
+    vec[i] = NULL;
+
     return vec;
+}
+
+void free_list(List **lp, Free_Fn f) {
+    List *list;
+
+    for ( ; *lp; *lp = list) {
+        list = (*lp)->tail;
+        if (f)
+            f((*lp)->head);
+        free(*lp);
+    }
 }

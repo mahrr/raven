@@ -26,13 +26,13 @@ Elem *get_elem(Table *table, const void *key) {
     unsigned index = hash % table->size;
 
     Elem *elem;
-    while ((elem = List_iter(table->entries[index]))) {
+    List *cell = table->entries[index];
+    for ( ; cell; cell = cell->tail) {
+        elem = (Elem*)cell->head;
         /* hash comparsion is done first, as it's likely faster
            than key comparsion, especially if the keys are strings. */
-        if (hash == elem->hash && table->comp(elem->key, key)) {
-            List_unwind(table->entries[index]);
+        if (hash == elem->hash && table->comp(elem->key, key))
             return elem;
-        }
     }
 
     return NULL;
@@ -47,11 +47,11 @@ void init_table(Table *table, int size, Hash_Fn hash,
     table->comp = comp;
 
     /* allocate array of list pointers */
-    table->entries = (List *)malloc(sizeof(List) * size);
+    table->entries = (List**)malloc(sizeof(List*) * size);
 
     /* allocate lists for each entry */
     for (int i = 0; i < size; i++)
-        table->entries[i] = List_new(R_SECN);
+        table->entries[i] = NULL;
 }
 
 int table_lookup(Table *table, const void *key) {
@@ -83,7 +83,7 @@ void *table_put(Table *table, const void *key, void *data) {
     elem->hash = hash;
     elem->data = data;
     
-    List_append(table->entries[index], elem);
+    table->entries[index] = list_add(table->entries[index], elem);
     table->elems++;
 
     return NULL;
@@ -99,10 +99,12 @@ void *table_remove(Table *table, const void *key) {
     unsigned index = hash % table->size;
 
     Elem *elem;
-    while ((elem = List_iter(table->entries[index]))) {
+    List *cell = table->entries[index];
+    for (int i = 0; cell; cell = cell->tail, i++) {
+        elem = (Elem*)cell->head;
         if (hash == elem->hash && table->comp(elem->key, key)) {
             table->elems--;
-            // return List_remove();
+            return list_remove(cell, i);
         }
     }
 
@@ -112,8 +114,17 @@ void *table_remove(Table *table, const void *key) {
 
 void free_table(Table *table) {
     /* deallocating the table elements */
-    for (int i = 0; i < table->size; i++)
-        ;//list_free(table->entries[i], table->free);
-
+    for (int i = 0; i < table->size; i++) {
+        List *cell = table->entries[i];
+        List *next;
+        Elem *elem;
+        for ( ; cell; cell = next) {
+            elem = cell->head;
+            next = cell->tail;
+            table->free(elem->data);
+            free(elem);
+            free(cell);
+        }
+    }
     free(table->entries);
 }

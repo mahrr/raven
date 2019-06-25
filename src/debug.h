@@ -1,12 +1,12 @@
 /*
  * (debug.h | 12 Mar 19 | Ahmad Maher)
  *
- * Debug utilities
+ * Debug Utilities
  *
 */
 
-#include "lexer.h"
 #include "ast.h"
+#include "token.h"
 
 /* print token type, position, length and lexeme */
 void print_token(Token *tok);

@@ -13,7 +13,6 @@
 #include "array.h"
 #include "ast.h"
 #include "debug.h"
-#include "list.h"
 #include "parser.h"
 #include "strutil.h"
 #include "token.h"
@@ -1132,7 +1131,7 @@ expressions(Parser *p, TK_type dl, TK_type end, char *end_name) {
         do {
             skip_newlines(p);
             
-            expr = expression(p, R_SECN);
+            expr = expression(p, LOW_PREC);
             if (expr == NULL)
                 return NULL;
             

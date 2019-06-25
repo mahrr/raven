@@ -1,5 +1,5 @@
 /*
- * (object.h | | )
+ * (object.h | 14 Jun 19 | Amr Anwar, Ahmad Maher)
  *
  * Raven Object Model.
  *
@@ -53,7 +53,7 @@ struct Cl_obj {
     /* the environemt in which the function was defined */
     Env *env;
     /* list of parameters (AST_patt) */
-    List params;
+    AST_patt *params;
     AST_piece body;
 };
 

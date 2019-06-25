@@ -1,54 +1,138 @@
 /*
  * (list.h | 28 Nov 18 | Ahmad Maher)
  *
- * simple linked list.
+ * A simple linked list used as the underlying data structure 
+ * for the raven list and for hash tables chainning.
  *
 */
-
-#include "alloc.h"
 
 #ifndef list_h
 #define list_h
 
-typedef struct List *List;
-#define T List
+typedef struct List {
+    void *head;
+    struct List *tail;
+} List;
 
-/* 
-   NOTE:
-   None of these function that expect a list as an argument
-   can be passed NULL List. 
+/* passed functions types */
+typedef void *(*Map_Fn)  (void*);
+typedef void *(*Copy_Fn) (void*);
+typedef int   (*Pred_Fn) (void*);
+typedef void *(*Fold_Fn) (void*, void*);
+
+typedef void (*Iter_Fn) (void*);
+typedef void (*Free_Fn) (void*);
+
+/*
+ * Note:
+ * the function works with NULL as an empty list.
 */
 
-/* return a new empty list allocated on reg region. */
-extern T List_new(Region_N reg);
+/* 
+ * appends two lists, and returns the concatenated list.
+ * it's O(m), where m is the length if the first list.
+*/
+List *list_append(List *list, List *tail);
 
-/* appends a list l with object obj. */
-extern T List_append(T l, void *obj);
+/*
+ * removes an object from the list at specific position
+ * (start with 0). it returns the removed object.
+*/
+void *list_remove(List *list, int pos);
 
-/* iterate over a list l and return the next object or NULL on finish.
-   The next call after the iteration ends will unwind the list to the 
-   beginning. 
-   It doesn't support nested iteration for the same list 
-   (i.e. the nested iteration will continue from the outer iteration).*/
-extern void *List_iter(T l);
+/*
+ * adds an object to the end of a list, and retruns it.
+*/
+List *list_add(List *list, void *x);
 
-/* return the current object of the iteration process without any
-   incrementation and NULL on finish. */
-extern void *List_curr(T l);
+/* pushes an object to the beginning of a list. */
+List *list_push(List *list, void *x);
 
-/* return the next object of the iteration process without any
-   incrementation and NULL on finish. */
-extern void *List_peek(T l);
+/* 
+ * pops the first object from the list,
+ * puts the object pointer address into x,
+ * if x is not NULL, and returns the list. 
+*/
+List *list_pop(List *list, void **x);
 
-/* unwind the list iteration to the beginning of the list. */
-extern void List_unwind(T l);
+/* reverses a list in place. and returns it. */
+List *list_rev(List *list);
 
-/* returns the lenght of a list l. */
-extern long List_len(T l);
+/*
+ * maps every object in the list using f function.
+ * and returns the result list.
+ *
+*/
+List *list_map(List *list, Map_Fn f);
 
-/* convert a list to an continuation vector allocated on
-   region reg with terminated null. */
-extern void *Listo_vec(T l, Region_N reg);
+/* 
+ * copies every object in the list using f fucntion
+ * to a new list. and returns the new list.
+*/
+List *list_copy(List *list, Copy_Fn f);
 
-#undef T
+/*
+ * returns a new list that copies (by cpy) all 
+ * objects of the list that satisfy the Predicate f.
+*/
+List *list_filter(List *list, Pred_Fn f, Copy_Fn cpy);
+
+/*
+ * iterates over the list (from left, or right)
+ * incrementally appling the function f over the
+ * list objects.
+ *
+ * for list [1, 2, 3]
+ * foldl -> f( f( f(b, 1), 2), 3)
+ * foldr -> f(1, f(2, f(3, b) ) )
+*/
+void *list_foldl(List *list, Fold_Fn f, void *b);
+void *list_foldr(List *list, Fold_Fn f, void *b);
+
+/* 
+ * applies the function f to every object in list. 
+*/
+void list_iter(List *list, Iter_Fn f);
+
+/*
+ * checks if at least one object in the list satisfies
+ * the predicate f, if so it returns 1, otherwise 0.
+*/
+int list_exists(List *list, Pred_Fn f);
+
+/*
+ * checks if all objects in the list satisfy the
+ * predicate f, if so it returns 1, otherwise 0.
+*/
+int list_forall(List *list, Pred_Fn f);
+
+/*
+ * returns a list of provided objects, with
+ * x is the first object. all objects should 
+ * be a void pointer and last argument should
+ * be a NULL pointer.
+ *
+*/
+List *list_of(void *x, ...);
+
+/* 
+ * returns the length of a list.
+ * this functions walks the entire list, so
+ * it's expensive for long lists.
+*/
+int list_len(List *list);
+
+/* 
+ * convert a list to an continuation vector of the
+ * objects pointers. it returns a pointer to the vector.
+*/
+void **list_to_vec(List *list);
+
+/*
+ * free a list pointed by 'lp'.
+ * list objects are freed by free_hd function,
+ * if provided.
+*/
+void free_list(List **lp, Free_Fn f);
+
 #endif
