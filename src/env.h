@@ -27,31 +27,29 @@ typedef struct Env {
     ARRAY(Rav_obj*) vars;
 } Env;
 
-/**
+/*
  * return an allocated environment with 'enclosing' 
  * as its parent environment.
- */
+*/
 Env *new_env(Env *enclosing);
 
-/**
+/*
  * dispose env internal array and the 'env' structure space itself.
  * it applies recursively to the 'env' enclosing environments.
  *
 */
 void free_env(Env *env);
 
-/**
- * add an abject 'obj' to the environment. 
-*/
+/* add an abject 'obj' to the environment. */
 void env_add(Env *env, Rav_obj *obj);
 
-/**
+/*
  * get an object stored 'distance' steps outer 
  * 'env' and located at 'slot' index.
 */
 Rav_obj *env_get(Env *env, int distance, int slot);
 
-/**
+/*
  * put an 'obj' at 'distance' steps outer 'env'
  * at 'slot' index. 
 */

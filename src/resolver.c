@@ -42,9 +42,9 @@ typedef struct Var {
 /** INTERNALS **/
 
 static void resolve_piece(Resolver *r, AST_piece piece);
-static void resolve_stmts(Resolver *r, List stmts);
-static void resolve_exprs(Resolver *r, List exprs);
-static void resolve_patts(Resolver *r, List patts);
+static void resolve_stmts(Resolver *r, AST_stmt *stmts);
+static void resolve_exprs(Resolver *r, AST_expr *exprs);
+static void resolve_patts(Resolver *r, AST_patt *patts);
 static void resolve_expr(Resolver *r, AST_expr expr);
 static void resolve_patt(Resolver *r, AST_patt patt);
 
@@ -139,7 +139,7 @@ static void resolve_local(Resolver *r, AST_expr expr) {
 }
 
 /* resolve function body */
-static void resolve_fn(Resolver *r, List params, AST_piece body) {
+static void resolve_fn(Resolver *r, AST_patt *params, AST_piece body) {
     /* the resolver enters the function body */
     unsigned prev_state = r->state;
     r->state |= IN_FUNCTION;
@@ -183,16 +183,18 @@ static void resolve_lit(Resolver *r, AST_lit_expr lit) {
 static void resolve_match(Resolver *r, AST_match_expr match) {
     resolve_expr(r, match->value);
 
-    AST_match_branch branch;
-    while ((branch = List_iter(match->branches))) {
+    AST_patt *patts = match->patts;
+    AST_arm *arms = match->arms;
+    
+    for (int i = 0; patts[i]; i++) {
         /* push a new scope for the match branch */
         push_scope(r);
         
-        resolve_patt(r, branch->patt);
-        if (branch->type == EXPR_MATCH_BRANCH)
-            resolve_expr(r, branch->obj.e);
+        resolve_patt(r, patts[i]);
+        if (arms[i]->type == EXPR_ARM)
+            resolve_expr(r, arms[i]->obj.e);
         else
-            resolve_stmts(r, branch->obj.p->stmts);
+            resolve_stmts(r, arms[i]->obj.p->stmts);
 
         /* pop the branch scope */
         pop_scope(r);
@@ -203,11 +205,10 @@ static void resolve_if(Resolver *r, AST_if_expr if_expr) {
     resolve_expr(r, if_expr->cond);
     resolve_piece(r, if_expr->then);
 
-    AST_elif_branch elif;
-    List elifs = if_expr->elifs;
-    while ((elif = (AST_elif_branch)List_iter(elifs))) {
-        resolve_expr(r, elif->cond);
-        resolve_piece(r, elif->then);
+    AST_elif *elifs = if_expr->elifs;
+    for (int i = 0; elifs[i]; i++) {
+        resolve_expr(r, elifs[i]->cond);
+        resolve_piece(r, elifs[i]->then);
     }
         
     AST_piece alter = if_expr->alter;
@@ -239,10 +240,9 @@ static void resolve_patt(Resolver *r, AST_patt patt) {
     }
 }
 
-static void resolve_patts(Resolver *r, List patts) {
-    AST_patt patt;
-    while ((patt = (AST_patt)List_iter(patts)))
-        resolve_patt(r, patt);
+static void resolve_patts(Resolver *r, AST_patt *patts) {
+    for (int i = 0; patts[i]; i++)
+        resolve_patt(r, patts[i]);
 }
 
 static void resolve_expr(Resolver *r, AST_expr expr) {
@@ -319,10 +319,9 @@ static void resolve_expr(Resolver *r, AST_expr expr) {
     }
 }
 
-static void resolve_exprs(Resolver *r, List exprs) {
-    AST_expr expr;
-    while ((expr = (AST_expr)List_iter(exprs)))
-        resolve_expr(r, expr);
+static void resolve_exprs(Resolver *r, AST_expr *exprs) {
+    for (int i = 0; exprs[i]; i++)
+        resolve_expr(r, exprs[i]);
 }
 
 static void resolve_stmt(Resolver *r, AST_stmt stmt) {
@@ -369,10 +368,9 @@ static void resolve_stmt(Resolver *r, AST_stmt stmt) {
     }
 }
 
-static void resolve_stmts(Resolver *r, List stmts) {
-    AST_stmt stmt;
-    while ((stmt = (AST_stmt)List_iter(stmts)))
-           resolve_stmt(r, stmt);
+static void resolve_stmts(Resolver *r, AST_stmt *stmts) {
+    for (int i = 0; stmts[i]; i++)    
+        resolve_stmt(r, stmts[i]);
 }
 
 static void resolve_piece(Resolver *r, AST_piece piece) {

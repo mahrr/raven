@@ -8,9 +8,9 @@
 #ifndef ast_h
 #define ast_h
 
-#include <stdint.h>
+#include <stdint.h>  /* int64_t */
 
-#include "list.h"
+#include "array.h"
 #include "token.h"
 
 /** nodes value types **/
@@ -66,12 +66,18 @@ typedef enum {
     RSTR_LIT,
     STR_LIT,
     TRUE_LIT
-} Lit_expr_VT;
+} Lit_Expr_VT;
 
 typedef enum {
-    EXPR_MATCH_BRANCH,
-    PIECE_MATCH_BRANCH
-} Match_branch_VT;
+    SYMBOL_KEY,
+    EXPR_KEY,
+    INDEX_KEY
+} Hash_Key_VT;
+
+typedef enum {
+    EXPR_ARM,
+    PIECE_ARM
+} Arm_VT;
 
 
 /** nodes declaration **/
@@ -102,9 +108,10 @@ typedef struct AST_match_expr  *AST_match_expr;
 typedef struct AST_unary_expr  *AST_unary_expr;
 typedef struct AST_while_expr  *AST_while_expr;
 
-/* branches sub nodes */
-typedef struct AST_elif_branch  *AST_elif_branch;
-typedef struct AST_match_branch *AST_match_branch;
+/* branches/fields sub nodes */
+typedef struct AST_elif *AST_elif;
+typedef struct AST_key  *AST_key;
+typedef struct AST_arm  *AST_arm;
 
 /* literal expressions sub nodes */
 typedef struct AST_fn_lit   *AST_fn_lit;
@@ -120,9 +127,15 @@ typedef struct AST_list_patt  *AST_list_patt;
 
 /** nodes definition **/
 
+/*
+ * note: 
+ * all the arrays fields in AST nodes struct
+ * are null terminated arrays.
+*/
+
 /* main nodes (stmt, expr, patt) */
 struct AST_piece {
-    List stmts;
+    AST_stmt *stmts;  /* array */
 };
 
 struct AST_stmt {
@@ -178,7 +191,7 @@ struct AST_expr_stmt {
 
 struct AST_fn_stmt {
     char *name;
-    List params;  /* of AST_patt */
+    AST_patt *params;  /* array */
     AST_piece body;
 };
 
@@ -210,7 +223,7 @@ struct AST_binary_expr {
 
 struct AST_call_expr {
     AST_expr func;
-    List args;
+    AST_expr *args;  /* array */
 };
 
 struct AST_for_expr {
@@ -223,7 +236,7 @@ struct AST_group_expr {
     AST_expr expr;
 };
 
-struct AST_elif_branch {
+struct AST_elif {
     AST_expr cond;
     AST_piece then;
 };
@@ -231,7 +244,7 @@ struct AST_elif_branch {
 struct AST_if_expr {
     AST_expr cond;
     AST_piece then;
-    List elifs;    /* of AST_elif_branch */
+    AST_elif *elifs;    /* array */
     AST_piece alter;
 };
 
@@ -241,7 +254,7 @@ struct AST_index_expr {
 };
 
 struct AST_lit_expr {
-    Lit_expr_VT type;
+    Lit_Expr_VT type;
     union {
         AST_fn_lit fn;
         AST_hash_lit hash;
@@ -252,9 +265,8 @@ struct AST_lit_expr {
     } obj;
 };
 
-struct AST_match_branch {
-    Match_branch_VT type;
-    AST_patt patt;
+struct AST_arm {
+    Arm_VT type;
     union {
         AST_expr e;
         AST_piece p;
@@ -263,7 +275,8 @@ struct AST_match_branch {
 
 struct AST_match_expr {
     AST_expr value;
-    List branches; /* of AST_match_branch */
+    AST_patt *patts; /* array */
+    AST_arm *arms;   /* array */
 };
 
 struct AST_unary_expr {
@@ -278,27 +291,37 @@ struct AST_while_expr {
 
 /* literal expressions sub nodes */
 struct AST_fn_lit {
-    List params; /* of AST_patt */
+    AST_patt *params;  /* array */
     AST_piece body;
 };
 
+/* to be added with the new hash syntax */
+struct AST_key {
+    Hash_Key_VT type;
+    union {
+        char *symbol;
+        AST_expr expr;
+        uint32_t index;
+    } key;
+};
+
 struct AST_hash_lit {
-    List names;  /* of (char*) */
-    List values; /* of AST_expr */
+    char **names;      /* array */
+    AST_expr *values;  /* array */
 };
 
 struct AST_list_lit {
-    List values;   /* of AST_expr */
+    AST_expr *values;  /* array */
 };
 
 /* patterns sub nodes */
 struct AST_hash_patt {
-    List names;  /* of (char*) */
-    List patts;  /* pf AST_patt */
+    char **names;      /* array */
+    AST_patt *patts;   /* array */
 };
 
 struct AST_list_patt {
-    List patts;  /* of AST_patt */
+    AST_patt *patts;   /* array */
 };
 
 struct AST_pair_patt {

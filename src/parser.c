@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "alloc.h"
+#include "array.h"
 #include "ast.h"
 #include "debug.h"
 #include "list.h"
@@ -183,12 +183,11 @@ static Prec prec_of(Token *tok) {
 /** patterns nodes **/
 
 static AST_patt pattern(Parser*);
-static List patterns(Parser*, TK_type, TK_type, char*);
+static AST_patt *patterns(Parser*, TK_type, TK_type, char*);
 
 static AST_patt const_patt(Parser *p) {
     Token *tok = next_token(p);
-
-    AST_patt patt = make(patt, R_SECN);
+    AST_patt patt = malloc(sizeof (*patt));
 
     switch (tok->type) {
     case TK_INT:
@@ -222,8 +221,11 @@ static AST_patt const_patt(Parser *p) {
 static AST_patt hash_patt(Parser *p) {
     next_token(p);  /* consume '{' */
 
-    List names = List_new(R_SECN);
-    List patts = List_new(R_SECN);
+    ARRAY(char*) names;
+    ARR_INIT(&names, char*);
+    
+    ARRAY(AST_patt) patts;
+    ARR_INIT(&patts, AST_patt);
 
     if (!match_token(p, TK_RBRACE)) {
         do {
@@ -236,19 +238,21 @@ static AST_patt hash_patt(Parser *p) {
             AST_patt patt = pattern(p);
             if (patt == NULL) return NULL;
 
-            List_append(names, ident_of_tok(ident));
-            List_append(patts, patt);
+            ARR_ADD(&names, ident_of_tok(ident));
+            ARR_ADD(&patts, patt);
         } while (match_token(p, TK_COMMA));
 
         if (!expect_token(p, TK_RBRACE, "}"))
             return NULL;
     }
-
-    AST_hash_patt hash = make(hash, R_SECN);
-    hash->names = names;
-    hash->patts = patts;
+    ARR_ADD(&names, NULL);
+    ARR_ADD(&patts, NULL);
     
-    AST_patt patt = make(patt, R_SECN);
+    AST_hash_patt hash = malloc(sizeof (*hash));
+    hash->names = names.elems;
+    hash->patts = patts.elems;
+    
+    AST_patt patt = malloc(sizeof (*patt));
     patt->type = HASH_PATT;
     patt->obj.hash = hash;
 
@@ -258,7 +262,7 @@ static AST_patt hash_patt(Parser *p) {
 static AST_patt ident_patt(Parser *p) {
     Token *ident = next_token(p);
     
-    AST_patt patt = make(patt, R_SECN);
+    AST_patt patt = malloc(sizeof (*patt));
     patt->type = IDENT_PATT;
     patt->obj.ident = ident_of_tok(ident);
 
@@ -268,13 +272,13 @@ static AST_patt ident_patt(Parser *p) {
 static AST_patt list_patt(Parser *p) {
     next_token(p);  /* consume '[' token */
 
-    List patts = patterns(p, TK_COMMA, TK_RBRACKET, "]");
+    AST_patt *patts = patterns(p, TK_COMMA, TK_RBRACKET, "]");
     if (patts == NULL) return NULL;
 
-    AST_list_patt list = make(list, R_SECN);
+    AST_list_patt list = malloc(sizeof (*list));
     list->patts = patts;
 
-    AST_patt patt = make(patt, R_SECN);
+    AST_patt patt = malloc(sizeof (*patt));
     patt->type = LIST_PATT;
     patt->obj.list = list;
 
@@ -296,11 +300,11 @@ static AST_patt pair_patt(Parser *p) {
     if (!expect_token(p, TK_RPAREN, "')'"))
         return NULL;
 
-    AST_pair_patt pair = make(pair, R_SECN);
+    AST_pair_patt pair = malloc(sizeof (*pair));
     pair->hd = hd;
     pair->tl = tl;
 
-    AST_patt patt = make(patt, R_SECN);
+    AST_patt patt = malloc(sizeof (*patt));
     patt->type = PAIR_PATT;
     patt->obj.pair = pair;
 
@@ -311,7 +315,7 @@ static AST_patt pair_patt(Parser *p) {
 
 static AST_piece piece(Parser*, int n, ...);
 static AST_expr expression(Parser*, Prec);
-static List expressions(Parser*, TK_type, TK_type, char*);
+static AST_expr *expressions(Parser*, TK_type, TK_type, char*);
 
 static AST_expr access_expr(Parser *p, AST_expr object) {
     next_token(p);  /* consume 'DOT' token */
@@ -323,11 +327,11 @@ static AST_expr access_expr(Parser *p, AST_expr object) {
     Token *field = expect_token(p, TK_IDENT, "field name");
     if (field == NULL) return NULL;
 
-    AST_access_expr access = make(access, R_SECN);
+    AST_access_expr access = malloc(sizeof (*access));
     access->field = ident_of_tok(field);
     access->object = object;
 
-    AST_expr expr = make(expr, R_SECN);
+    AST_expr expr = malloc(sizeof (*expr));
     expr->type = ACCESS_EXPR;
     expr->obj.access = access;
 
@@ -354,11 +358,11 @@ static AST_expr assign_expr(Parser *p, AST_expr lvalue) {
     AST_expr value = expression(p, LOW_PREC);
     if (value == NULL) return NULL;
 
-    AST_assign_expr assign = make(assign, R_SECN);
+    AST_assign_expr assign = malloc(sizeof (*assign));
     assign->lvalue = lvalue;
     assign->value = value;
 
-    AST_expr expr = make(expr, R_SECN);
+    AST_expr expr = malloc(sizeof (*expr));
     expr->type = ASSIGN_EXPR;
     expr->obj.assign = assign;
 
@@ -375,12 +379,12 @@ static AST_expr binary_expr(Parser *p, AST_expr left) {
     AST_expr right = expression(p, prec_of(op));
     if (right == NULL) return NULL;
 
-    AST_binary_expr binary = make(binary, R_SECN);
+    AST_binary_expr binary = malloc(sizeof (*binary));
     binary->op = op->type;
     binary->left = left;
     binary->right = right;
 
-    AST_expr expr = make(expr, R_SECN);
+    AST_expr expr = malloc(sizeof (*expr));
     expr->type = BINARY_EXPR;
     expr->obj.binary = binary;
 
@@ -390,14 +394,14 @@ static AST_expr binary_expr(Parser *p, AST_expr left) {
 static AST_expr call_expr(Parser *p, AST_expr func) {
     next_token(p); /* consume '(' token */
 
-    List args = expressions(p, TK_COMMA, TK_RPAREN, "')'");
+    AST_expr *args = expressions(p, TK_COMMA, TK_RPAREN, "')'");
     if (args == NULL) return NULL;
 
-    AST_call_expr call = make(call, R_SECN);
+    AST_call_expr call = malloc(sizeof (*call));
     call->func = func;
     call->args = args;
 
-    AST_expr expr = make(expr, R_SECN);
+    AST_expr expr = malloc(sizeof (*expr));
     expr->type = CALL_EXPR;
     expr->obj.call = call;
 
@@ -412,12 +416,12 @@ static AST_expr cons_expr(Parser *p, AST_expr head) {
     AST_expr tail = expression(p, LCONS_PREC);
     if (tail == NULL) return NULL;
     
-    AST_binary_expr binary = make(binary, R_SECN);
+    AST_binary_expr binary = malloc(sizeof (*binary));
     binary->left = head;
     binary->right = tail;
     binary->op = TK_PIPE;
 
-    AST_expr expr = make(expr, R_SECN);
+    AST_expr expr = malloc(sizeof (*expr));
     expr->type = BINARY_EXPR;
     expr->obj.binary = binary;
 
@@ -438,12 +442,12 @@ static AST_expr for_expr(Parser *p) {
 
     AST_piece body = piece(p, 1, TK_END);
 
-    AST_for_expr for_expr = make(for_expr, R_SECN);
+    AST_for_expr for_expr = malloc(sizeof (*for_expr));
     for_expr->name = ident_of_tok(name);
     for_expr->iter = iter;
     for_expr->body = body;
 
-    AST_expr expr = make(expr, R_SECN);
+    AST_expr expr = malloc(sizeof (*expr));
     expr->type = FOR_EXPR;
     expr->obj.for_expr = for_expr;
 
@@ -459,10 +463,10 @@ static AST_expr group_expr(Parser *p) {
     if (!expect_token(p, TK_RPAREN, "')'"))
         return NULL;
 
-    AST_group_expr group = make(group, R_SECN);
+    AST_group_expr group = malloc(sizeof (*group));
     group->expr = gr_expr;
 
-    AST_expr expr = make(expr, R_SECN);
+    AST_expr expr = malloc(sizeof (*expr));
     expr->type = GROUP_EXPR;
     expr->obj.group = group;
 
@@ -472,14 +476,14 @@ static AST_expr group_expr(Parser *p) {
 static AST_expr identifier(Parser *p) {
     Token *ident = next_token(p);  /* the IDENT token */
     
-    AST_expr expr = make(expr, R_SECN);
+    AST_expr expr = malloc(sizeof (*expr));
     expr->type = IDENT_EXPR;
     expr->obj.ident = ident_of_tok(ident);
 
     return expr;
 }
 
-static AST_elif_branch elif_branch(Parser *p) {
+static AST_elif elif_branch(Parser *p) {
     AST_expr cond = expression(p, LOW_PREC);
     if (cond == NULL) return NULL;
 
@@ -488,7 +492,7 @@ static AST_elif_branch elif_branch(Parser *p) {
 
     AST_piece then = piece(p, 3, TK_ELIF, TK_ELSE, TK_END);
 
-    AST_elif_branch elif = make(elif, R_SECN);
+    AST_elif elif = malloc(sizeof (*elif));
     elif->cond = cond;
     elif->then = then;
 
@@ -508,26 +512,29 @@ static AST_expr if_expr(Parser *p) {
        could be TK_ELSE, T_ELIF or TK_END.*/
     AST_piece then = piece(p, 3, TK_ELSE, TK_ELIF, TK_END);
 
-    List elifs = List_new(R_SECN);
+    ARRAY(AST_elif) elifs;
+    ARR_INIT(&elifs, AST_elif);
+    
     while (prev_token_is(p, TK_ELIF)) {
-        AST_elif_branch elif = elif_branch(p);
+        AST_elif elif = elif_branch(p);
         if (elif == NULL) return NULL;
             
-        List_append(elifs, elif);
+        ARR_ADD(&elifs, elif);
     }
+    ARR_ADD(&elifs, NULL);
     
 
     AST_piece alter = NULL;
     if (prev_token_is(p, TK_ELSE))
         alter = piece(p, 1, TK_END);
 
-    AST_if_expr if_expr = make(if_expr, R_SECN);
+    AST_if_expr if_expr = malloc(sizeof (*if_expr));
     if_expr->cond = cond;
     if_expr->then = then;
-    if_expr->elifs = elifs;
+    if_expr->elifs = elifs.elems;
     if_expr->alter = alter;
 
-    AST_expr expr = make(expr, R_SECN);
+    AST_expr expr = malloc(sizeof (*expr));
     expr->type = IF_EXPR;
     expr->obj.if_expr = if_expr;
 
@@ -543,43 +550,38 @@ static AST_expr index_expr(Parser *p, AST_expr object) {
     if (!expect_token(p, TK_RBRACKET, "]"))
         return NULL;
 
-    AST_index_expr index_expr = make(index_expr, R_SECN);
+    AST_index_expr index_expr = malloc(sizeof (*index_expr));
     index_expr->object = object;
     index_expr->index = index;
     
-    AST_expr expr = make(expr, R_SECN);
+    AST_expr expr = malloc(sizeof (*expr));
     expr->type = INDEX_EXPR;
     expr->obj.index = index_expr;
 
     return expr;
 }
 
-static AST_match_branch match_branch(Parser *p) {
-    AST_patt patt = pattern(p);
-    if (patt == NULL) return NULL;
-
+static AST_arm match_branch(Parser *p) {
     if (!expect_token(p, TK_DASH_GT, "'->'"))
         return NULL;
 
-    AST_match_branch branch = NULL;
-    
+    AST_arm arm = NULL;
     if (match_token(p, TK_DO)) {
         AST_piece body = piece(p, 1, TK_END);
         
-        branch = make(branch, R_SECN);
-        branch->type = PIECE_MATCH_BRANCH;
-        branch->obj.p = body;
+        arm = malloc(sizeof (*arm));
+        arm->type = PIECE_ARM;
+        arm->obj.p = body;
     } else {
         AST_expr expr = expression(p, LOW_PREC);
         if (expr == NULL) return NULL;
         
-        branch = make(branch, R_SECN);
-        branch->type = EXPR_MATCH_BRANCH;
-        branch->obj.e = expr;
+        arm = malloc(sizeof (*arm));
+        arm->type = EXPR_ARM;
+        arm->obj.e = expr;
     }
-    branch->patt = patt;
-
-    return branch;
+    
+    return arm;
 }
 
 static AST_expr match_expr(Parser *p) {
@@ -592,24 +594,36 @@ static AST_expr match_expr(Parser *p) {
         return NULL;
 
     skip_newlines(p); /* skip newlines after 'do' */
+
+    ARRAY(AST_patt) patts;
+    ARR_INIT(&patts, AST_patt);
     
-    List branches = List_new(R_SECN);
+    ARRAY(AST_arm) arms;
+    ARR_INIT(&arms, AST_arm);
+    
     while (match_token(p, TK_CASE)) {
-        AST_match_branch branch = match_branch(p);
-        if (branch == NULL) return NULL;
+        AST_patt patt = pattern(p);
+        if (patt == NULL) return NULL;
         
-        List_append(branches, branch);
+        AST_arm branch = match_branch(p);
+        if (branch == NULL) return NULL;
+
+        ARR_ADD(&patts, patt);
+        ARR_ADD(&arms, branch);
         skip_newlines(p);  /* skip newlines after case branch */
     }
+    ARR_ADD(&patts, NULL);
+    ARR_ADD(&arms, NULL);
     
     if (!expect_token(p, TK_END, "end"))
         return NULL;
 
-    AST_match_expr match = make(match, R_SECN);
+    AST_match_expr match = malloc(sizeof (*match));
     match->value = value;
-    match->branches = branches;
+    match->patts = patts.elems;
+    match->arms = arms.elems;
 
-    AST_expr expr = make(expr, R_SECN);
+    AST_expr expr = malloc(sizeof (*expr));
     expr->type = MATCH_EXPR;
     expr->obj.match = match;
 
@@ -622,11 +636,11 @@ static AST_expr unary_expr(Parser *p) {
     AST_expr operand = expression(p, UNARY_PREC);
     if (operand == NULL) return NULL;
 
-    AST_unary_expr unary = make(unary, R_SECN);
+    AST_unary_expr unary = malloc(sizeof (*unary));
     unary->op = op->type;
     unary->operand = operand;
 
-    AST_expr expr = make(expr, R_SECN);
+    AST_expr expr = malloc(sizeof (*expr));
     expr->type = UNARY_EXPR;
     expr->obj.unary = unary;
 
@@ -644,11 +658,11 @@ static AST_expr while_expr(Parser *p) {
     
     AST_piece body = piece(p, 1, TK_END);
 
-    AST_while_expr while_expr = make(while_expr, R_SECN);
+    AST_while_expr while_expr = malloc(sizeof (*while_expr));
     while_expr->cond = cond;
     while_expr->body = body;
 
-    AST_expr expr = make(expr, R_SECN);
+    AST_expr expr = malloc(sizeof (*expr));
     expr->type = WHILE_EXPR;
     expr->obj.while_expr = while_expr;
 
@@ -657,7 +671,7 @@ static AST_expr while_expr(Parser *p) {
 
 /* for 'true, false and nil' literals */
 static AST_expr fixed_literal(Parser *p) {
-    AST_lit_expr lit = make(lit, R_SECN);
+    AST_lit_expr lit = malloc(sizeof (*lit));
     
     if (curr_token_is(p, TK_FALSE))
         lit->type = FALSE_LIT;
@@ -667,7 +681,7 @@ static AST_expr fixed_literal(Parser *p) {
         lit->type = NIL_LIT;
 
     next_token(p);  /* consume the fixed */
-    AST_expr expr = make(expr, R_SECN);
+    AST_expr expr = malloc(sizeof (*expr));
     expr->type = LIT_EXPR;
     expr->obj.lit = lit;
 
@@ -677,12 +691,11 @@ static AST_expr fixed_literal(Parser *p) {
 static AST_expr float_literal(Parser *p) {
     Token *tok = next_token(p);  /* float token */
     
-
-    AST_lit_expr lit = make(lit, R_SECN);
+    AST_lit_expr lit = malloc(sizeof (*lit));
     lit->type = FLOAT_LIT;
     lit->obj.f = float_of_tok(tok);
     
-    AST_expr expr = make(expr, R_SECN);
+    AST_expr expr = malloc(sizeof (*expr));
     expr->type = LIT_EXPR;
     expr->obj.lit = lit;
 
@@ -695,20 +708,20 @@ static AST_expr fn_literal(Parser *p) {
     if (!expect_token(p, TK_LPAREN, "("))
         return NULL;
 
-    List params = patterns(p, TK_COMMA, TK_RPAREN, ")");
+    AST_patt *params = patterns(p, TK_COMMA, TK_RPAREN, ")");
     if (params == NULL) return NULL;
 
     AST_piece body = piece(p, 1, TK_END);
     
-    AST_fn_lit fn = make(fn, R_SECN);
+    AST_fn_lit fn = malloc(sizeof (*fn));
     fn->params = params;
     fn->body = body;
 
-    AST_lit_expr lit = make(lit, R_SECN);
+    AST_lit_expr lit = malloc(sizeof (*lit));
     lit->type = FN_LIT;
     lit->obj.fn = fn;
 
-    AST_expr expr = make(expr, R_SECN);
+    AST_expr expr = malloc(sizeof (*expr));
     expr->type = LIT_EXPR;
     expr->obj.lit = lit;
 
@@ -718,8 +731,11 @@ static AST_expr fn_literal(Parser *p) {
 static AST_expr hash_literal(Parser *p) {
     next_token(p);  /* consume '{' token */
 
-    List names = List_new(R_SECN);
-    List values = List_new(R_SECN);
+    ARRAY(char*) names;
+    ARR_INIT(&names, char*);
+    
+    ARRAY(AST_expr) values;
+    ARR_INIT(&values, AST_expr);
 
     /* not an empty hash */
     if (!match_token(p, TK_RBRACE)) {
@@ -735,8 +751,8 @@ static AST_expr hash_literal(Parser *p) {
             AST_expr value = expression(p, LOW_PREC);
             if (value == NULL) return NULL;
 
-            List_append(names, ident_of_tok(name));
-            List_append(values, value);
+            ARR_ADD(&names, ident_of_tok(name));
+            ARR_ADD(&values, value);
         } while (match_token(p, TK_COMMA));
         skip_newlines(p);
         
@@ -744,15 +760,18 @@ static AST_expr hash_literal(Parser *p) {
             return NULL;
     }
 
-    AST_hash_lit hash = make(hash, R_SECN);
-    hash->names = names;
-    hash->values = values;
+    ARR_ADD(&names, NULL);
+    ARR_ADD(&values, NULL);
 
-    AST_lit_expr lit = make(lit, R_SECN);
+    AST_hash_lit hash = malloc(sizeof (*hash));
+    hash->names = names.elems;
+    hash->values = values.elems;
+
+    AST_lit_expr lit = malloc(sizeof (*lit));
     lit->type = HASH_LIT;
     lit->obj.hash = hash;
 
-    AST_expr expr = make(expr, R_SECN);
+    AST_expr expr = malloc(sizeof (*expr));
     expr->type = LIT_EXPR;
     expr->obj.lit = lit;
 
@@ -763,11 +782,11 @@ static AST_expr int_literal(Parser *p) {
     Token *tok = next_token(p);  /* int token */
     int64_t i = int_of_tok(tok);
     
-    AST_lit_expr lit = make(lit, R_SECN);
+    AST_lit_expr lit = malloc(sizeof (*lit));
     lit->type = INT_LIT;
     lit->obj.i = i;
 
-    AST_expr expr = make(expr, R_SECN);
+    AST_expr expr = malloc(sizeof (*expr));
     expr->type = LIT_EXPR;
     expr->obj.lit = lit;
 
@@ -777,17 +796,17 @@ static AST_expr int_literal(Parser *p) {
 static AST_expr list_literal(Parser *p) {
     next_token(p);  /* consume '[' token */
 
-    List values = expressions(p, TK_COMMA, TK_RBRACKET, "]");
+    AST_expr *values = expressions(p, TK_COMMA, TK_RBRACKET, "]");
     if (values == NULL) return NULL;
 
-    AST_list_lit list = make(list, R_SECN);
+    AST_list_lit list = malloc(sizeof (*list));
     list->values = values;
 
-    AST_lit_expr lit = make(lit, R_SECN);
+    AST_lit_expr lit = malloc(sizeof (*lit));
     lit->type = LIST_LIT;
     lit->obj.list = list;
 
-    AST_expr expr = make(expr, R_SECN);
+    AST_expr expr = malloc(sizeof (*expr));
     expr->type = LIT_EXPR;
     expr->obj.lit = lit;
 
@@ -797,11 +816,11 @@ static AST_expr list_literal(Parser *p) {
 static AST_expr str_literal(Parser *p) {
     Token *tok = next_token(p);  /* str token */
 
-    AST_lit_expr lit = make(lit, R_SECN);
+    AST_lit_expr lit = malloc(sizeof (*lit));
     lit->type = tok->lexeme[0] == '`' ? RSTR_LIT : STR_LIT;
     lit->obj.s = str_of_tok(tok);
 
-    AST_expr expr = make(expr, R_SECN);
+    AST_expr expr = malloc(sizeof (*expr));
     expr->type = LIT_EXPR;
     expr->obj.lit = lit;
 
@@ -916,10 +935,10 @@ static AST_stmt expr_stmt(Parser *p) {
     AST_expr expr = expression(p, LOW_PREC);
     if (expr == NULL) return NULL;
 
-    AST_expr_stmt expr_stmt = make(expr_stmt, R_SECN);
+    AST_expr_stmt expr_stmt = malloc(sizeof (*expr_stmt));
     expr_stmt->expr = expr;
     
-    AST_stmt stmt = make(stmt, R_SECN);
+    AST_stmt stmt = malloc(sizeof (*stmt));
     stmt->type = EXPR_STMT;
     stmt->obj.expr = expr_stmt;
 
@@ -935,17 +954,17 @@ static AST_stmt fn_stmt(Parser *p) {
     if (!expect_token(p, TK_LPAREN, "'('"))
         return NULL;
 
-    List params = patterns(p, TK_COMMA, TK_RPAREN, ")");
+    AST_patt *params = patterns(p, TK_COMMA, TK_RPAREN, ")");
     if (params == NULL) return NULL;
 
     AST_piece body = piece(p, 1, TK_END);
 
-    AST_fn_stmt fn = make(fn, R_SECN);
+    AST_fn_stmt fn = malloc(sizeof (*fn));
     fn->name = ident_of_tok(name);
     fn->params = params;
     fn->body = body;
     
-    AST_stmt stmt = make(stmt, R_SECN);
+    AST_stmt stmt = malloc(sizeof (*stmt));
     stmt->type = FN_STMT;
     stmt->obj.fn = fn;
 
@@ -964,11 +983,11 @@ static AST_stmt let_stmt(Parser *p) {
     AST_expr expr = expression(p, LOW_PREC);
     if (expr == NULL) return NULL;
 
-    AST_let_stmt let = make(let, R_SECN);
+    AST_let_stmt let = malloc(sizeof (*let));
     let->patt = patt;
     let->value = expr;
     
-    AST_stmt stmt = make(stmt, R_SECN);
+    AST_stmt stmt = malloc(sizeof (*stmt));
     stmt->type = LET_STMT;
     stmt->obj.let = let;
 
@@ -981,10 +1000,10 @@ static AST_stmt ret_stmt(Parser *p) {
     AST_expr expr = expression(p, LOW_PREC);
     if (expr == NULL) return NULL;
 
-    AST_ret_stmt ret = make(ret, R_SECN);
+    AST_ret_stmt ret = malloc(sizeof (*ret));
     ret->value = expr;
     
-    AST_stmt stmt = make(stmt, R_SECN);
+    AST_stmt stmt = malloc(sizeof (*stmt));
     stmt->type = RET_STMT;
     stmt->obj.ret = ret;
 
@@ -994,7 +1013,7 @@ static AST_stmt ret_stmt(Parser *p) {
 static AST_stmt fixed_stmt(Parser *p) {
     Token *fixed = next_token(p); /* consume fixed keyword */
     
-    AST_stmt stmt = make(stmt, R_SECN);
+    AST_stmt stmt = malloc(sizeof (*stmt));
     stmt->type = FIXED_STMT;
     stmt->obj.fixed = fixed->type;
     
@@ -1041,28 +1060,31 @@ static AST_patt pattern(Parser *p) {
     return patt;
 }
 
-/* return list of zero or more AST_patt delimited by 
+/* return an array of zero or more AST_patt delimited by 
    'dl' token type and ended witn 'end' token type */
-static List
+static AST_patt*
 patterns(Parser *p, TK_type dl, TK_type end, char *end_name) {
-    List patts = List_new(R_SECN);
+    ARRAY(AST_patt) patts;
+    ARR_INIT(&patts, AST_patt);
+    
     AST_patt patt;
-
     if (!match_token(p, end)) {
-        skip_newlines(p);
         do {
             skip_newlines(p);
             patt = pattern(p);
-            if (patt == NULL) return NULL;
-            List_append(patts, patt);
+            
+            if (patt == NULL)
+                return NULL;
+            
+            ARR_ADD(&patts, patt);
         } while(match_token(p, dl));
-        skip_newlines(p);
         
+        skip_newlines(p);
         if (!expect_token(p, end, end_name))
             return NULL;
     }
-
-    return patts;
+    ARR_ADD(&patts, NULL);
+    return patts.elems;
 }
 
 static AST_expr expression(Parser *p, Prec prec) {
@@ -1098,28 +1120,32 @@ static AST_expr expression(Parser *p, Prec prec) {
     return expr;
 }
 
-/* return list of zero or more AST_expr delimited by 
+/* return an array of zero or more AST_expr delimited by 
    'dl' token type and ended witn 'end' token type */
-static List
+static AST_expr *
 expressions(Parser *p, TK_type dl, TK_type end, char *end_name) {
-    List exprs = List_new(R_SECN);
+    ARRAY(AST_expr) exprs;
+    ARR_INIT(&exprs, AST_expr);
     AST_expr expr;
 
     if (!match_token(p, end)) {
-        skip_newlines(p);
         do {
             skip_newlines(p);
+            
             expr = expression(p, R_SECN);
-            if (expr == NULL) return NULL;
-            List_append(exprs, expr);
+            if (expr == NULL)
+                return NULL;
+            
+            ARR_ADD(&exprs, expr);
         } while (match_token(p, dl));
-        skip_newlines(p);
         
+        skip_newlines(p);
         if (!expect_token(p, end, end_name))
             return NULL;
     }
 
-    return exprs;
+    ARR_ADD(&exprs, NULL);
+    return exprs.elems;
 }
 
 static AST_stmt statement(Parser *p, int n, va_list ap) {
@@ -1184,7 +1210,8 @@ static void sync(Parser *p) {
    token specified in the variable length argument list */
 static AST_piece piece(Parser *p, int n, ...) {
     va_list ap;
-    List stmts = List_new(R_SECN);
+    ARRAY(AST_stmt) stmts;
+    ARR_INIT(&stmts, AST_stmt);
 
     /* ignore any newlines before the beginning of the block */
     skip_newlines(p);
@@ -1196,7 +1223,7 @@ static AST_piece piece(Parser *p, int n, ...) {
         AST_stmt stmt = statement(p, n, ap);
         
         if (stmt != NULL) {
-            List_append(stmts, stmt);
+            ARR_ADD(&stmts, stmt);
         } else {
             /* if error occur discard any tokens left from the
                current statement, as they will produce meaningless
@@ -1217,10 +1244,13 @@ static AST_piece piece(Parser *p, int n, ...) {
         return NULL;
     }
     next_token(p);  /* consume end token */
-
     va_end(ap);
-    AST_piece piece = make(piece, R_SECN);
-    piece->stmts = stmts;
+    
+    /* terminate the array */
+    ARR_ADD(&stmts, NULL);
+    
+    AST_piece piece = malloc(sizeof(AST_piece));
+    piece->stmts = stmts.elems;
     return piece;
 }
 

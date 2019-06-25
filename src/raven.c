@@ -59,7 +59,6 @@ void run_line(const char *line, Resolver *r, Evaluator *e) {
     if (piece == NULL)
         return;
 
-    /*
     if (resolve(r, piece)) {
         SErr *errors = resolver_errors(r);
         int errnum = resolver_errnum(r);
@@ -67,8 +66,7 @@ void run_line(const char *line, Resolver *r, Evaluator *e) {
         return;
     }
 
-    walk(e, piece);
-    */
+    //walk(e, piece);
 }
 
 int run_src(const char *src, const char *file) {

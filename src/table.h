@@ -39,7 +39,7 @@ typedef struct Table {
 #define table_size(table) ((table)->size)   /* get number of entries */
 #define table_elems(table) ((table)->elems) /* get number of elements */
 
-/**
+/*
  * Initialize a table. set its attributes and allocate
  * the table internal array.
  * 
@@ -54,14 +54,14 @@ typedef struct Table {
 void init_table(Table *table, int size, Hash_Fn hash,
                 Free_Fn free, Comp_Fn comp);
 
-/**
+/*
  * Check if the key is already exist in the table. if so,
  * it returns 1, otherwise 0.
  *
 */
 int table_lookup(Table *table, const void *key);
 
-/**
+/*
  * Insert a new element into the table. if the key is
  * already exist, it returns the previous value associated
  * with the key, otherwise it returns NULL.
@@ -69,7 +69,7 @@ int table_lookup(Table *table, const void *key);
 */
 void *table_put(Table *table, const void *key, void *data);
 
-/**
+/*
  * Get the element associated with a key. if the key is
  * found, it returns the element, otherwise it returns NULL.
  * Note that the function is ambiguous regarding the return
@@ -78,7 +78,7 @@ void *table_put(Table *table, const void *key, void *data);
 */
 void *table_get(Table *table, const void *key);
 
-/**
+/*
  * Remove an element from the table. if the key is
  * found, it removes the associated element from the
  * table and return it, otherwise it does nothing 
@@ -87,7 +87,7 @@ void *table_get(Table *table, const void *key);
 */
 void *table_remove(Table *table, const void *key);
 
-/**
+/*
  * Deallocate the table internal array, and call the table free 
  * function for each table element, if it's provided.
  *

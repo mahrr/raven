@@ -3,6 +3,10 @@
  *
  * Simple dynamic arrays macros to avoid redundant
  * type declaration and array operations.
+ * 
+ * Dynamic arrays are used mostly in the interpreter
+ * internals, and as the underlying data structure
+ * for the hash ints array.
  *
  */
 

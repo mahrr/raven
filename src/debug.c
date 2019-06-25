@@ -70,9 +70,9 @@ static char buff[128];
         fputs(indent, stdout);
 
 static void print_expr(AST_expr);
-static void print_exprs(List);
+static void print_exprs(AST_expr*);
 static void print_patt(AST_patt);
-static void print_patts(List);
+static void print_patts(AST_patt*);
 
 void print_piece(AST_piece);
 
@@ -121,12 +121,11 @@ static void print_lit_expr(AST_lit_expr e) {
         AST_hash_lit hash = e->obj.hash;
         printf("(hash ");
         
-        char *name;
-        AST_expr value;
-        while ((name = List_iter(hash->names)) != NULL &&
-               (value = List_iter(hash->values)) != NULL) {
-            printf("%s:", name);
-            print_expr(value);
+        char **names = hash->names;
+        AST_expr *values = hash->values;
+        for (int i = 0; names[i]; i++) {
+            printf("%s:", names[i]);
+            print_expr(values[i]);
             putchar(' ');
         }
         printf(")");
@@ -178,14 +177,14 @@ static void print_patt(AST_patt p) {
         AST_hash_patt hash = p->obj.hash;
         printf("(:hash ");
         
-        char *name;
-        AST_patt patt;
-        while ((name = List_iter(hash->names)) &&
-               (patt = List_iter(hash->patts))) {
-            printf("%s : ", name);
-            print_patt(patt);
+        char **names = hash->names;
+        AST_patt *patts = hash->patts;
+        for (int i = 0; names[i]; i++) {
+            printf("%s : ", names[i]);
+            print_patt(patts[i]);
             putchar(' ');
         }
+        
         printf(")");
         break;
     }
@@ -242,11 +241,10 @@ static void print_patt(AST_patt p) {
     }
 }
 
-static void print_patts(List patts) {
-    void *patt;
-    while ((patt = List_iter(patts))) {
+static void print_patts(AST_patt *patts) {
+    for (int i = 0; patts[i]; i++) {
         putchar(' ');
-        print_patt(patt);
+        print_patt(patts[i]);
         putchar(' ');
     }
 }
@@ -299,10 +297,9 @@ static void print_expr(AST_expr e) {
         AST_if_expr if_expr = e->obj.if_expr;
         paren_block("if", if_expr->cond, if_expr->then);
 
-        AST_elif_branch elif;
-        while ((elif = (AST_elif_branch)List_iter(if_expr->elifs))) {
-            paren_block("elif", elif->cond, elif->then);
-        }
+        AST_elif *elifs = if_expr->elifs;
+        for (int i = 0; elifs[i]; i++)
+            paren_block("elif", elifs[i]->cond, elifs[i]->then);
         
         if (if_expr->alter != NULL)
             paren_block("else", NULL, if_expr->alter);
@@ -329,19 +326,21 @@ static void print_expr(AST_expr e) {
         print_expr(match->value);
         putchar('\n');
 
-        AST_match_branch branch;
+        AST_patt *patts = match->patts;
+        AST_arm *arms = match->arms;
         
-        while ((branch = (AST_match_branch)List_iter(match->branches))) {
+        for (int i = 0; arms[i]; i++) {
             indent_level++;
             INDENT();
             printf("#");
-            print_patt(branch->patt);
+            print_patt(patts[i]);
             printf(" -> ");
 
-            if (branch->type == EXPR_MATCH_BRANCH)
-                print_expr(branch->obj.e);
+            if (arms[i]->type == EXPR_ARM)
+                print_expr(arms[i]->obj.e);
             else
-                print_piece(branch->obj.p);
+                print_piece(arms[i]->obj.p);
+            
             printf("\n");
             indent_level--;
         }
@@ -366,11 +365,10 @@ static void print_expr(AST_expr e) {
     }
 }
 
-static void print_exprs(List exprs) {
-    void *expr;
-    while ((expr = List_iter(exprs))) {
+static void print_exprs(AST_expr *exprs) {
+    for (int i = 0; exprs[i]; i++) {
         putchar(' ');
-        print_expr(expr);
+        print_expr(exprs[i]);
         putchar(' ');
     }
 }
@@ -420,13 +418,10 @@ static void print_stmt(AST_stmt s) {
 }
 
 void print_piece(AST_piece p) {
-    List t = p->stmts;
-
     indent_level++;
-    AST_stmt stmt;
-    while ((stmt = (AST_stmt)List_iter(t)) != NULL) {
+    for (int i = 0; p->stmts[i]; i++) {
         INDENT();
-        print_stmt(stmt);
+        print_stmt(p->stmts[i]);
     }
     indent_level--;
 }

@@ -10,7 +10,7 @@
 
 #include <stdio.h>
 
-#include "list.h"
+#include "array.h"
 #include "ast.h"
 #include "token.h"
 
