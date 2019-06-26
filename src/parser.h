@@ -19,7 +19,7 @@ typedef struct Parser {
     Token *tokens;      /* array of generated tokens */
     int ident_num;      /* number of AST_expr_ident nodes int the src */
     int been_error;     /* error flag */
-    ARRAY(SErr) errors; /* parse error */
+    ARRAY(Err) errors; /* parse error */
 
     /* state of parser */
     Token *curr;

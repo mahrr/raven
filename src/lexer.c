@@ -56,7 +56,7 @@
  * with specific error message.
 */
 static void reg_error(Lexer *l, Token *where, const char *msg) {
-    SErr err = (SErr){*where, msg};
+    Err err = (Err){SYNTAX_ERR, *where, msg};
     l->been_error = 1;
     ARR_ADD(&l->errors, err);
 }
@@ -525,7 +525,7 @@ void init_lexer(Lexer *lexer, const char *src, const char *file) {
     lexer->line = 1;
     lexer->been_error = 0;
     ARR_INIT(&lexer->tokens, Token);
-    ARR_INIT(&lexer->errors, SErr);
+    ARR_INIT(&lexer->errors, Err);
 }
 
 void free_lexer(Lexer *lexer) {

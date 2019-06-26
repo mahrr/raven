@@ -10,6 +10,13 @@
 #include "error.h"
 #include "token.h"
 
+
+char *errors_name[] = {
+    "Syntax Error",
+    "Name Error",
+    "Runtime Error"
+};
+
 void fatal_err(int status, const char *msg, ...) {
     va_list ap;
     va_start(ap, msg);
@@ -18,16 +25,17 @@ void fatal_err(int status, const char *msg, ...) {
     exit(status);
 }
 
-void log_serr(SErr *error, int n, FILE *out) {
+void log_errs(Err *errors, int n, FILE *out) {
     for (int i = 0; i < n; i++) {
-        Token *where = &error[i].where;
+        Token *where = &errors[i].where;
     
-        fprintf(out, "[%s | %ld] Syntax Error at '%.*s': %s.\n",
+        fprintf(out, "[%s | %ld] %s at '%.*s': %s.\n",
                 where->file,
                 where->line,
+                errors_name[errors[i].type],
                 where->type == TK_EOF ? 3 : where->length,
                 where->type == TK_EOF ? "EOF" : where->lexeme,
-                error->message);
+                errors[i].message);
     }
 
     /* 

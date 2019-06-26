@@ -33,7 +33,6 @@ enum {
     USED,
 };
 
-
 typedef struct Var {
     int slot;        /* the slot number of the enviroment array */
     unsigned state;  /* the state of a variable (e.g. define, used) */
@@ -71,9 +70,10 @@ void pop_scope(Resolver *r) {
 }
 
 /* register an error in the resolver error array */
-static void reg_error(Resolver *r, Token *where, const char *msg) {
+static void
+reg_error(Resolver *r, Err_Type type, Token *where, const char *msg) {
     r->been_error = 1;
-    SErr error = {*where, msg};
+    Err error = {type, *where, msg};
     ARR_ADD(&r->errors, error);
 }
 
@@ -85,7 +85,7 @@ static void define(Resolver *r, Token *where, const char *name) {
 
     /* already defined variable */
     if (table_lookup(scope, name)) {
-        reg_error(r, where, "already defined varaible");
+        reg_error(r, SYNTAX_ERR, where, "already defined varaible");
         return;
     }
     
@@ -134,7 +134,7 @@ static void resolve_local(Resolver *r, AST_expr expr) {
     }
 
     /* the variable is not found */
-    reg_error(r, expr->where, "undefined variable usage");
+    reg_error(r, NAME_ERR, expr->where, "undefined variable usage");
 }
 
 /* resolve function body */
@@ -166,9 +166,17 @@ static void resolve_lit(Resolver *r, AST_lit_expr lit) {
         break;
     }
         
-    case HASH_LIT:
-        resolve_exprs(r, lit->obj.hash->values);
+    case HASH_LIT: {
+        AST_hash_lit hash = lit->obj.hash;
+        for (int i = 0; hash->keys[i]; i++) {
+            if (hash->keys[i]->type == EXPR_KEY) {
+                AST_key key = hash->keys[i];
+                resolve_expr(r, key->key.expr);
+            }
+            resolve_expr(r, hash->values[i]);
+        }
         break;
+    }
         
     case LIST_LIT:
         resolve_exprs(r, lit->obj.list->values);
@@ -221,9 +229,17 @@ static void resolve_patt(Resolver *r, AST_patt patt) {
         define(r, patt->where, patt->obj.ident);
         break;
         
-    case HASH_PATT:
-        resolve_patts(r, patt->obj.hash->patts);
+    case HASH_PATT: {
+        AST_hash_patt hash = patt->obj.hash;
+        for (int i = 0; hash->keys[i]; i++) {
+            if (hash->keys[i]->type == EXPR_KEY) {
+                AST_key key = hash->keys[i];
+                resolve_expr(r, key->key.expr);
+            }
+            resolve_patt(r, hash->patts[i]);
+        }
         break;
+    }
         
     case LIST_PATT:
         resolve_patts(r, patt->obj.list->patts);
@@ -339,7 +355,7 @@ static void resolve_stmt(Resolver *r, AST_stmt stmt) {
     case FIXED_STMT:
         if (!(r->state & IN_LOOP)) {
             char *msg = "'continue/break' usage outside a loop";
-            reg_error(r, stmt->where, msg);
+            reg_error(r, SYNTAX_ERR, stmt->where, msg);
         }
         break;
         
@@ -358,7 +374,7 @@ static void resolve_stmt(Resolver *r, AST_stmt stmt) {
     case RET_STMT: {
         if (!(r->state & IN_FUNCTION)) {
             char *msg = "'return' usage outside a function";
-            reg_error(r, stmt->where, msg);
+            reg_error(r, SYNTAX_ERR, stmt->where, msg);
         }
         
         AST_expr retval = stmt->obj.ret->value;
@@ -392,7 +408,7 @@ void init_resolver(Resolver *r, Evaluator *e) {
     r->state = 0;
     
     ARR_INIT(&r->scopes, Table*);
-    ARR_INIT(&r->errors, SErr);
+    ARR_INIT(&r->errors, Err);
 }
 
 void free_resolver(Resolver *r) {

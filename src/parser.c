@@ -99,7 +99,8 @@ static int curr_token_not(Parser *p, int n, va_list ap) {
 
 /* register a new error in the parser errors list */
 static void reg_error(Parser *p, const char *message) {
-    SErr error;
+    Err error;
+    error.type = SYNTAX_ERR;
     error.message = strdup(message);
 
     /* if the current token is a newline token,
@@ -217,38 +218,41 @@ static AST_patt const_patt(Parser *p) {
     return patt;
 }
 
+static AST_key hash_key(Parser *p, uint32_t index);
+
 static AST_patt hash_patt(Parser *p) {
     next_token(p);  /* consume '{' */
 
-    ARRAY(char*) names;
-    ARR_INIT(&names, char*);
+    ARRAY(AST_key) keys;
+    ARR_INIT(&keys, AST_key);
     
     ARRAY(AST_patt) patts;
     ARR_INIT(&patts, AST_patt);
 
     if (!match_token(p, TK_RBRACE)) {
+        uint32_t index = 0;
         do {
-            Token *ident = expect_token(p, TK_IDENT, "field name");
-            if (ident == NULL) return NULL;
-
-            if (!expect_token(p, TK_COLON, "':'"))
-                return NULL;
+            skip_newlines(p);
+            AST_key key = hash_key(p, index);
+            if (key == NULL) return NULL;
+            index++;
 
             AST_patt patt = pattern(p);
             if (patt == NULL) return NULL;
 
-            ARR_ADD(&names, ident_of_tok(ident));
+            ARR_ADD(&keys, key);
             ARR_ADD(&patts, patt);
         } while (match_token(p, TK_COMMA));
+        skip_newlines(p);
 
         if (!expect_token(p, TK_RBRACE, "}"))
             return NULL;
     }
-    ARR_ADD(&names, NULL);
+    ARR_ADD(&keys, NULL);
     ARR_ADD(&patts, NULL);
     
     AST_hash_patt hash = malloc(sizeof (*hash));
-    hash->names = names.elems;
+    hash->keys = keys.elems;
     hash->patts = patts.elems;
     
     AST_patt patt = malloc(sizeof (*patt));
@@ -563,7 +567,7 @@ static AST_expr index_expr(Parser *p, AST_expr object) {
     return expr;
 }
 
-static AST_arm match_branch(Parser *p) {
+static AST_arm arm_branch(Parser *p) {
     if (!expect_token(p, TK_DASH_GT, "'->'"))
         return NULL;
 
@@ -607,11 +611,11 @@ static AST_expr match_expr(Parser *p) {
         AST_patt patt = pattern(p);
         if (patt == NULL) return NULL;
         
-        AST_arm branch = match_branch(p);
-        if (branch == NULL) return NULL;
+        AST_arm arm = arm_branch(p);
+        if (arm == NULL) return NULL;
 
         ARR_ADD(&patts, patt);
-        ARR_ADD(&arms, branch);
+        ARR_ADD(&arms, arm);
         skip_newlines(p);  /* skip newlines after case branch */
     }
     ARR_ADD(&patts, NULL);
@@ -730,30 +734,64 @@ static AST_expr fn_literal(Parser *p) {
     return expr;
 }
 
+static AST_key hash_key(Parser *p, uint32_t index) {
+    /* [<expression>]:<value> */
+    if (match_token(p, TK_LBRACKET)) {
+        AST_expr expr = expression(p, LOW_PREC);
+        if (expr == NULL) return NULL;
+        
+        if (!expect_token(p, TK_RBRACKET, "']'"))
+            return NULL;
+
+        if (!expect_token(p, TK_COLON, ":"))
+            return NULL;
+        
+        AST_key key = malloc(sizeof (*key));
+        key->type = EXPR_KEY;
+        key->key.expr = expr;
+        return key;
+    }
+
+    /* <name>:<value> */
+    if (curr_token_is(p, TK_IDENT) && peek_token_is(p, TK_COLON)) {
+        char *symbol = ident_of_tok(next_token(p));
+        next_token(p); /* consume ':' */
+
+        AST_key key = malloc(sizeof (*key));
+        key->type = SYMBOL_KEY;
+        key->key.symbol = symbol;
+        return key;
+    }
+
+    /* <value> */
+    AST_key key = malloc(sizeof (*key));
+    key->type = INDEX_KEY;
+    key->key.index = index;
+    return key;
+}
+
 static AST_expr hash_literal(Parser *p) {
     next_token(p);  /* consume '{' token */
 
-    ARRAY(char*) names;
-    ARR_INIT(&names, char*);
+    ARRAY(AST_key) keys;
+    ARR_INIT(&keys, AST_key);
     
     ARRAY(AST_expr) values;
     ARR_INIT(&values, AST_expr);
 
     /* not an empty hash */
     if (!match_token(p, TK_RBRACE)) {
-        skip_newlines(p);
+        uint32_t index = 0;
         do {
             skip_newlines(p);
-            Token *name = expect_token(p, TK_IDENT, "field name");
-            if (name == NULL) return NULL;
-
-            if (!expect_token(p, TK_COLON, ":"))
-                return NULL;
-        
+            AST_key key = hash_key(p, index);
+            if (key == NULL) return NULL;
+            index++;
+                
             AST_expr value = expression(p, LOW_PREC);
             if (value == NULL) return NULL;
 
-            ARR_ADD(&names, ident_of_tok(name));
+            ARR_ADD(&keys, key);
             ARR_ADD(&values, value);
         } while (match_token(p, TK_COMMA));
         skip_newlines(p);
@@ -761,12 +799,11 @@ static AST_expr hash_literal(Parser *p) {
         if (!expect_token(p, TK_RBRACE, "}"))
             return NULL;
     }
-
-    ARR_ADD(&names, NULL);
+    ARR_ADD(&keys, NULL);
     ARR_ADD(&values, NULL);
 
     AST_hash_lit hash = malloc(sizeof (*hash));
-    hash->names = names.elems;
+    hash->keys = keys.elems;
     hash->values = values.elems;
 
     AST_lit_expr lit = malloc(sizeof (*lit));
@@ -1266,7 +1303,7 @@ void init_parser(Parser *parser, Token *tokens) {
     parser->prev = NULL;
 
     parser->been_error = 0;
-    ARR_INIT(&parser->errors, SErr);
+    ARR_INIT(&parser->errors, Err);
 }
 
 void free_parser(Parser *parser) {

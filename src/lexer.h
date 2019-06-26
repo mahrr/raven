@@ -21,7 +21,7 @@ typedef struct Lexer {
     long line;            /* the current line number */
     int been_error;       /* lexing error flag */
     ARRAY(Token) tokens;  /* array of the consumed tokens */
-    ARRAY(SErr) errors;   /* array of the lexing (syntax) errors */
+    ARRAY(Err) errors;    /* array of the lexing (syntax) errors */
 } Lexer;
 
 /* 

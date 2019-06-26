@@ -21,7 +21,7 @@ typedef struct Resolver {
     int been_error;          /* error flag */
     unsigned state;          /* the current state of the resolver */
     ARRAY(Table*) scopes;    /* stack of scopes */
-    ARRAY(SErr) errors;      /* resolving errors */
+    ARRAY(Err) errors;       /* resolving errors */
 } Resolver;
 
 /*

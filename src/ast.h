@@ -295,7 +295,6 @@ struct AST_fn_lit {
     AST_piece body;
 };
 
-/* to be added with the new hash syntax */
 struct AST_key {
     Hash_Key_VT type;
     union {
@@ -306,7 +305,7 @@ struct AST_key {
 };
 
 struct AST_hash_lit {
-    char **names;      /* array */
+    AST_key *keys;     /* array */
     AST_expr *values;  /* array */
 };
 
@@ -316,7 +315,7 @@ struct AST_list_lit {
 
 /* patterns sub nodes */
 struct AST_hash_patt {
-    char **names;      /* array */
+    AST_key *keys;     /* array */
     AST_patt *patts;   /* array */
 };
 

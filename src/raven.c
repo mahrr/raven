@@ -27,9 +27,9 @@ AST_piece parse(const char *src, const char *file, int *ident_num) {
     Token *tokens = cons_tokens(&l);
 
     if (lexer_error(&l)) {
-        SErr *errors = lexer_errors(&l);
+        Err *errors = lexer_errors(&l);
         int errnum = lexer_errnum(&l);
-        log_serr(errors, errnum, stderr);
+        log_errs(errors, errnum, stderr);
         return NULL;
     }
 
@@ -37,9 +37,9 @@ AST_piece parse(const char *src, const char *file, int *ident_num) {
     AST_piece piece = parse_piece(&p);
 
     if (parser_error(&p)) {
-        SErr *errors = parser_errors(&p);
+        Err *errors = parser_errors(&p);
         int errnum = parser_errnum(&p);
-        log_serr(errors, errnum, stderr);
+        log_errs(errors, errnum, stderr);
         return NULL;
     }
 
@@ -60,9 +60,9 @@ void run_line(const char *line, Resolver *r, Evaluator *e) {
         return;
 
     if (resolve(r, piece)) {
-        SErr *errors = resolver_errors(r);
+        Err *errors = resolver_errors(r);
         int errnum = resolver_errnum(r);
-        log_serr(errors, errnum, stderr);
+        log_errs(errors, errnum, stderr);
 
         /* reset the resolver errors */
         r->been_error = 0;
@@ -89,9 +89,9 @@ int run_src(const char *src, const char *file) {
     init_resolver(&r, &e);
     
     if (resolve(&r, piece)) {
-        SErr *errors = resolver_errors(&r);
+        Err *errors = resolver_errors(&r);
         int errnum = resolver_errnum(&r);
-        log_serr(errors, errnum, stderr);
+        log_errs(errors, errnum, stderr);
         return 1;
     }
 
