@@ -13,11 +13,10 @@
 
 #include <stdint.h>
 
-#include "list.h"
-
 /* function types */
-typedef uint64_t (*Hash_Fn)(const void *key);
-typedef int      (*Comp_Fn)(const void *key1, const void *key2);
+typedef uint64_t (*Hash_Fn)  (const void *key);
+typedef void     (*DFree_Fn) (void *data);
+typedef int      (*Comp_Fn)  (const void *key1, const void *key2);
 
 /* element block */
 typedef struct Elem {
@@ -26,13 +25,18 @@ typedef struct Elem {
     void *data;
 } Elem;
 
+typedef struct Entry {
+    struct Elem *elem;
+    struct Entry *link;
+} Entry;
+
 typedef struct Table {
-    int elems;       /* number of elements in the table */
-    int size;        /* number of entries in the table */
-    Hash_Fn hash;    /* key hashing function */
-    Comp_Fn comp;    /* key comparing function */
-    Free_Fn free;    /* element deallocation function */
-    List **entries;  /* array of linked lists of elements blocks */
+    int elems;        /* number of elements in the table */
+    int size;         /* number of entries in the table */
+    Hash_Fn hash;     /* key hashing function */
+    Comp_Fn comp;     /* key comparing function */
+    DFree_Fn free;    /* element deallocation function */
+    Entry **entries;  /* array of linked lists of elements blocks */
 } Table;
 
 #define table_size(table) ((table)->size)   /* get number of entries */
@@ -45,18 +49,16 @@ typedef struct Table {
  * table: a pointer to the table to be initialized
  * size: number of the entries expected in the table.
  * hash: function used for key hashing.
- * free: function used for table elements deallocation.
+ * free: function used for table elements data deallocation.
  * comp: function used for comparing two keys.
  *       it returns 1 if the two keys are equal, 0 otherwise.
- *
 */
 void init_table(Table *table, int size, Hash_Fn hash,
-                Free_Fn free, Comp_Fn comp);
+                DFree_Fn free, Comp_Fn comp);
 
 /*
  * Check if the key is already exist in the table. if so,
  * it returns 1, otherwise 0.
- *
 */
 int table_lookup(Table *table, const void *key);
 
@@ -64,7 +66,6 @@ int table_lookup(Table *table, const void *key);
  * Insert a new element into the table. if the key is
  * already exist, it returns the previous value associated
  * with the key, otherwise it returns NULL.
- *
 */
 void *table_put(Table *table, const void *key, void *data);
 
@@ -82,14 +83,12 @@ void *table_get(Table *table, const void *key);
  * found, it removes the associated element from the
  * table and return it, otherwise it does nothing 
  * and return NULL.
- *
 */
 void *table_remove(Table *table, const void *key);
 
 /*
  * Deallocate the table internal array, and call the table free 
  * function for each table element, if it's provided.
- *
 */
 void free_table(Table *table);
 

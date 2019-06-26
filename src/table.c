@@ -17,18 +17,52 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#include "list.h"
 #include "table.h"
 
+/* 
+ * adds an element to a table entry, and
+ * returns the entry.
+ */
+static Entry *entry_add(Entry *entry, Elem *elem) {
+    Entry **p = &entry;
+    
+    while (*p)
+        p = &(*p)->link;
+
+    *p = malloc(sizeof (**p));
+    (*p)->elem = elem;
+    (*p)->link = NULL;
+
+    return entry;
+}
+
+/* 
+ * remove an element from a table entry at
+ * specified position, and returns its data.
+*/
+static void *entry_rem(Entry *entry, int pos) {
+    for (int i = 0; i < pos; i++)
+        entry = entry->link;
+    
+    Entry *rem = entry->link;
+    entry->link = rem->link;
+    
+    void *rm_data = rem->elem->data;
+    free(rem->elem);
+    free(rem);
+
+    return rm_data;
+}
+
 /* return the table element with specified key */
-Elem *get_elem(Table *table, const void *key) {
+static Elem *get_elem(Table *table, const void *key) {
     uint64_t hash = table->hash(key);
     unsigned index = hash % table->size;
 
     Elem *elem;
-    List *cell = table->entries[index];
-    for ( ; cell; cell = cell->tail) {
-        elem = (Elem*)cell->head;
+    Entry *entry = table->entries[index];
+    for ( ; entry; entry = entry->link) {
+        elem = (Elem*)entry->elem;
         /* hash comparsion is done first, as it's likely faster
            than key comparsion, especially if the keys are strings. */
         if (hash == elem->hash && table->comp(elem->key, key))
@@ -39,7 +73,7 @@ Elem *get_elem(Table *table, const void *key) {
 }
 
 void init_table(Table *table, int size, Hash_Fn hash,
-                Free_Fn free, Comp_Fn comp) {
+                DFree_Fn free, Comp_Fn comp) {
     table->elems = 0;
     table->size = size;
     table->hash = hash;
@@ -47,7 +81,7 @@ void init_table(Table *table, int size, Hash_Fn hash,
     table->comp = comp;
 
     /* allocate array of list pointers */
-    table->entries = (List**)malloc(sizeof(List*) * size);
+    table->entries = (Entry**)malloc(sizeof(Entry*) * size);
 
     /* allocate lists for each entry */
     for (int i = 0; i < size; i++)
@@ -83,7 +117,7 @@ void *table_put(Table *table, const void *key, void *data) {
     elem->hash = hash;
     elem->data = data;
     
-    table->entries[index] = list_add(table->entries[index], elem);
+    table->entries[index] = entry_add(table->entries[index], elem);
     table->elems++;
 
     return NULL;
@@ -99,12 +133,12 @@ void *table_remove(Table *table, const void *key) {
     unsigned index = hash % table->size;
 
     Elem *elem;
-    List *cell = table->entries[index];
-    for (int i = 0; cell; cell = cell->tail, i++) {
-        elem = (Elem*)cell->head;
+    Entry *entry = table->entries[index];
+    for (int i = 0; entry; entry = entry->link, i++) {
+        elem = (Elem*)entry->elem;
         if (hash == elem->hash && table->comp(elem->key, key)) {
             table->elems--;
-            return list_remove(cell, i);
+            return entry_rem(entry, i);
         }
     }
 
@@ -115,15 +149,16 @@ void *table_remove(Table *table, const void *key) {
 void free_table(Table *table) {
     /* deallocating the table elements */
     for (int i = 0; i < table->size; i++) {
-        List *cell = table->entries[i];
-        List *next;
+        Entry *entry = table->entries[i];
+        Entry *next;
         Elem *elem;
-        for ( ; cell; cell = next) {
-            elem = cell->head;
-            next = cell->tail;
-            table->free(elem->data);
+        for ( ; entry; entry = next) {
+            elem = entry->elem;
+            next = entry->link;
+            if (table->free)
+                table->free(elem->data);
             free(elem);
-            free(cell);
+            free(entry);
         }
     }
     free(table->entries);

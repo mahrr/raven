@@ -191,22 +191,22 @@ static AST_patt const_patt(Parser *p) {
 
     switch (tok->type) {
     case TK_INT:
-        patt->obj.i = int_of_tok(tok);
+        patt->i = int_of_tok(tok);
         patt->type = INT_CPATT;
         break;
 
     case TK_FLOAT:
-        patt->obj.f = float_of_tok(tok);
+        patt->f = float_of_tok(tok);
         patt->type = FLOAT_CPATT;
         break;
 
     case TK_RSTR:
-        patt->obj.s = str_of_tok(tok);
+        patt->s = str_of_tok(tok);
         patt->type = RSTR_CPATT;
         break;
 
     case TK_STR:
-        patt->obj.s = str_of_tok(tok);
+        patt->s = str_of_tok(tok);
         patt->type = STR_CPATT;
         break;
 
@@ -257,7 +257,7 @@ static AST_patt hash_patt(Parser *p) {
     
     AST_patt patt = malloc(sizeof (*patt));
     patt->type = HASH_PATT;
-    patt->obj.hash = hash;
+    patt->hash = hash;
 
     return patt;
 }
@@ -267,7 +267,7 @@ static AST_patt ident_patt(Parser *p) {
     
     AST_patt patt = malloc(sizeof (*patt));
     patt->type = IDENT_PATT;
-    patt->obj.ident = ident_of_tok(ident);
+    patt->ident = ident_of_tok(ident);
 
     return patt;
 }
@@ -283,7 +283,7 @@ static AST_patt list_patt(Parser *p) {
 
     AST_patt patt = malloc(sizeof (*patt));
     patt->type = LIST_PATT;
-    patt->obj.list = list;
+    patt->list = list;
 
     return patt;
 }
@@ -309,7 +309,7 @@ static AST_patt pair_patt(Parser *p) {
 
     AST_patt patt = malloc(sizeof (*patt));
     patt->type = PAIR_PATT;
-    patt->obj.pair = pair;
+    patt->pair = pair;
 
     return patt;
 }
@@ -336,7 +336,7 @@ static AST_expr access_expr(Parser *p, AST_expr object) {
 
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = ACCESS_EXPR;
-    expr->obj.access = access;
+    expr->access = access;
 
     return expr;
 }
@@ -367,7 +367,7 @@ static AST_expr assign_expr(Parser *p, AST_expr lvalue) {
 
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = ASSIGN_EXPR;
-    expr->obj.assign = assign;
+    expr->assign = assign;
 
     return expr;
 }
@@ -389,7 +389,7 @@ static AST_expr binary_expr(Parser *p, AST_expr left) {
 
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = BINARY_EXPR;
-    expr->obj.binary = binary;
+    expr->binary = binary;
 
     return expr;
 }
@@ -406,7 +406,7 @@ static AST_expr call_expr(Parser *p, AST_expr func) {
 
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = CALL_EXPR;
-    expr->obj.call = call;
+    expr->call = call;
 
     return expr;
 }
@@ -426,7 +426,7 @@ static AST_expr cons_expr(Parser *p, AST_expr head) {
 
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = BINARY_EXPR;
-    expr->obj.binary = binary;
+    expr->binary = binary;
 
     return expr;
 }
@@ -455,7 +455,7 @@ static AST_expr for_expr(Parser *p) {
 
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = FOR_EXPR;
-    expr->obj.for_expr = for_expr;
+    expr->for_expr = for_expr;
 
     return expr;
 }
@@ -474,7 +474,7 @@ static AST_expr group_expr(Parser *p) {
 
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = GROUP_EXPR;
-    expr->obj.group = group;
+    expr->group = group;
 
     return expr;
 }
@@ -484,7 +484,7 @@ static AST_expr identifier(Parser *p) {
     
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = IDENT_EXPR;
-    expr->obj.ident = ident_of_tok(ident);
+    expr->ident = ident_of_tok(ident);
 
     return expr;
 }
@@ -542,7 +542,7 @@ static AST_expr if_expr(Parser *p) {
 
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = IF_EXPR;
-    expr->obj.if_expr = if_expr;
+    expr->if_expr = if_expr;
 
     return expr;
 }
@@ -562,7 +562,7 @@ static AST_expr index_expr(Parser *p, AST_expr object) {
     
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = INDEX_EXPR;
-    expr->obj.index = index_expr;
+    expr->index = index_expr;
 
     return expr;
 }
@@ -577,14 +577,14 @@ static AST_arm arm_branch(Parser *p) {
         
         arm = malloc(sizeof (*arm));
         arm->type = PIECE_ARM;
-        arm->obj.p = body;
+        arm->p = body;
     } else {
         AST_expr expr = expression(p, LOW_PREC);
         if (expr == NULL) return NULL;
         
         arm = malloc(sizeof (*arm));
         arm->type = EXPR_ARM;
-        arm->obj.e = expr;
+        arm->e = expr;
     }
     
     return arm;
@@ -631,7 +631,7 @@ static AST_expr match_expr(Parser *p) {
 
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = MATCH_EXPR;
-    expr->obj.match = match;
+    expr->match = match;
 
     return expr;
 }
@@ -648,7 +648,7 @@ static AST_expr unary_expr(Parser *p) {
 
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = UNARY_EXPR;
-    expr->obj.unary = unary;
+    expr->unary = unary;
 
     return expr;
 }
@@ -670,7 +670,7 @@ static AST_expr while_expr(Parser *p) {
 
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = WHILE_EXPR;
-    expr->obj.while_expr = while_expr;
+    expr->while_expr = while_expr;
 
     return expr;
 }
@@ -689,7 +689,7 @@ static AST_expr fixed_literal(Parser *p) {
     next_token(p);  /* consume the fixed */
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = LIT_EXPR;
-    expr->obj.lit = lit;
+    expr->lit = lit;
 
     return expr;
 }
@@ -699,11 +699,11 @@ static AST_expr float_literal(Parser *p) {
     
     AST_lit_expr lit = malloc(sizeof (*lit));
     lit->type = FLOAT_LIT;
-    lit->obj.f = float_of_tok(tok);
+    lit->f = float_of_tok(tok);
     
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = LIT_EXPR;
-    expr->obj.lit = lit;
+    expr->lit = lit;
 
     return expr;
 }
@@ -725,11 +725,11 @@ static AST_expr fn_literal(Parser *p) {
 
     AST_lit_expr lit = malloc(sizeof (*lit));
     lit->type = FN_LIT;
-    lit->obj.fn = fn;
+    lit->fn = fn;
 
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = LIT_EXPR;
-    expr->obj.lit = lit;
+    expr->lit = lit;
 
     return expr;
 }
@@ -748,7 +748,7 @@ static AST_key hash_key(Parser *p, uint32_t index) {
         
         AST_key key = malloc(sizeof (*key));
         key->type = EXPR_KEY;
-        key->key.expr = expr;
+        key->expr = expr;
         return key;
     }
 
@@ -759,14 +759,14 @@ static AST_key hash_key(Parser *p, uint32_t index) {
 
         AST_key key = malloc(sizeof (*key));
         key->type = SYMBOL_KEY;
-        key->key.symbol = symbol;
+        key->symbol = symbol;
         return key;
     }
 
     /* <value> */
     AST_key key = malloc(sizeof (*key));
     key->type = INDEX_KEY;
-    key->key.index = index;
+    key->index = index;
     return key;
 }
 
@@ -808,11 +808,11 @@ static AST_expr hash_literal(Parser *p) {
 
     AST_lit_expr lit = malloc(sizeof (*lit));
     lit->type = HASH_LIT;
-    lit->obj.hash = hash;
+    lit->hash = hash;
 
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = LIT_EXPR;
-    expr->obj.lit = lit;
+    expr->lit = lit;
 
     return expr;
 }
@@ -823,11 +823,11 @@ static AST_expr int_literal(Parser *p) {
     
     AST_lit_expr lit = malloc(sizeof (*lit));
     lit->type = INT_LIT;
-    lit->obj.i = i;
+    lit->i = i;
 
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = LIT_EXPR;
-    expr->obj.lit = lit;
+    expr->lit = lit;
 
     return expr;
 }
@@ -843,11 +843,11 @@ static AST_expr list_literal(Parser *p) {
 
     AST_lit_expr lit = malloc(sizeof (*lit));
     lit->type = LIST_LIT;
-    lit->obj.list = list;
+    lit->list = list;
 
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = LIT_EXPR;
-    expr->obj.lit = lit;
+    expr->lit = lit;
 
     return expr;
 }
@@ -857,11 +857,11 @@ static AST_expr str_literal(Parser *p) {
 
     AST_lit_expr lit = malloc(sizeof (*lit));
     lit->type = tok->lexeme[0] == '`' ? RSTR_LIT : STR_LIT;
-    lit->obj.s = str_of_tok(tok);
+    lit->s = str_of_tok(tok);
 
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = LIT_EXPR;
-    expr->obj.lit = lit;
+    expr->lit = lit;
 
     return expr;
 }
@@ -979,7 +979,7 @@ static AST_stmt expr_stmt(Parser *p) {
     
     AST_stmt stmt = malloc(sizeof (*stmt));
     stmt->type = EXPR_STMT;
-    stmt->obj.expr = expr_stmt;
+    stmt->expr = expr_stmt;
 
     return stmt;
 }
@@ -1005,7 +1005,7 @@ static AST_stmt fn_stmt(Parser *p) {
     
     AST_stmt stmt = malloc(sizeof (*stmt));
     stmt->type = FN_STMT;
-    stmt->obj.fn = fn;
+    stmt->fn = fn;
 
     return stmt;
 }
@@ -1028,7 +1028,7 @@ static AST_stmt let_stmt(Parser *p) {
     
     AST_stmt stmt = malloc(sizeof (*stmt));
     stmt->type = LET_STMT;
-    stmt->obj.let = let;
+    stmt->let = let;
 
     return stmt;
 }
@@ -1044,7 +1044,7 @@ static AST_stmt ret_stmt(Parser *p) {
     
     AST_stmt stmt = malloc(sizeof (*stmt));
     stmt->type = RET_STMT;
-    stmt->obj.ret = ret;
+    stmt->ret = ret;
 
     return stmt;
 }
@@ -1054,7 +1054,7 @@ static AST_stmt fixed_stmt(Parser *p) {
     
     AST_stmt stmt = malloc(sizeof (*stmt));
     stmt->type = FIXED_STMT;
-    stmt->obj.fixed = fixed->type;
+    stmt->fixed = fixed->type;
     
     return stmt;
 }

@@ -58,16 +58,18 @@ struct Cl_obj {
 };
 
 /*
- * Hash in raven allow any kind of object to be a key.
- * because every type of object has its own hash fucntion,
+ * Hash in raven allows any kind of object to be a key.
+ * Because every type of object has its own hash fucntion,
  * the hash object maintains a table for each kind of key,
- * strings, floats and objects (e.g. lists and hashes).
- * The integer keys are mapped to a dynamic array.
+ * strings, floats and ref objects (e.g. lists and hashes).
+ * The integer keys are mapped to a dynamic array, or
+ * a int hash table based on index range and convergent.
  * 
 */
 struct Hash_obj {
     ARRAY(int) *array;
     Table *float_table;
+    Table *int_table;
     Table *str_table;
     Table *obj_table;
 };
@@ -82,7 +84,7 @@ struct Rav_obj {
         char *s;        /* string */
         Cl_obj *cl;     /* closure */
         Hash_obj *h;    /* hash */
-    } obj;
+    };
 };
 
 #endif

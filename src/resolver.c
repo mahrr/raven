@@ -103,7 +103,7 @@ static void define(Resolver *r, Token *where, const char *name) {
    or register an error for not defined variable usage */
 static void resolve_local(Resolver *r, AST_expr expr) {
     int inner = r->scopes.len -1;
-    char *name = expr->obj.ident;
+    char *name = expr->ident;
     
     for (int i = inner; i >= 0; i--) {
         /* current outer most scope */
@@ -161,17 +161,17 @@ static void resolve_lit(Resolver *r, AST_lit_expr lit) {
     switch (lit->type) {
         
     case FN_LIT: {
-        AST_fn_lit fn = lit->obj.fn;
+        AST_fn_lit fn = lit->fn;
         resolve_fn(r, fn->params, fn->body);
         break;
     }
         
     case HASH_LIT: {
-        AST_hash_lit hash = lit->obj.hash;
+        AST_hash_lit hash = lit->hash;
         for (int i = 0; hash->keys[i]; i++) {
             if (hash->keys[i]->type == EXPR_KEY) {
                 AST_key key = hash->keys[i];
-                resolve_expr(r, key->key.expr);
+                resolve_expr(r, key->expr);
             }
             resolve_expr(r, hash->values[i]);
         }
@@ -179,7 +179,7 @@ static void resolve_lit(Resolver *r, AST_lit_expr lit) {
     }
         
     case LIST_LIT:
-        resolve_exprs(r, lit->obj.list->values);
+        resolve_exprs(r, lit->list->values);
         break;
         
     default:
@@ -199,9 +199,9 @@ static void resolve_match(Resolver *r, AST_match_expr match) {
         
         resolve_patt(r, patts[i]);
         if (arms[i]->type == EXPR_ARM)
-            resolve_expr(r, arms[i]->obj.e);
+            resolve_expr(r, arms[i]->e);
         else
-            resolve_stmts(r, arms[i]->obj.p->stmts);
+            resolve_stmts(r, arms[i]->p->stmts);
 
         /* pop the branch scope */
         pop_scope(r);
@@ -226,15 +226,15 @@ static void resolve_patt(Resolver *r, AST_patt patt) {
     switch (patt->type) {
         
     case IDENT_PATT:
-        define(r, patt->where, patt->obj.ident);
+        define(r, patt->where, patt->ident);
         break;
         
     case HASH_PATT: {
-        AST_hash_patt hash = patt->obj.hash;
+        AST_hash_patt hash = patt->hash;
         for (int i = 0; hash->keys[i]; i++) {
             if (hash->keys[i]->type == EXPR_KEY) {
                 AST_key key = hash->keys[i];
-                resolve_expr(r, key->key.expr);
+                resolve_expr(r, key->expr);
             }
             resolve_patt(r, hash->patts[i]);
         }
@@ -242,12 +242,12 @@ static void resolve_patt(Resolver *r, AST_patt patt) {
     }
         
     case LIST_PATT:
-        resolve_patts(r, patt->obj.list->patts);
+        resolve_patts(r, patt->list->patts);
         break;
 
     case PAIR_PATT:
-        resolve_patt(r, patt->obj.pair->hd);
-        resolve_patt(r, patt->obj.pair->tl);
+        resolve_patt(r, patt->pair->hd);
+        resolve_patt(r, patt->pair->tl);
         break;
 
     default:
@@ -264,26 +264,26 @@ static void resolve_expr(Resolver *r, AST_expr expr) {
     switch (expr->type) {
         
     case ACCESS_EXPR:
-        resolve_expr(r, expr->obj.access->object);
+        resolve_expr(r, expr->access->object);
         break;
         
     case ASSIGN_EXPR:
-        resolve_expr(r, expr->obj.assign->lvalue);
-        resolve_expr(r, expr->obj.assign->value);
+        resolve_expr(r, expr->assign->lvalue);
+        resolve_expr(r, expr->assign->value);
         break;
         
     case BINARY_EXPR:
-        resolve_expr(r, expr->obj.binary->left);
-        resolve_expr(r, expr->obj.binary->right);
+        resolve_expr(r, expr->binary->left);
+        resolve_expr(r, expr->binary->right);
         break;
         
     case CALL_EXPR:
-        resolve_expr(r, expr->obj.call->func);
-        resolve_exprs(r, expr->obj.call->args);
+        resolve_expr(r, expr->call->func);
+        resolve_exprs(r, expr->call->args);
         break;
         
     case FOR_EXPR: {
-        AST_for_expr for_expr = expr->obj.for_expr;
+        AST_for_expr for_expr = expr->for_expr;
         unsigned prev_state = r->state;
         r->state |= IN_LOOP;
         
@@ -298,7 +298,7 @@ static void resolve_expr(Resolver *r, AST_expr expr) {
     }
         
     case GROUP_EXPR:
-        resolve_expr(r, expr->obj.group->expr);
+        resolve_expr(r, expr->group->expr);
         break;
         
     case IDENT_EXPR:
@@ -306,31 +306,31 @@ static void resolve_expr(Resolver *r, AST_expr expr) {
         break;
         
     case IF_EXPR:
-        resolve_if(r, expr->obj.if_expr);
+        resolve_if(r, expr->if_expr);
         break;
         
     case INDEX_EXPR:
-        resolve_expr(r, expr->obj.index->object);
-        resolve_expr(r, expr->obj.index->index);
+        resolve_expr(r, expr->index->object);
+        resolve_expr(r, expr->index->index);
         break;
         
     case LIT_EXPR:
-        resolve_lit(r, expr->obj.lit);
+        resolve_lit(r, expr->lit);
         break;
         
     case MATCH_EXPR:
-        resolve_match(r, expr->obj.match);
+        resolve_match(r, expr->match);
         break;
         
     case UNARY_EXPR:
-        resolve_expr(r, expr->obj.unary->operand);
+        resolve_expr(r, expr->unary->operand);
         break;
         
     case WHILE_EXPR: {
         unsigned prev_state = r->state;
         r->state |= IN_LOOP;
-        resolve_expr(r, expr->obj.while_expr->cond);
-        resolve_piece(r, expr->obj.while_expr->body);
+        resolve_expr(r, expr->while_expr->cond);
+        resolve_piece(r, expr->while_expr->body);
         r->state = prev_state;
         break;
     }
@@ -349,7 +349,7 @@ static void resolve_stmt(Resolver *r, AST_stmt stmt) {
     switch (stmt->type) {
         
     case EXPR_STMT:
-        resolve_expr(r, stmt->obj.expr->expr);
+        resolve_expr(r, stmt->expr->expr);
         break;
         
     case FIXED_STMT:
@@ -360,15 +360,15 @@ static void resolve_stmt(Resolver *r, AST_stmt stmt) {
         break;
         
     case FN_STMT: {
-        AST_fn_stmt fn = stmt->obj.fn;
+        AST_fn_stmt fn = stmt->fn;
         define(r, stmt->where, fn->name);
         resolve_fn(r, fn->params, fn->body);
         break;
     }
 
     case LET_STMT:
-        resolve_patt(r, stmt->obj.let->patt);
-        resolve_expr(r, stmt->obj.let->value);
+        resolve_patt(r, stmt->let->patt);
+        resolve_expr(r, stmt->let->value);
         break;
 
     case RET_STMT: {
@@ -377,7 +377,7 @@ static void resolve_stmt(Resolver *r, AST_stmt stmt) {
             reg_error(r, SYNTAX_ERR, stmt->where, msg);
         }
         
-        AST_expr retval = stmt->obj.ret->value;
+        AST_expr retval = stmt->ret->value;
         if (retval != NULL)
             resolve_expr(r, retval);
         

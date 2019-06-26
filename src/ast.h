@@ -147,7 +147,7 @@ struct AST_stmt {
         AST_let_stmt let;
         AST_ret_stmt ret;
         TK_type fixed;  /* fixed statements */
-    } obj;
+    };
 };
 
 struct AST_expr {
@@ -167,7 +167,7 @@ struct AST_expr {
         AST_unary_expr unary;
         AST_while_expr while_expr;
         char *ident;  /* identifier expression */
-    } obj;
+    };
 };
 
 struct AST_patt {
@@ -181,7 +181,7 @@ struct AST_patt {
         int64_t i;         /* literal int pattern */
         long double f;     /* literal float pattern */
         char *s;           /* literal string pattern */
-    } obj;
+    };
 };
 
 /* statements sub nodes */
@@ -262,7 +262,7 @@ struct AST_lit_expr {
         long double f; /* float literal */
         int64_t i;     /* integer literal */
         char *s;       /* string literal */
-    } obj;
+    };
 };
 
 struct AST_arm {
@@ -270,7 +270,7 @@ struct AST_arm {
     union {
         AST_expr e;
         AST_piece p;
-    } obj;
+    };
 };
 
 struct AST_match_expr {
@@ -301,7 +301,7 @@ struct AST_key {
         char *symbol;
         AST_expr expr;
         uint32_t index;
-    } key;
+    };
 };
 
 struct AST_hash_lit {

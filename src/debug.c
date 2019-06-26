@@ -108,30 +108,28 @@ static void paren_block(char *op, AST_expr cond, AST_piece body) {
 static void print_key(AST_key key) {
     if (key->type == EXPR_KEY) {
         putchar('[');
-        print_expr(key->key.expr);
+        print_expr(key->expr);
         printf("]:");  
     } else if (key->type == SYMBOL_KEY) {
-        printf("%s:", key->key.symbol);
+        printf("%s:", key->symbol);
     } else {
-        printf("%u:", key->key.index);
+        printf("%u:", key->index);
     }
 }
 
 static void print_lit_expr(AST_lit_expr e) {
     switch (e->type) {
 
-    case FN_LIT: {
-        AST_fn_lit fn = e->obj.fn;
+    case FN_LIT:
         printf("(fn [");
-        print_patts(fn->params);
+        print_patts(e->fn->params);
         printf("]\n");
-        print_piece(fn->body);
+        print_piece(e->fn->body);
         printf(")");
         break;
-    }
 
     case HASH_LIT: {
-        AST_hash_lit hash = e->obj.hash;
+        AST_hash_lit hash = e->hash;
         printf("(hash ");
         
         AST_key *keys = hash->keys;
@@ -145,24 +143,22 @@ static void print_lit_expr(AST_lit_expr e) {
         break;
     }
 
-    case LIST_LIT: {
-        AST_list_lit list = e->obj.list;
+    case LIST_LIT:
         printf("(list");
-        print_exprs(list->values);
+        print_exprs(e->list->values);
         printf(")");
         break;
-    }
 
     case FALSE_LIT:
         printf("false");
         break;
         
     case FLOAT_LIT:
-        printf("%Lf", e->obj.f);
+        printf("%Lf", e->f);
         break;
         
     case INT_LIT:
-        printf("%ld", e->obj.i);
+        printf("%ld", e->i);
         break;
 
     case NIL_LIT:
@@ -170,11 +166,11 @@ static void print_lit_expr(AST_lit_expr e) {
         break;
 
     case STR_LIT:
-        printf("'%s'", e->obj.s);
+        printf("'%s'", e->s);
         break;
 
     case RSTR_LIT:
-        printf("`%s`", e->obj.s);
+        printf("`%s`", e->s);
         break;
 
     case TRUE_LIT:
@@ -187,7 +183,7 @@ static void print_patt(AST_patt p) {
     switch (p->type) {
         
     case HASH_PATT: {
-        AST_hash_patt hash = p->obj.hash;
+        AST_hash_patt hash = p->hash;
         printf("(:hash ");
         
         AST_key *keys = hash->keys;
@@ -202,38 +198,34 @@ static void print_patt(AST_patt p) {
         break;
     }
 
-    case LIST_PATT: {
-        AST_list_patt list = p->obj.list;
+    case LIST_PATT:
         printf("(:list");
-        print_patts(list->patts);
+        print_patts(p->list->patts);
         printf(")");
         break;
-    }
 
-    case PAIR_PATT: {
-        AST_pair_patt pair = p->obj.pair;
+    case PAIR_PATT:
         printf("(:pair ");
-        print_patt(pair->hd);
+        print_patt(p->pair->hd);
         printf(" | ");
-        print_patt(pair->tl);
+        print_patt(p->pair->tl);
         printf(")");
         break;
-    }
 
     case FALSE_CPATT:
         printf("false");
         break;
     
     case FLOAT_CPATT:
-        printf("%Lf", p->obj.f);
+        printf("%Lf", p->f);
         break;
 
     case IDENT_PATT:
-        printf("%s", p->obj.ident);
+        printf("%s", p->ident);
         break;
 
     case INT_CPATT:
-        printf("%ld", p->obj.i);
+        printf("%ld", p->i);
         break;
 
     case NIL_CPATT:
@@ -241,11 +233,11 @@ static void print_patt(AST_patt p) {
         break;
 
     case RSTR_CPATT:
-        printf("`%s`", p->obj.s);
+        printf("`%s`", p->s);
         break;
 
     case STR_CPATT:
-        printf("'%s'", p->obj.s);
+        printf("'%s'", p->s);
         break;
 
     case TRUE_CPATT:
@@ -265,54 +257,46 @@ static void print_patts(AST_patt *patts) {
 static void print_expr(AST_expr e) {
     switch (e->type) {
 
-    case ACCESS_EXPR: {
-        AST_access_expr access = e->obj.access;
-        sprintf(buff, ".%s", access->field);
-        paren_op(buff, 1, access->object);
+    case ACCESS_EXPR:
+        sprintf(buff, ".%s", e->access->field);
+        paren_op(buff, 1, e->access->object);
         break;
-    }
 
     case ASSIGN_EXPR: {
-        AST_assign_expr assign = e->obj.assign;
+        AST_assign_expr assign = e->assign;
         paren_op("=", 2, assign->lvalue, assign->value);
         break;
     }
 
     case BINARY_EXPR: {
-        AST_binary_expr bin = e->obj.binary;
+        AST_binary_expr bin = e->binary;
         paren_op(tok_types_str[bin->op],
                      2, bin->left, bin->right);
         break;
     }
 
-    case CALL_EXPR: {
-        AST_call_expr call = e->obj.call;
+    case CALL_EXPR:
         putchar('(');
-        print_expr(call->func);
-        print_exprs(call->args);
+        print_expr(e->call->func);
+        print_exprs(e->call->args);
         putchar(')');
         break;
-    }
 
-    case FOR_EXPR: {
-        AST_for_expr for_expr = e->obj.for_expr;
+    case FOR_EXPR:
         printf("|for| ");
-        print_patt(for_expr->patt);
+        print_patt(e->for_expr->patt);
         printf(" in ");
-        print_expr(for_expr->iter);
+        print_expr(e->for_expr->iter);
         putchar('\n');
-        print_piece(for_expr->body);
+        print_piece(e->for_expr->body);
         break;
-    }
 
-    case GROUP_EXPR: {
-        AST_group_expr group = e->obj.group;
-        paren_op("GR", 1, group->expr);
+    case GROUP_EXPR:
+        paren_op("GR", 1, e->group->expr);
         break;
-    }
 
     case IF_EXPR: {
-        AST_if_expr if_expr = e->obj.if_expr;
+        AST_if_expr if_expr = e->if_expr;
         paren_block("if", if_expr->cond, if_expr->then);
 
         AST_elif *elifs = if_expr->elifs;
@@ -325,21 +309,19 @@ static void print_expr(AST_expr e) {
     }
 
     case IDENT_EXPR:
-        printf("%s", e->obj.ident);
+        printf("%s", e->ident);
         break;
 
-    case INDEX_EXPR: {
-        AST_index_expr ie = e->obj.index;
-        paren_op("[]", 2, ie->object, ie->index);
+    case INDEX_EXPR:
+        paren_op("[]", 2, e->index->object, e->index->index);
         break;
-    }
 
     case LIT_EXPR:
-        print_lit_expr(e->obj.lit);
+        print_lit_expr(e->lit);
         break;
 
     case MATCH_EXPR: {
-        AST_match_expr match = e->obj.match;
+        AST_match_expr match = e->match;
         printf("(match ");
         print_expr(match->value);
         putchar('\n');
@@ -355,9 +337,9 @@ static void print_expr(AST_expr e) {
             printf(" -> ");
 
             if (arms[i]->type == EXPR_ARM)
-                print_expr(arms[i]->obj.e);
+                print_expr(arms[i]->e);
             else
-                print_piece(arms[i]->obj.p);
+                print_piece(arms[i]->p);
             
             printf("\n");
             indent_level--;
@@ -367,15 +349,13 @@ static void print_expr(AST_expr e) {
         break;
     }
 
-    case UNARY_EXPR: {
-        AST_unary_expr unary = e->obj.unary;
-        paren_op(tok_types_str[unary->op],
-                     1, unary->operand);
+    case UNARY_EXPR:
+        paren_op(tok_types_str[e->unary->op],
+                     1, e->unary->operand);
         break;
-    }
 
     case WHILE_EXPR: {
-        AST_while_expr wh = e->obj.while_expr;
+        AST_while_expr wh = e->while_expr;
         paren_block("while", wh->cond, wh->body);
         break;
     }
@@ -394,44 +374,36 @@ static void print_exprs(AST_expr *exprs) {
 static void print_stmt(AST_stmt s) {
     switch (s->type) {
         
-    case EXPR_STMT: {
-        AST_expr_stmt stmt = s->obj.expr;
+    case EXPR_STMT:
         printf("{");
-        print_expr(stmt->expr);
+        print_expr(s->expr->expr);
         printf("}\n");
         break;
-    }
         
-    case FN_STMT: {
-        AST_fn_stmt fn = s->obj.fn;
-        printf("{fn (%s) [", fn->name);
-        print_patts(fn->params);
+    case FN_STMT:
+        printf("{fn (%s) [", s->fn->name);
+        print_patts(s->fn->params);
         printf("]\n");
-        print_piece(fn->body);
+        print_piece(s->fn->body);
         printf("}\n");
         break;
-    }
 
-    case LET_STMT: {
-        AST_let_stmt let = s->obj.let;
+    case LET_STMT:
         printf("{let ");
-        print_patt(let->patt);
+        print_patt(s->let->patt);
         putchar(' ');
-        print_expr(let->value);
+        print_expr(s->let->value);
         printf("}\n");
         break;
-    }
 
-    case RET_STMT: {
-        AST_ret_stmt ret = s->obj.ret;
+    case RET_STMT:
         printf("{ret ");
-        print_expr(ret->value);
+        print_expr(s->ret->value);
         printf("}\n");
         break;
-    }
 
     case FIXED_STMT:
-        printf("{%s}\n", tok_types_str[s->obj.fixed]);
+        printf("{%s}\n", tok_types_str[s->fixed]);
     }
 }
 
