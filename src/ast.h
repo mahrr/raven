@@ -10,7 +10,6 @@
 
 #include <stdint.h>  /* int64_t */
 
-#include "array.h"
 #include "token.h"
 
 /** nodes value types **/
@@ -21,7 +20,8 @@ typedef enum {
     FIXED_STMT,
     FN_STMT,
     LET_STMT,
-    RET_STMT
+    RET_STMT,
+    TYPE_STMT
 } Stmt_VT;
 
 typedef enum {
@@ -29,6 +29,7 @@ typedef enum {
     ASSIGN_EXPR,
     BINARY_EXPR,
     CALL_EXPR,
+    COND_EXPR,
     FOR_EXPR,
     GROUP_EXPR,
     IDENT_EXPR,
@@ -41,6 +42,7 @@ typedef enum {
 } Expr_VT;
 
 typedef enum {
+    CONS_PATT,
     FALSE_CPATT,
     FLOAT_CPATT,
     HASH_PATT,
@@ -93,12 +95,17 @@ typedef struct AST_expr_stmt *AST_expr_stmt;
 typedef struct AST_fn_stmt   *AST_fn_stmt;
 typedef struct AST_let_stmt  *AST_let_stmt;
 typedef struct AST_ret_stmt  *AST_ret_stmt;
+typedef struct AST_type_stmt *AST_type_stmt;
+
+/* constructor declaration for type statements */
+typedef struct AST_cons_decl *AST_cons_decl;
 
 /* expressions sub nodes */
 typedef struct AST_access_expr *AST_access_expr;
 typedef struct AST_assign_expr *AST_assign_expr;
 typedef struct AST_binary_expr *AST_binary_expr;
 typedef struct AST_call_expr   *AST_call_expr;
+typedef struct AST_cond_expr   *AST_cond_expr;
 typedef struct AST_for_expr    *AST_for_expr;
 typedef struct AST_group_expr  *AST_group_expr;
 typedef struct AST_if_expr     *AST_if_expr;
@@ -119,10 +126,10 @@ typedef struct AST_hash_lit *AST_hash_lit;
 typedef struct AST_list_lit *AST_list_lit;
 
 /* patterns sub nodes */
-typedef struct AST_const_patt *AST_const_patt;
-typedef struct AST_hash_patt  *AST_hash_patt;
-typedef struct AST_pair_patt  *AST_pair_patt;
-typedef struct AST_list_patt  *AST_list_patt;
+typedef struct AST_cons_patt *AST_cons_patt;
+typedef struct AST_hash_patt *AST_hash_patt;
+typedef struct AST_pair_patt *AST_pair_patt;
+typedef struct AST_list_patt *AST_list_patt;
 
 
 /** nodes definition **/
@@ -146,7 +153,8 @@ struct AST_stmt {
         AST_fn_stmt fn;
         AST_let_stmt let;
         AST_ret_stmt ret;
-        TK_type fixed;  /* fixed statements */
+        AST_type_stmt type_stmt;
+        TK_type fixed;
     };
 };
 
@@ -158,6 +166,7 @@ struct AST_expr {
         AST_assign_expr assign;
         AST_binary_expr binary;
         AST_call_expr call;
+        AST_cond_expr cond;
         AST_for_expr for_expr;
         AST_group_expr group;
         AST_if_expr if_expr;
@@ -174,6 +183,7 @@ struct AST_patt {
     Patt_VT type;
     Token *where;
     union {
+        AST_cons_patt cons;
         AST_hash_patt hash;
         AST_list_patt list;
         AST_pair_patt pair;
@@ -204,6 +214,16 @@ struct AST_ret_stmt {
     AST_expr value;
 };
 
+struct AST_type_stmt {
+    char *name;
+    AST_cons_decl *decls; /* array */
+};
+
+struct AST_cons_decl {
+    char *tag;
+    char **variants;
+};
+
 /* expressions sub nodes */
 struct AST_access_expr {
     AST_expr object;
@@ -224,6 +244,11 @@ struct AST_binary_expr {
 struct AST_call_expr {
     AST_expr func;
     AST_expr *args;  /* array */
+};
+
+struct AST_cond_expr {
+    AST_expr *exprs; /* array */
+    AST_arm *arms;   /* array */
 };
 
 struct AST_for_expr {
@@ -305,22 +330,27 @@ struct AST_key {
 };
 
 struct AST_hash_lit {
-    AST_key *keys;     /* array */
-    AST_expr *values;  /* array */
+    AST_key *keys;      /* array */
+    AST_expr *values;   /* array */
 };
 
 struct AST_list_lit {
-    AST_expr *values;  /* array */
+    AST_expr *values;   /* array */
 };
 
 /* patterns sub nodes */
+struct AST_cons_patt {
+    AST_expr tag;       /* always ident_expr */
+    AST_patt *variants; /* array */
+};
+
 struct AST_hash_patt {
-    AST_key *keys;     /* array */
-    AST_patt *patts;   /* array */
+    AST_key *keys;      /* array */
+    AST_patt *patts;    /* array */
 };
 
 struct AST_list_patt {
-    AST_patt *patts;   /* array */
+    AST_patt *patts;    /* array */
 };
 
 struct AST_pair_patt {

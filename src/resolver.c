@@ -194,16 +194,15 @@ static void resolve_match(Resolver *r, AST_match_expr match) {
     AST_arm *arms = match->arms;
     
     for (int i = 0; patts[i]; i++) {
-        /* push a new scope for the match branch */
-        push_scope(r);
-        
-        resolve_patt(r, patts[i]);
-        if (arms[i]->type == EXPR_ARM)
+        if (arms[i]->type == EXPR_ARM) {
+            resolve_patt(r, patts[i]);
             resolve_expr(r, arms[i]->e);
-        else
-            resolve_stmts(r, arms[i]->p->stmts);
+            continue;
+        }
 
-        /* pop the branch scope */
+        push_scope(r);
+        resolve_patt(r, patts[i]);
+        resolve_stmts(r, arms[i]->p->stmts);
         pop_scope(r);
     }
 }
@@ -225,6 +224,11 @@ static void resolve_if(Resolver *r, AST_if_expr if_expr) {
 static void resolve_patt(Resolver *r, AST_patt patt) {
     switch (patt->type) {
         
+    case CONS_PATT:
+        resolve_expr(r, patt->cons->tag);
+        resolve_patts(r, patt->cons->variants);
+        break;
+
     case IDENT_PATT:
         define(r, patt->where, patt->ident);
         break;
@@ -281,6 +285,20 @@ static void resolve_expr(Resolver *r, AST_expr expr) {
         resolve_expr(r, expr->call->func);
         resolve_exprs(r, expr->call->args);
         break;
+
+    case COND_EXPR: {
+        AST_cond_expr cond = expr->cond;
+        resolve_exprs(r, cond->exprs);
+        
+        AST_arm *arms = cond->arms;
+        for (int i = 0; arms[i]; i++) {
+            if (arms[i]->type == PIECE_ARM)
+                resolve_piece(r, arms[i]->p);
+            else
+                resolve_expr(r, arms[i]->e);
+        }
+        break;
+    }
         
     case FOR_EXPR: {
         AST_for_expr for_expr = expr->for_expr;
@@ -380,6 +398,16 @@ static void resolve_stmt(Resolver *r, AST_stmt stmt) {
         AST_expr retval = stmt->ret->value;
         if (retval != NULL)
             resolve_expr(r, retval);
+        
+        break;
+    }
+
+    case TYPE_STMT: {
+        AST_type_stmt type_stmt = stmt->type_stmt;
+        AST_cons_decl *decls = type_stmt->decls;
+
+        for (int i = 0; decls[i]; i++)
+            define(r, stmt->where, decls[i]->tag);
         
         break;
     }

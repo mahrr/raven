@@ -34,9 +34,8 @@ typedef struct Env {
 Env *new_env(Env *enclosing);
 
 /*
- * dispose env internal array and the 'env' structure space itself.
- * it applies recursively to the 'env' enclosing environments.
- *
+ * dispose env internal array and the 'env' 
+ * structure space itself.
 */
 void free_env(Env *env);
 

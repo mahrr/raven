@@ -19,7 +19,7 @@ expr_statement ::= expression delimiter;
 
 fixed_statement ::= ("break" | "continue") delimiter;
 
-type_statement ::= "type" name "=" data_variants delimiter;
+type_statement ::= "type" name "=" data_variants "end";
 
 data_variants ::= cons_declaration {cons_declaration};
 

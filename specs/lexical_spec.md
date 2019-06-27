@@ -130,7 +130,7 @@ The following are the langauge keywords. They Can't be used as an identifier nam
 
 ```
 break case cond continue do elif else end false 
-fn for if in let match nil return while true
+fn for if in let match nil return while true type
 ```
 
 <br>

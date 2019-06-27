@@ -185,6 +185,8 @@ static Token *cons_ident(Lexer *l) {
     case 'c':
         if (match_keyword(l, "ase"))
             return add_token(l, TK_CASE);
+        else if (match_keyword(l, "ond"))
+            return add_token(l, TK_COND);
         else if (match_keyword(l, "ontinue"))
             return add_token(l, TK_CONTINUE);
         break;
@@ -247,7 +249,9 @@ static Token *cons_ident(Lexer *l) {
         break;
         
     case 't':
-        if (match_keyword(l, "rue"))
+        if (match_keyword(l, "ype"))
+            return add_token(l, TK_TYPE);
+        else if (match_keyword(l, "rue"))
             return add_token(l, TK_TRUE);
         break;
         

@@ -75,7 +75,6 @@ static Token *next_token(Parser *p) {
 
         return p->prev;
     }
-
     return curr_token(p);  /* TK_EOF */
 }
 
@@ -184,6 +183,30 @@ static Prec prec_of(Token *tok) {
 
 static AST_patt pattern(Parser*);
 static AST_patt *patterns(Parser*, TK_type, TK_type, char*);
+
+static AST_patt cons_patt(Parser *p) {
+    Token *tag = next_token(p);
+    next_token(p); /* consume '(' token */
+
+    AST_patt *variants = patterns(p, TK_COMMA, TK_RPAREN, "')'");
+    if (variants == NULL) return NULL;
+
+
+    AST_expr ident = malloc(sizeof (*tag));
+    ident->type = IDENT_EXPR;
+    ident->where = tag;
+    ident->ident = ident_of_tok(tag);
+
+    AST_cons_patt cons = malloc(sizeof (*cons));
+    cons->tag = ident;
+    cons->variants = variants;
+
+    AST_patt patt = malloc(sizeof (*patt));
+    patt->type = CONS_PATT;
+    patt->cons = cons;
+
+    return patt;
+}
 
 static AST_patt const_patt(Parser *p) {
     Token *tok = next_token(p);
@@ -411,6 +434,76 @@ static AST_expr call_expr(Parser *p, AST_expr func) {
     return expr;
 }
 
+static AST_arm arm_branch(Parser *p) {
+    if (!expect_token(p, TK_DASH_GT, "'->'"))
+        return NULL;
+
+    AST_arm arm = NULL;
+    if (match_token(p, TK_DO)) {
+        AST_piece body = piece(p, 1, TK_END);
+        
+        arm = malloc(sizeof (*arm));
+        arm->type = PIECE_ARM;
+        arm->p = body;
+    } else {
+        AST_expr expr = expression(p, LOW_PREC);
+        if (expr == NULL) return NULL;
+        
+        arm = malloc(sizeof (*arm));
+        arm->type = EXPR_ARM;
+        arm->e = expr;
+    }
+    
+    return arm;
+}
+
+static AST_expr cond_expr(Parser *p) {
+    next_token(p); /* consume 'cond' token */
+    skip_newlines(p);
+
+    ARRAY(AST_expr) exprs;
+    ARR_INITC(&exprs, AST_expr, 4);
+    
+    ARRAY(AST_arm) arms;
+    ARR_INITC(&arms, AST_arm, 4);
+    
+    while (match_token(p, TK_CASE)) {
+        AST_expr expr = expression(p, LOW_PREC);
+        if (expr == NULL) {
+            ARR_FREE(&exprs);
+            ARR_FREE(&arms);
+            return NULL;
+        }
+        
+        AST_arm arm = arm_branch(p);
+        if (arm == NULL) {
+            ARR_FREE(&exprs);
+            ARR_FREE(&arms);
+            return NULL;
+        }
+
+        ARR_ADD(&exprs, expr);
+        ARR_ADD(&arms, arm);
+        skip_newlines(p);  /* skip newlines after case branch */
+    }
+    ARR_ADD(&exprs, NULL);
+    ARR_ADD(&arms, NULL);
+    
+    if (!expect_token(p, TK_END, "end"))
+        return NULL;
+
+
+    AST_cond_expr cond = malloc(sizeof (*cond));
+    cond->exprs = exprs.elems;
+    cond->arms = arms.elems;
+
+    AST_expr expr = malloc(sizeof (*expr));
+    expr->type = COND_EXPR;
+    expr->cond = cond;
+
+    return expr;
+}
+
 static AST_expr cons_expr(Parser *p, AST_expr head) {
     next_token(p); /* consume '|' token */
 
@@ -567,29 +660,6 @@ static AST_expr index_expr(Parser *p, AST_expr object) {
     return expr;
 }
 
-static AST_arm arm_branch(Parser *p) {
-    if (!expect_token(p, TK_DASH_GT, "'->'"))
-        return NULL;
-
-    AST_arm arm = NULL;
-    if (match_token(p, TK_DO)) {
-        AST_piece body = piece(p, 1, TK_END);
-        
-        arm = malloc(sizeof (*arm));
-        arm->type = PIECE_ARM;
-        arm->p = body;
-    } else {
-        AST_expr expr = expression(p, LOW_PREC);
-        if (expr == NULL) return NULL;
-        
-        arm = malloc(sizeof (*arm));
-        arm->type = EXPR_ARM;
-        arm->e = expr;
-    }
-    
-    return arm;
-}
-
 static AST_expr match_expr(Parser *p) {
     next_token(p);  /* consume 'match' token */
 
@@ -602,17 +672,25 @@ static AST_expr match_expr(Parser *p) {
     skip_newlines(p); /* skip newlines after 'do' */
 
     ARRAY(AST_patt) patts;
-    ARR_INIT(&patts, AST_patt);
+    ARR_INITC(&patts, AST_patt, 4);
     
     ARRAY(AST_arm) arms;
-    ARR_INIT(&arms, AST_arm);
+    ARR_INITC(&arms, AST_arm, 4);
     
     while (match_token(p, TK_CASE)) {
         AST_patt patt = pattern(p);
-        if (patt == NULL) return NULL;
+        if (patt == NULL) {
+            ARR_FREE(&patts);
+            ARR_FREE(&arms);
+            return NULL;
+        }
         
         AST_arm arm = arm_branch(p);
-        if (arm == NULL) return NULL;
+        if (arm == NULL) {
+            ARR_FREE(&patts);
+            ARR_FREE(&arms);
+            return NULL;
+        }
 
         ARR_ADD(&patts, patt);
         ARR_ADD(&arms, arm);
@@ -911,6 +989,9 @@ static Prefix_F prefix_of(Token *tok) {
 
     case TK_WHILE:
         return while_expr;
+
+    case TK_COND:
+        return cond_expr;
         
     case TK_MATCH:
         return match_expr;
@@ -1049,6 +1130,81 @@ static AST_stmt ret_stmt(Parser *p) {
     return stmt;
 }
 
+static AST_cons_decl cons_decl(Parser *p) {
+    if (!expect_token(p, TK_PIPE, "'|'"))
+        return NULL;
+
+    Token *tok = expect_token(p, TK_IDENT, "tag name");
+    if (tok == NULL) return NULL;
+
+    char *tag = ident_of_tok(tok);
+
+    ARRAY(char*) variants;
+    ARR_INITC(&variants, char*, 2);
+
+    if (match_token(p, TK_LPAREN)) {
+        do {
+            skip_newlines(p);
+            Token *name = expect_token(p, TK_IDENT, "variant name");
+            if (name == NULL) {
+                ARR_FREE(&variants);
+                return NULL;
+            }
+
+            ARR_ADD(&variants, ident_of_tok(name));
+        } while (match_token(p, TK_COMMA));
+
+        skip_newlines(p);
+        if (!expect_token(p, TK_RPAREN, "')'")) {
+            ARR_FREE(&variants);
+            return NULL;
+        }
+
+        ARR_ADD(&variants, NULL);
+    }
+
+    AST_cons_decl decl = malloc(sizeof (*decl));
+    decl->tag = tag;
+    decl->variants = variants.elems;
+    return decl;
+}
+
+static AST_stmt type_stmt(Parser *p) {
+    next_token(p); /* consume 'type' token */
+
+    Token *name = expect_token(p, TK_IDENT, "type name");
+    if (name == NULL) return NULL;
+
+    if (!expect_token(p, TK_EQ, "'='"))
+        return NULL;
+    
+    ARRAY(AST_cons_decl) decls;
+    ARR_INITC(&decls, AST_cons_decl, 4);
+
+    skip_newlines(p);
+    while (!match_token(p, TK_END)) {
+        AST_cons_decl decl = cons_decl(p);
+        if (decl == NULL) {
+            ARR_FREE(&decls);
+            return NULL;
+        }
+        
+        ARR_ADD(&decls, decl);
+        skip_newlines(p);
+    }
+    ARR_ADD(&decls, NULL);
+
+    AST_type_stmt type_stmt = malloc(sizeof (*type_stmt));
+    type_stmt->name = ident_of_tok(name);
+    type_stmt->decls = decls.elems;
+
+    AST_stmt stmt = malloc(sizeof (*stmt));
+    stmt->type = TYPE_STMT;
+    stmt->type_stmt = type_stmt;
+
+    return stmt;
+}
+
 static AST_stmt fixed_stmt(Parser *p) {
     Token *fixed = next_token(p); /* consume fixed keyword */
     
@@ -1079,7 +1235,10 @@ static AST_patt pattern(Parser *p) {
         break;
 
     case TK_IDENT:
-        patt = ident_patt(p);
+        if (peek_token_is(p, TK_LPAREN))
+            patt = cons_patt(p);
+        else
+            patt = ident_patt(p);
         break;
 
     case TK_STR:
@@ -1104,23 +1263,26 @@ static AST_patt pattern(Parser *p) {
 static AST_patt*
 patterns(Parser *p, TK_type dl, TK_type end, char *end_name) {
     ARRAY(AST_patt) patts;
-    ARR_INIT(&patts, AST_patt);
+    ARR_INITC(&patts, AST_patt, 4);
     
-    AST_patt patt;
     if (!match_token(p, end)) {
         do {
             skip_newlines(p);
-            patt = pattern(p);
+            AST_patt patt = pattern(p);
             
-            if (patt == NULL)
+            if (patt == NULL) {
+                ARR_FREE(&patts);
                 return NULL;
+            }
             
             ARR_ADD(&patts, patt);
         } while(match_token(p, dl));
         
         skip_newlines(p);
-        if (!expect_token(p, end, end_name))
+        if (!expect_token(p, end, end_name)) {
+            ARR_FREE(&patts);
             return NULL;
+        }
     }
     ARR_ADD(&patts, NULL);
     return patts.elems;
@@ -1206,6 +1368,10 @@ static AST_stmt statement(Parser *p, int n, va_list ap) {
         
     case TK_RETURN:
         stmt = ret_stmt(p);
+        break;
+
+    case TK_TYPE:
+        stmt = type_stmt(p);
         break;
         
     case TK_CONTINUE:

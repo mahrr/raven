@@ -17,10 +17,10 @@ char *tok_types_str[] = {
     "FALSE", "TRUE", "NIL",
     
     /* Keywords */
-    "FN", "RETURN", "LET", "DO",
-    "END", "IF", "ELIF", "ELSE",
+    "FN", "RETURN", "LET", "TYPE",
+    "DO", "END", "IF", "ELIF", "ELSE",
     "FOR", "WHILE", "CONTINUE",
-    "BREAK", "MATCH", "CASE",
+    "BREAK", "COND", "MATCH", "CASE",
     
     /* Identefier */
     "IDENT",
@@ -181,7 +181,14 @@ static void print_lit_expr(AST_lit_expr e) {
 
 static void print_patt(AST_patt p) {
     switch (p->type) {
-        
+
+    case CONS_PATT:
+        printf("(:cons ");
+        print_expr(p->cons->tag);
+        print_patts(p->cons->variants);
+        putchar(')');
+        break;
+
     case HASH_PATT: {
         AST_hash_patt hash = p->hash;
         printf("(:hash ");
@@ -199,7 +206,7 @@ static void print_patt(AST_patt p) {
     }
 
     case LIST_PATT:
-        printf("(:list");
+        printf("(:list ");
         print_patts(p->list->patts);
         printf(")");
         break;
@@ -248,7 +255,6 @@ static void print_patt(AST_patt p) {
 
 static void print_patts(AST_patt *patts) {
     for (int i = 0; patts[i]; i++) {
-        putchar(' ');
         print_patt(patts[i]);
         putchar(' ');
     }
@@ -281,6 +287,33 @@ static void print_expr(AST_expr e) {
         print_exprs(e->call->args);
         putchar(')');
         break;
+
+    case COND_EXPR: {
+        printf("|cond| ");
+        putchar('\n');
+
+        AST_expr *exprs = e->cond->exprs;
+        AST_arm *arms = e->cond->arms;
+        
+        for (int i = 0; arms[i]; i++) {
+            indent_level++;
+            INDENT();
+            print_expr(exprs[i]);
+            printf(" -> ");
+
+            if (arms[i]->type == EXPR_ARM)
+                print_expr(arms[i]->e);
+            else {
+                putchar('\n');
+                print_piece(arms[i]->p);
+            }
+
+            putchar('\n');
+            indent_level--;
+        }
+        putchar(')');
+        break;
+    }
 
     case FOR_EXPR:
         printf("|for| ");
@@ -322,7 +355,7 @@ static void print_expr(AST_expr e) {
 
     case MATCH_EXPR: {
         AST_match_expr match = e->match;
-        printf("(match ");
+        printf("(|match| ");
         print_expr(match->value);
         putchar('\n');
 
@@ -341,10 +374,10 @@ static void print_expr(AST_expr e) {
             else
                 print_piece(arms[i]->p);
             
-            printf("\n");
+            putchar('\n');
             indent_level--;
         }
-        printf(")");
+        putchar(')');
         
         break;
     }
@@ -368,6 +401,15 @@ static void print_exprs(AST_expr *exprs) {
         putchar(' ');
         print_expr(exprs[i]);
         putchar(' ');
+    }
+}
+
+static void print_decls(AST_cons_decl *decls) {
+    for (int i = 0; decls[i]; i++) {
+        printf("  (%s :", decls[i]->tag);
+        for (int j = 0; decls[i]->variants[j]; j++)
+            printf(" %s", decls[i]->variants[j]);
+        printf(")\n");
     }
 }
 
@@ -402,8 +444,15 @@ static void print_stmt(AST_stmt s) {
         printf("}\n");
         break;
 
+    case TYPE_STMT:
+        printf("{type %s\n", s->type_stmt->name);
+        print_decls(s->type_stmt->decls);
+        printf("}\n");
+        break;
+
     case FIXED_STMT:
         printf("{%s}\n", tok_types_str[s->fixed]);
+        break;
     }
 }
 

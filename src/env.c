@@ -22,11 +22,8 @@ Env *new_env(Env *enclosing) {
 
 void free_env(Env *env) {
     assert(env != NULL);
-    while (env->enclosing != NULL) {
-        free_env(env->enclosing);
-        ARR_FREE(&env->vars);
-        free(env);
-    }
+    ARR_FREE(&env->vars);
+    free(env);
 }
 
 void env_add(Env *env, Rav_obj *obj) {

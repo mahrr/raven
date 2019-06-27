@@ -17,10 +17,10 @@ typedef enum {
     TK_NIL,
 
     /* Keywords */
-    TK_FN, TK_RETURN, TK_LET, TK_DO,
-    TK_END, TK_IF, TK_ELIF, TK_ELSE,
+    TK_FN, TK_RETURN, TK_LET, TK_TYPE,
+    TK_DO, TK_END, TK_IF, TK_ELIF, TK_ELSE,
     TK_FOR, TK_WHILE, TK_CONTINUE,
-    TK_BREAK, TK_MATCH, TK_CASE,
+    TK_BREAK, TK_COND, TK_MATCH, TK_CASE,
 
     /* Identefier */
     TK_IDENT,

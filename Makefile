@@ -30,9 +30,7 @@ clean:
 # lexer tests
 LEX_TEST = tests/test_lexer.c
 LEX_TEST_TARGET = lex_test
-LEX_TEST_RELATED = src/alloc.c  \
-				   src/salloc.c \
-				   src/lexer.c  \
+LEX_TEST_RELATED = src/lexer.c  \
 				   src/error.c  \
 				   src/list.c   \
 				   src/debug.c  \

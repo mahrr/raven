@@ -5,8 +5,9 @@
  *
 */
 
-#include <stdio.h> /* printf, puts */
 #include <assert.h>
+#include <stdio.h>  /* printf, puts */
+#include <string.h> /* strcmp, strncmp */
 
 #include "lexer.h"
 #include "error.h"
@@ -47,12 +48,12 @@ void assert_tokens(char *input, Token *expected, int num) {
  * iterate over generated and expected lexing errors
  * asserting the equality of them.
  */
-void assert_errors(char *input, SErr *expected, int num) {
+void assert_errors(char *input, Err *expected, int num) {
     Lexer lex;
     init_lexer(&lex, input, "test");
 
     cons_tokens(&lex);
-    SErr *errors = lexer_errors(&lex);
+    Err *errors = lexer_errors(&lex);
     int errnum = lexer_errnum(&lex);
 
     /* there has been an error */
@@ -61,6 +62,7 @@ void assert_errors(char *input, SErr *expected, int num) {
     assert(errnum == num);
     
     for (int i = 0; i < num; i++) {
+        assert(expected[i].type == errors[i].type);
         assert(!strcmp(expected[i].message, errors[i].message));
         assert_token(&errors[i].where, &expected[i].where);
     }
@@ -100,7 +102,7 @@ void test_literals() {
 void test_keywords() {
     char input[] = "fn return let do end if "
         "elif else for while continue break "
-        "match case";
+        "type cond match case";
 
     Token expected[] = {
         TOKEN(TK_FN, "fn"),
@@ -115,6 +117,8 @@ void test_keywords() {
         TOKEN(TK_WHILE, "while"),
         TOKEN(TK_CONTINUE, "continue"),
         TOKEN(TK_BREAK, "break"),
+        TOKEN(TK_TYPE, "type"),
+        TOKEN(TK_COND, "cond"),
         TOKEN(TK_MATCH, "match"),
         TOKEN(TK_CASE, "case")
     };
@@ -238,22 +242,22 @@ void test_errors() {
         TOKEN(TK_ERR, "`unter")
     };
 
-    SErr expected_errs[] = {
-        (SErr) {expected_toks[0], "unrecognize syntax"},
-        (SErr) {expected_toks[1], "invalid escape sequence"},
-        (SErr) {expected_toks[2], "malformed scientific notation"},
-        (SErr) {expected_toks[3], "invalid escape sequence"},
-        (SErr) {expected_toks[4], "invalid escape sequence"},
-        (SErr) {expected_toks[5], "invalid escape sequence"},
-        (SErr) {expected_toks[6], "invalid escape sequence"},
-        (SErr) {expected_toks[7], "invalid escape sequence"},
-        (SErr) {expected_toks[8], "unterminated string"}
+    Err expected_errs[] = {
+        (Err) {SYNTAX_ERR, expected_toks[0], "unrecognize syntax"},
+        (Err) {SYNTAX_ERR, expected_toks[1], "invalid escape sequence"},
+        (Err) {SYNTAX_ERR, expected_toks[2], "malformed scientific notation"},
+        (Err) {SYNTAX_ERR, expected_toks[3], "invalid escape sequence"},
+        (Err) {SYNTAX_ERR, expected_toks[4], "invalid escape sequence"},
+        (Err) {SYNTAX_ERR, expected_toks[5], "invalid escape sequence"},
+        (Err) {SYNTAX_ERR, expected_toks[6], "invalid escape sequence"},
+        (Err) {SYNTAX_ERR, expected_toks[7], "invalid escape sequence"},
+        (Err) {SYNTAX_ERR, expected_toks[8], "unterminated string"}
     };
 
     int toknum = (sizeof expected_toks) / (sizeof (Token));
     assert_tokens(input, expected_toks, toknum);
 
-    int errnum = (sizeof expected_errs) / (sizeof (SErr));
+    int errnum = (sizeof expected_errs) / (sizeof (Err));
     assert_errors(input, expected_errs, errnum);
     
     puts("errors\t\t==> passed");
@@ -324,9 +328,9 @@ void test_file_lexing() {
         TOKEN(TK_ERR, "`unterminate", 33),
     };
     
-    SErr expected_errs[] = {
-        (SErr){expected_toks[41], "unrecognize syntax"},
-        (SErr){expected_toks[42], "unterminated string"}
+    Err expected_errs[] = {
+        (Err){SYNTAX_ERR, expected_toks[41], "unrecognize syntax"},
+        (Err){SYNTAX_ERR, expected_toks[42], "unterminated string"}
     };
     
     /* 
@@ -341,7 +345,7 @@ void test_file_lexing() {
 
     int toknum = (sizeof expected_toks) / (sizeof (Token));
     assert_tokens(buf, expected_toks, toknum);
-    int errnum = (sizeof expected_errs) / (sizeof (SErr));
+    int errnum = (sizeof expected_errs) / (sizeof (Err));
     assert_errors(buf, expected_errs, errnum);
 
     puts("file\t\t==> passed");
