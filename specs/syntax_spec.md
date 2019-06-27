@@ -11,12 +11,19 @@ statement ::= decl_statement
 
 ret_statement ::= "return" expression delimiter;
 
-decl_statement ::= let_statement
+decl_statement ::= type_statement
+                 | let_statement
                  | fn_statement;
 
 expr_statement ::= expression delimiter;
 
-fixed_statement ::= "break" | "continue";
+fixed_statement ::= ("break" | "continue") delimiter;
+
+type_statement ::= "type" name "=" data_variants delimiter;
+
+data_variants ::= cons_declaration {cons_declaration};
+
+cons_declaration ::= {"|" name ["(" name {"," name} ")"]};
 
 let_statement ::= "let" pattern "=" expression delimiter;
 
@@ -24,16 +31,17 @@ fn_statement ::= "fn" name param_list piece "end";
 
 param_list ::= "(" [pattern {"," pattern}] ")";
 
-expression ::= literal_expression
+expression ::= access_expression
              | prefix_expression
              | infix_expression
              | index_expression
-             | access_expression
+             | literal_expression
              | group_expression
              | call_expression
              | if_expression
              | for_expression
              | while_expression
+             | cond_expression
              | match_expression
              | ident_expression;
 
@@ -65,12 +73,18 @@ call_expression ::= expression "(" expr_list ")";
 if_expression ::= "if" expression "do" piece 
   {"elif" expression "do" piece} ["else" piece] "end";
 
-for_expression ::= "for" pattern "in" expression "do" piece "end";
+for_expression ::= "for" pattern "in" expression "do" 
+    piece "end";
 
 while_expression ::= "while" expression "do" piece "end";
 
+cond_expression ::= cond {"case" expression arm_branch}
+    "end";
+
 match_expression ::= "match" expression "do" 
-  {"case" pattern "->" (expression | "do" piece "end")} "end";
+    {"case" pattern arm_branch } "end";
+
+arm_branch ::= "->" (expression | "do" piece "end");
 
 ident_expression ::= name;
 
@@ -80,15 +94,14 @@ list_literal ::= "[" expr_list "]";
 
 hash_literal ::= "{" [hash_field {"," hash_field}] "}";
 
-hash_field ::= [expression] ":" expression
-             | name ":" expression
-             | expression;
+hash_field ::= [hash_key ":"] expression; 
 
 pattern ::= const_pattern
           | ident_pattern
+          | cons_pattern
           | pair_pattern
           | list_pattern
-          | record_pattern;
+          | hash_pattern;
 
 const_pattern ::= INTEGER
                 | FLOAT
@@ -100,16 +113,19 @@ const_pattern ::= INTEGER
 
 ident_pattern ::= name;
 
+cons_pattern ::= name ["(" pattern {"," pattern} ")"];
+
 list_pattern ::= "[" [pattern {"," pattern}] "]";
 
 pair_pattern ::=  "(" pattern "|" pattern ")";
 
-record_pattern ::= "{" [pattern_field {"," pattern_field}] "}";
+hash_pattern ::= "{" [pattern_field {"," pattern_field}] "}";
 
-pattern_field ::= [expression] ":" pattern
-                | name ":" pattern
-                | pattern;
+pattern_field ::= [hash_key ":"] pattern;
 
+hash_key ::= "[" expression "]" 
+           | name;
+           
 prefix_op ::= "-" | "not";
 
 infix_op ::= "." | "+" | "-" | "*" | "/" | "%" | "@" | "="

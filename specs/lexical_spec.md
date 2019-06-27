@@ -129,7 +129,7 @@ true false nil
 The following are the langauge keywords. They Can't be used as an identifier name.
 
 ```
-break case continue do elif else end false 
+break case cond continue do elif else end false 
 fn for if in let match nil return while true
 ```
 
