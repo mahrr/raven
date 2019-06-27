@@ -195,7 +195,8 @@ static AST_patt cons_patt(Parser *p) {
     ident->type = IDENT_EXPR;
     ident->where = tag;
     ident->ident = ident_of_tok(tag);
-
+    p->ident_num++;
+    
     AST_cons_patt cons = malloc(sizeof (*cons));
     cons->tag = ident;
     cons->variants = variants;
@@ -574,11 +575,12 @@ static AST_expr group_expr(Parser *p) {
 
 static AST_expr identifier(Parser *p) {
     Token *ident = next_token(p);  /* the IDENT token */
-    
+        
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = IDENT_EXPR;
     expr->ident = ident_of_tok(ident);
 
+    p->ident_num++;
     return expr;
 }
 
@@ -1488,11 +1490,11 @@ static AST_piece piece(Parser *p, int n, ...) {
 
 void init_parser(Parser *parser, Token *tokens) {
     parser->tokens = tokens;
-
     parser->curr = &tokens[0];
     parser->peek = &tokens[1];
     parser->prev = NULL;
-
+    
+    parser->ident_num = 0;
     parser->been_error = 0;
     ARR_INIT(&parser->errors, Err);
 }
@@ -1502,7 +1504,9 @@ void free_parser(Parser *parser) {
     parser->curr = NULL;
     parser->peek = NULL;
     parser->prev = NULL;
-
+    
+    parser->ident_num = 0;
+    parser->been_error = 0;
     ARR_FREE(&parser->errors);
 }
 

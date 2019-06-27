@@ -14,16 +14,13 @@
 #include "debug.h"
 #include "error.h"
 #include "eval.h"
-#include "parser.h"
+#include "hashing.h"
 #include "lexer.h"
+#include "parser.h"
 #include "resolver.h"
 #include "token.h"
 
-AST_piece parse(const char *src,
-                const char *file,
-                Lexer *l, Parser *p,
-                int *ident_num) {
-    
+AST_piece parse(const char *src, const char *file, Lexer *l, Parser *p) {
     init_lexer(l, src, file);
     Token *tokens = cons_tokens(l);
 
@@ -44,9 +41,6 @@ AST_piece parse(const char *src,
         return NULL;
     }
 
-    if (ident_num != NULL)
-        *ident_num = p->ident_num;
-
 #ifdef PRINT_AST
     print_piece(piece);
 #endif        
@@ -58,7 +52,7 @@ void run_line(const char *line, Resolver *r, Evaluator *e) {
     Parser p;
     Lexer l;
     
-    AST_piece piece = parse(line, "stdin", &l, &p, NULL);
+    AST_piece piece = parse(line, "stdin", &l, &p);
 
     if (piece == NULL)
         return;
@@ -83,10 +77,8 @@ void run_line(const char *line, Resolver *r, Evaluator *e) {
 int run_src(const char *src, const char *file) {
     Lexer l;
     Parser p;
-    /* number of AST_expr_ident in the source code, 
-       used in the evaluator variable lookup table.*/
-    int ident_num;
-    AST_piece piece = parse(src, file, &l, &p, &ident_num);
+    
+    AST_piece piece = parse(src, file, &l, &p);
 
     if (piece == NULL)
         return 1;
@@ -94,8 +86,12 @@ int run_src(const char *src, const char *file) {
     Resolver r;
     Evaluator e;
 
-    init_eval(&e, ident_num);
+    int ident_num = parser_idnum(&p);
+    /* use prime number for the table size. */
+    init_eval(&e, next_prime(ident_num));
     init_resolver(&r, &e);
+
+    printf("[DEBUG] %u\n", next_prime(ident_num));
     
     if (resolve(&r, piece)) {
         Err *errors = resolver_errors(&r);

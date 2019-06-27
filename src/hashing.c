@@ -3,6 +3,7 @@
  *
 */
 
+#include <assert.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -54,4 +55,37 @@ int comp_str(const void *key1, const void *key2) {
 
 int comp_ptr(const void *key1, const void *key2) {
     return (key1 == key2);
+}
+
+
+/* 
+ * simple prime number test. 
+ * tested on chen, circular and cuban primes.
+*/
+static int is_prime(uint32_t n) {
+    if (n == 2 || n == 3 ) return 1;
+    if (n % 2 == 0 || n % 3 == 0) return 0;
+
+    int x = 2, y = 5;
+    while ((x * x) < n) {
+        if (n % x == 0) return 0;
+        x += y;
+        y = 6 - y;
+    }
+
+    return 1;
+}
+
+/*
+ * depend on Bertrand's postulate 
+ * (en.wikipedia.org/wiki/Bertrand's_postulate).
+*/
+uint32_t next_prime(uint32_t n) {
+    if (n <= 3)
+        return 3;
+    
+    for (int i = n; i < 2 * n; i++)
+        if (is_prime(i)) return i;
+    
+    assert(0);
 }
