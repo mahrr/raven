@@ -30,6 +30,13 @@ typedef struct Parser {
 /* initialize a parser state with tokens array */
 void init_parser(Parser *parser, Token *tokens);
 
+/*
+ * dispose parser internal resources.
+ * the parser could not be used after this function,
+ * init_parser need to be called first.
+*/
+void free_parser(Parser *parser);
+
 /* parse AST_piece node */
 AST_piece parse_piece(Parser *parser);
 

@@ -86,11 +86,10 @@ static Token *match_token(Parser *p, TK_type type) {
     return NULL;
 }
 
-/* check if the current token not from the given token types 'ap' */
-static int curr_token_not(Parser *p, int n, va_list ap) {
+/* check if the current token not from the given token types ends */
+static int curr_token_not(Parser *p, int n, TK_type *ends) {
     for (int i = 0; i < n; i++) {
-        TK_type t = va_arg(ap, TK_type);
-        if (curr_token_is(p, t)) return 0;
+        if (curr_token_is(p, ends[i])) return 0;
     }
 
     return 1;
@@ -247,21 +246,21 @@ static AST_patt hash_patt(Parser *p) {
     next_token(p);  /* consume '{' */
 
     ARRAY(AST_key) keys;
-    ARR_INIT(&keys, AST_key);
+    ARR_INITC(&keys, AST_key, 4);
     
     ARRAY(AST_patt) patts;
-    ARR_INIT(&patts, AST_patt);
+    ARR_INITC(&patts, AST_patt, 4);
 
     if (!match_token(p, TK_RBRACE)) {
         uint32_t index = 0;
         do {
             skip_newlines(p);
             AST_key key = hash_key(p, index);
-            if (key == NULL) return NULL;
+            if (key == NULL) goto fault;
             index++;
 
             AST_patt patt = pattern(p);
-            if (patt == NULL) return NULL;
+            if (patt == NULL) goto fault;
 
             ARR_ADD(&keys, key);
             ARR_ADD(&patts, patt);
@@ -269,7 +268,7 @@ static AST_patt hash_patt(Parser *p) {
         skip_newlines(p);
 
         if (!expect_token(p, TK_RBRACE, "}"))
-            return NULL;
+            goto fault;
     }
     ARR_ADD(&keys, NULL);
     ARR_ADD(&patts, NULL);
@@ -283,6 +282,11 @@ static AST_patt hash_patt(Parser *p) {
     patt->hash = hash;
 
     return patt;
+
+ fault:
+    ARR_FREE(&keys);
+    ARR_FREE(&patts);
+    return NULL;   
 }
 
 static AST_patt ident_patt(Parser *p) {
@@ -469,18 +473,10 @@ static AST_expr cond_expr(Parser *p) {
     
     while (match_token(p, TK_CASE)) {
         AST_expr expr = expression(p, LOW_PREC);
-        if (expr == NULL) {
-            ARR_FREE(&exprs);
-            ARR_FREE(&arms);
-            return NULL;
-        }
+        if (expr == NULL) goto fault;
         
         AST_arm arm = arm_branch(p);
-        if (arm == NULL) {
-            ARR_FREE(&exprs);
-            ARR_FREE(&arms);
-            return NULL;
-        }
+        if (arm == NULL) goto fault;
 
         ARR_ADD(&exprs, expr);
         ARR_ADD(&arms, arm);
@@ -490,8 +486,7 @@ static AST_expr cond_expr(Parser *p) {
     ARR_ADD(&arms, NULL);
     
     if (!expect_token(p, TK_END, "end"))
-        return NULL;
-
+        goto fault;
 
     AST_cond_expr cond = malloc(sizeof (*cond));
     cond->exprs = exprs.elems;
@@ -502,6 +497,11 @@ static AST_expr cond_expr(Parser *p) {
     expr->cond = cond;
 
     return expr;
+
+ fault:
+    ARR_FREE(&exprs);
+    ARR_FREE(&arms);
+    return NULL;
 }
 
 static AST_expr cons_expr(Parser *p, AST_expr head) {
@@ -610,13 +610,14 @@ static AST_expr if_expr(Parser *p) {
     /* this is an edge case, as the delimiter of the if body
        could be TK_ELSE, T_ELIF or TK_END.*/
     AST_piece then = piece(p, 3, TK_ELSE, TK_ELIF, TK_END);
-
+    if (then == NULL) return NULL;
+    
     ARRAY(AST_elif) elifs;
     ARR_INIT(&elifs, AST_elif);
     
     while (prev_token_is(p, TK_ELIF)) {
         AST_elif elif = elif_branch(p);
-        if (elif == NULL) return NULL;
+        if (elif == NULL) goto fault;
             
         ARR_ADD(&elifs, elif);
     }
@@ -624,8 +625,10 @@ static AST_expr if_expr(Parser *p) {
     
 
     AST_piece alter = NULL;
-    if (prev_token_is(p, TK_ELSE))
+    if (prev_token_is(p, TK_ELSE)) {
         alter = piece(p, 1, TK_END);
+        if (alter == NULL) goto fault;
+    }
 
     AST_if_expr if_expr = malloc(sizeof (*if_expr));
     if_expr->cond = cond;
@@ -638,6 +641,10 @@ static AST_expr if_expr(Parser *p) {
     expr->if_expr = if_expr;
 
     return expr;
+
+ fault:
+    ARR_FREE(&elifs);
+    return NULL;
 }
 
 static AST_expr index_expr(Parser *p, AST_expr object) {
@@ -679,18 +686,10 @@ static AST_expr match_expr(Parser *p) {
     
     while (match_token(p, TK_CASE)) {
         AST_patt patt = pattern(p);
-        if (patt == NULL) {
-            ARR_FREE(&patts);
-            ARR_FREE(&arms);
-            return NULL;
-        }
+        if (patt == NULL) goto fault;
         
         AST_arm arm = arm_branch(p);
-        if (arm == NULL) {
-            ARR_FREE(&patts);
-            ARR_FREE(&arms);
-            return NULL;
-        }
+        if (arm == NULL) goto fault;
 
         ARR_ADD(&patts, patt);
         ARR_ADD(&arms, arm);
@@ -700,7 +699,7 @@ static AST_expr match_expr(Parser *p) {
     ARR_ADD(&arms, NULL);
     
     if (!expect_token(p, TK_END, "end"))
-        return NULL;
+        goto fault;
 
     AST_match_expr match = malloc(sizeof (*match));
     match->value = value;
@@ -712,6 +711,11 @@ static AST_expr match_expr(Parser *p) {
     expr->match = match;
 
     return expr;
+
+ fault:
+    ARR_FREE(&patts);
+    ARR_FREE(&arms);
+    return NULL;
 }
 
 static AST_expr unary_expr(Parser *p) {
@@ -796,6 +800,7 @@ static AST_expr fn_literal(Parser *p) {
     if (params == NULL) return NULL;
 
     AST_piece body = piece(p, 1, TK_END);
+    if (body == NULL) return NULL;
     
     AST_fn_lit fn = malloc(sizeof (*fn));
     fn->params = params;
@@ -863,11 +868,11 @@ static AST_expr hash_literal(Parser *p) {
         do {
             skip_newlines(p);
             AST_key key = hash_key(p, index);
-            if (key == NULL) return NULL;
+            if (key == NULL) goto fault;
             index++;
                 
             AST_expr value = expression(p, LOW_PREC);
-            if (value == NULL) return NULL;
+            if (value == NULL) goto fault;
 
             ARR_ADD(&keys, key);
             ARR_ADD(&values, value);
@@ -875,7 +880,7 @@ static AST_expr hash_literal(Parser *p) {
         skip_newlines(p);
         
         if (!expect_token(p, TK_RBRACE, "}"))
-            return NULL;
+            goto fault;
     }
     ARR_ADD(&keys, NULL);
     ARR_ADD(&values, NULL);
@@ -893,6 +898,11 @@ static AST_expr hash_literal(Parser *p) {
     expr->lit = lit;
 
     return expr;
+
+ fault:
+    ARR_FREE(&keys);
+    ARR_FREE(&values);
+    return NULL;
 }
 
 static AST_expr int_literal(Parser *p) {
@@ -1146,19 +1156,14 @@ static AST_cons_decl cons_decl(Parser *p) {
         do {
             skip_newlines(p);
             Token *name = expect_token(p, TK_IDENT, "variant name");
-            if (name == NULL) {
-                ARR_FREE(&variants);
-                return NULL;
-            }
+            if (name == NULL) goto fault;
 
             ARR_ADD(&variants, ident_of_tok(name));
         } while (match_token(p, TK_COMMA));
 
         skip_newlines(p);
-        if (!expect_token(p, TK_RPAREN, "')'")) {
-            ARR_FREE(&variants);
-            return NULL;
-        }
+        if (!expect_token(p, TK_RPAREN, "')'"))
+            goto fault;
 
         ARR_ADD(&variants, NULL);
     }
@@ -1167,6 +1172,10 @@ static AST_cons_decl cons_decl(Parser *p) {
     decl->tag = tag;
     decl->variants = variants.elems;
     return decl;
+
+ fault:
+    ARR_FREE(&variants);
+    return NULL;
 }
 
 static AST_stmt type_stmt(Parser *p) {
@@ -1184,10 +1193,7 @@ static AST_stmt type_stmt(Parser *p) {
     skip_newlines(p);
     while (!match_token(p, TK_END)) {
         AST_cons_decl decl = cons_decl(p);
-        if (decl == NULL) {
-            ARR_FREE(&decls);
-            return NULL;
-        }
+        if (decl == NULL) goto fault;
         
         ARR_ADD(&decls, decl);
         skip_newlines(p);
@@ -1203,6 +1209,10 @@ static AST_stmt type_stmt(Parser *p) {
     stmt->type_stmt = type_stmt;
 
     return stmt;
+
+ fault:
+    ARR_FREE(&decls);
+    return NULL;
 }
 
 static AST_stmt fixed_stmt(Parser *p) {
@@ -1248,8 +1258,7 @@ static AST_patt pattern(Parser *p) {
         break;
 
     default:
-        reg_error(p, "invalid pattern");
-        return NULL;
+        assert(0);
     }
 
     if (patt != NULL)
@@ -1270,22 +1279,21 @@ patterns(Parser *p, TK_type dl, TK_type end, char *end_name) {
             skip_newlines(p);
             AST_patt patt = pattern(p);
             
-            if (patt == NULL) {
-                ARR_FREE(&patts);
-                return NULL;
-            }
+            if (patt == NULL) goto fault;
             
             ARR_ADD(&patts, patt);
         } while(match_token(p, dl));
         
         skip_newlines(p);
-        if (!expect_token(p, end, end_name)) {
-            ARR_FREE(&patts);
-            return NULL;
-        }
+        if (!expect_token(p, end, end_name))
+            goto fault;
     }
     ARR_ADD(&patts, NULL);
     return patts.elems;
+
+ fault:
+    ARR_FREE(&patts);
+    return NULL;
 }
 
 static AST_expr expression(Parser *p, Prec prec) {
@@ -1298,7 +1306,6 @@ static AST_expr expression(Parser *p, Prec prec) {
     }
 
     AST_expr expr = prefix(p);
-
     if (expr != NULL)
         expr->where = curr;  /* expression location (by token) */
 
@@ -1317,7 +1324,6 @@ static AST_expr expression(Parser *p, Prec prec) {
         if (expr == NULL)
             return NULL;
     }
-    
     return expr;
 }
 
@@ -1334,22 +1340,25 @@ expressions(Parser *p, TK_type dl, TK_type end, char *end_name) {
             skip_newlines(p);
             
             expr = expression(p, LOW_PREC);
-            if (expr == NULL)
-                return NULL;
+            if (expr == NULL) goto fault;
             
             ARR_ADD(&exprs, expr);
         } while (match_token(p, dl));
         
         skip_newlines(p);
         if (!expect_token(p, end, end_name))
-            return NULL;
+            goto fault;
     }
 
     ARR_ADD(&exprs, NULL);
     return exprs.elems;
+
+ fault:
+    ARR_FREE(&exprs);
+    return NULL;
 }
 
-static AST_stmt statement(Parser *p, int n, va_list ap) {
+static AST_stmt statement(Parser *p, int n, TK_type *ends) {
     AST_stmt stmt;
     Token *curr = curr_token(p);
         
@@ -1385,7 +1394,7 @@ static AST_stmt statement(Parser *p, int n, va_list ap) {
     }
 
     /* if there is no error and not the end of the block */
-    if (stmt != NULL && curr_token_not(p, n, ap)) {
+    if (stmt != NULL && curr_token_not(p, n, ends)) {
         /* check for newline or semicolon, otherwise report an error */
         if (!curr_token_is(p, TK_NL) &&
             !curr_token_is(p, TK_SEMICOLON)) {
@@ -1414,7 +1423,22 @@ static void sync(Parser *p) {
 /* parse a block of statements until TK_EOF token or any
    token specified in the variable length argument list */
 static AST_piece piece(Parser *p, int n, ...) {
+    /* register the end TK_types in an array to 
+       pass it to another functions easily. */
     va_list ap;
+    va_start(ap, n);
+    
+    ARRAY(TK_type) end_types;
+    ARR_INITC(&end_types, TK_type, n);
+
+    for (int i = 0; i < n; i++) 
+        ARR_ADD(&end_types, va_arg(ap, TK_type));
+    
+    TK_type *ends = end_types.elems;
+    va_end(ap);
+    
+
+    /* piece statements */
     ARRAY(AST_stmt) stmts;
     ARR_INIT(&stmts, AST_stmt);
 
@@ -1422,10 +1446,8 @@ static AST_piece piece(Parser *p, int n, ...) {
     skip_newlines(p);
 
     va_start(ap, n);
-    while (!at_end(p) && curr_token_not(p, n, ap)) {
-        /* reset the argument list for 'statement' function */
-        va_start(ap, n);
-        AST_stmt stmt = statement(p, n, ap);
+    while (!at_end(p) && curr_token_not(p, n, ends)) {
+        AST_stmt stmt = statement(p, n, ends);
         
         if (stmt != NULL) {
             ARR_ADD(&stmts, stmt);
@@ -1436,27 +1458,30 @@ static AST_piece piece(Parser *p, int n, ...) {
             sync(p);
         }
 
-        /* reset the argument list for the new loop */
-        va_start(ap, n);
-
         /* ignore any newlines occur before the next statement */
         skip_newlines(p);
     }
 
-    va_start(ap, n);
-    if (curr_token_not(p, n, ap)) {
+    if (curr_token_not(p, n, ends)) {
         reg_error(p, "'end' expected");
-        return NULL;
+        goto fault;
     }
-    next_token(p);  /* consume end token */
-    va_end(ap);
+    /* free the end_types array, as there is no need for it. anymore */
+    ARR_FREE(&end_types);
     
-    /* terminate the array */
+    next_token(p);  /* consume end token */
+    
+    /* terminate the statements array */
     ARR_ADD(&stmts, NULL);
     
     AST_piece piece = malloc(sizeof(AST_piece));
     piece->stmts = stmts.elems;
     return piece;
+
+ fault:
+    ARR_FREE(&end_types);
+    ARR_FREE(&stmts);
+    return NULL;
 }
 
 /*** INTERFACE ***/

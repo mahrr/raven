@@ -301,17 +301,16 @@ static void print_expr(AST_expr e) {
             print_expr(exprs[i]);
             printf(" -> ");
 
-            if (arms[i]->type == EXPR_ARM)
+            if (arms[i]->type == EXPR_ARM) {
                 print_expr(arms[i]->e);
-            else {
+                putchar('\n');
+            } else {
                 putchar('\n');
                 print_piece(arms[i]->p);
             }
-
-            putchar('\n');
+           
             indent_level--;
         }
-        putchar(')');
         break;
     }
 
@@ -355,7 +354,7 @@ static void print_expr(AST_expr e) {
 
     case MATCH_EXPR: {
         AST_match_expr match = e->match;
-        printf("(|match| ");
+        printf("|match| ");
         print_expr(match->value);
         putchar('\n');
 
@@ -365,20 +364,19 @@ static void print_expr(AST_expr e) {
         for (int i = 0; arms[i]; i++) {
             indent_level++;
             INDENT();
-            printf("#");
             print_patt(patts[i]);
             printf(" -> ");
 
-            if (arms[i]->type == EXPR_ARM)
+            if (arms[i]->type == EXPR_ARM) {
                 print_expr(arms[i]->e);
-            else
+                putchar('\n');
+            } else {
+                putchar('\n');
                 print_piece(arms[i]->p);
-            
-            putchar('\n');
+            }
             indent_level--;
         }
-        putchar(')');
-        
+                
         break;
     }
 

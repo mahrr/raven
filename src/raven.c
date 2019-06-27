@@ -19,32 +19,33 @@
 #include "resolver.h"
 #include "token.h"
 
-AST_piece parse(const char *src, const char *file, int *ident_num) {
-    Lexer l;
-    Parser p;
+AST_piece parse(const char *src,
+                const char *file,
+                Lexer *l, Parser *p,
+                int *ident_num) {
+    
+    init_lexer(l, src, file);
+    Token *tokens = cons_tokens(l);
 
-    init_lexer(&l, src, file);
-    Token *tokens = cons_tokens(&l);
-
-    if (lexer_error(&l)) {
-        Err *errors = lexer_errors(&l);
-        int errnum = lexer_errnum(&l);
+    if (lexer_error(l)) {
+        Err *errors = lexer_errors(l);
+        int errnum = lexer_errnum(l);
         log_errs(errors, errnum, stderr);
         return NULL;
     }
 
-    init_parser(&p, tokens);
-    AST_piece piece = parse_piece(&p);
+    init_parser(p, tokens);
+    AST_piece piece = parse_piece(p);
 
-    if (parser_error(&p)) {
-        Err *errors = parser_errors(&p);
-        int errnum = parser_errnum(&p);
+    if (parser_error(p)) {
+        Err *errors = parser_errors(p);
+        int errnum = parser_errnum(p);
         log_errs(errors, errnum, stderr);
         return NULL;
     }
 
     if (ident_num != NULL)
-        *ident_num = p.ident_num;
+        *ident_num = p->ident_num;
 
 #ifdef PRINT_AST
     print_piece(piece);
@@ -54,7 +55,10 @@ AST_piece parse(const char *src, const char *file, int *ident_num) {
 }
 
 void run_line(const char *line, Resolver *r, Evaluator *e) {
-    AST_piece piece = parse(line, "stdin", NULL);
+    Parser p;
+    Lexer l;
+    
+    AST_piece piece = parse(line, "stdin", &l, &p, NULL);
 
     if (piece == NULL)
         return;
@@ -70,14 +74,19 @@ void run_line(const char *line, Resolver *r, Evaluator *e) {
         return;
     }
 
-    //walk(e, piece);
+    walk(e, piece);
+
+    free_lexer(&l);
+    free_parser(&p);
 }
 
 int run_src(const char *src, const char *file) {
+    Lexer l;
+    Parser p;
     /* number of AST_expr_ident in the source code, 
        used in the evaluator variable lookup table.*/
     int ident_num;
-    AST_piece piece = parse(src, file, &ident_num);
+    AST_piece piece = parse(src, file, &l, &p, &ident_num);
 
     if (piece == NULL)
         return 1;
@@ -97,9 +106,11 @@ int run_src(const char *src, const char *file) {
 
     walk(&e, piece);
 
+    free_lexer(&l);
+    free_parser(&p);
     free_resolver(&r);
     free_eval(&e);
-
+    
     return 0;
 }
 
