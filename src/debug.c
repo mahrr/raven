@@ -62,9 +62,6 @@ void print_token(Token *t) {
 static int indent_level = -1;
 static char *indent = "  ";
 
-/* buffer for some strings concatenation */
-static char buff[128];
-
 #define INDENT()                             \
     for (int i = 0; i < indent_level; i++)   \
         fputs(indent, stdout);
@@ -262,11 +259,6 @@ static void print_patts(AST_patt *patts) {
 
 static void print_expr(AST_expr e) {
     switch (e->type) {
-
-    case ACCESS_EXPR:
-        sprintf(buff, ".%s", e->access->field);
-        paren_op(buff, 1, e->access->object);
-        break;
 
     case ASSIGN_EXPR: {
         AST_assign_expr assign = e->assign;

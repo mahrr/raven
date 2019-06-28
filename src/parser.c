@@ -349,22 +349,35 @@ static AST_expr expression(Parser*, Prec);
 static AST_expr *expressions(Parser*, TK_type, TK_type, char*);
 
 static AST_expr access_expr(Parser *p, AST_expr object) {
-    next_token(p);  /* consume 'DOT' token */
+    Token *where = next_token(p);  /* consume 'DOT' token */
 
     /* ignore any newlines inside of the expressions
        (e.g. "obj.field. <nl> inner_field ") */
     skip_newlines(p);
-    
+
     Token *field = expect_token(p, TK_IDENT, "field name");
     if (field == NULL) return NULL;
 
-    AST_access_expr access = malloc(sizeof (*access));
-    access->field = ident_of_tok(field);
-    access->object = object;
-
+    /* access expression is just a syntactic sugar
+       for index expression, as `object.field` is
+       desugared to `object["field"]. */
+    AST_lit_expr lit = malloc(sizeof (*lit));
+    lit->type = STR_LIT;
+    lit->s = ident_of_tok(field);
+    
+    AST_expr lit_str = malloc(sizeof (*lit_str));
+    lit_str->type = LIT_EXPR;
+    lit_str->where = field;
+    lit_str->lit = lit;
+    
+    AST_index_expr index = malloc(sizeof (*index));
+    index->object = object;
+    index->index = lit_str;
+    
     AST_expr expr = malloc(sizeof (*expr));
-    expr->type = ACCESS_EXPR;
-    expr->access = access;
+    expr->type = INDEX_EXPR;
+    expr->where = where;
+    expr->index = index;
 
     return expr;
 }
@@ -372,8 +385,7 @@ static AST_expr access_expr(Parser *p, AST_expr object) {
 static AST_expr assign_expr(Parser *p, AST_expr lvalue) {
     /* left side of '=' not an identifier */
     if (lvalue->type != IDENT_EXPR &&
-        lvalue->type != INDEX_EXPR &&
-        lvalue->type != ACCESS_EXPR) {
+        lvalue->type != INDEX_EXPR) {
         reg_error(p, "invalid assignment target");
         return NULL;
     }

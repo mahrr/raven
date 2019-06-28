@@ -5,7 +5,7 @@ OFLAGS = -std=c99 -march=native -g -Wall -O2 -o
 SRCDIR = ./src
 OUTDIR = ./bin
 TARGET = raven
-CLIBS =
+CLIBS = -lm
 
 # debug
 default:

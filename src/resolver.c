@@ -267,10 +267,6 @@ static void resolve_patts(Resolver *r, AST_patt *patts) {
 static void resolve_expr(Resolver *r, AST_expr expr) {
     switch (expr->type) {
         
-    case ACCESS_EXPR:
-        resolve_expr(r, expr->access->object);
-        break;
-        
     case ASSIGN_EXPR:
         resolve_expr(r, expr->assign->lvalue);
         resolve_expr(r, expr->assign->value);

@@ -25,7 +25,6 @@ typedef enum {
 } Stmt_VT;
 
 typedef enum {
-    ACCESS_EXPR,
     ASSIGN_EXPR,
     BINARY_EXPR,
     CALL_EXPR,
@@ -101,7 +100,6 @@ typedef struct AST_type_stmt *AST_type_stmt;
 typedef struct AST_cons_decl *AST_cons_decl;
 
 /* expressions sub nodes */
-typedef struct AST_access_expr *AST_access_expr;
 typedef struct AST_assign_expr *AST_assign_expr;
 typedef struct AST_binary_expr *AST_binary_expr;
 typedef struct AST_call_expr   *AST_call_expr;
@@ -162,7 +160,6 @@ struct AST_expr {
     Expr_VT type;
     Token *where;
     union {
-        AST_access_expr access;
         AST_assign_expr assign;
         AST_binary_expr binary;
         AST_call_expr call;
@@ -225,11 +222,6 @@ struct AST_cons_decl {
 };
 
 /* expressions sub nodes */
-struct AST_access_expr {
-    AST_expr object;
-    char *field;
-};
-
 struct AST_assign_expr {
     AST_expr lvalue;
     AST_expr value;
