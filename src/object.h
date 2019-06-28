@@ -76,10 +76,11 @@ struct Hash_obj {
 
 struct Rav_obj {
     Rav_type type;
+    uint32_t mode;
     union {
         int b;          /* bool */
         long double f;  /* float */
-        List l;         /* list */
+        List *l;         /* list */
         int64_t i;      /* integer */
         char *s;        /* string */
         Cl_obj *cl;     /* closure */

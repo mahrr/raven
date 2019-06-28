@@ -68,7 +68,7 @@ void run_line(const char *line, Resolver *r, Evaluator *e) {
         return;
     }
 
-    walk(e, piece);
+    inspect(walk(e, piece));
 
     free_lexer(&l);
     free_parser(&p);
@@ -100,7 +100,7 @@ int run_src(const char *src, const char *file) {
         return 1;
     }
 
-    walk(&e, piece);
+    inspect(walk(&e, piece));
 
     free_lexer(&l);
     free_parser(&p);
