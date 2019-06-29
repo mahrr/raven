@@ -41,8 +41,8 @@ typedef enum {
 } Expr_VT;
 
 typedef enum {
+    BOOL_CPATT,
     CONS_PATT,
-    FALSE_CPATT,
     FLOAT_CPATT,
     HASH_PATT,
     IDENT_PATT,
@@ -50,9 +50,7 @@ typedef enum {
     LIST_PATT,
     NIL_CPATT,
     PAIR_PATT,
-    RSTR_CPATT,
     STR_CPATT,
-    TRUE_CPATT
 } Patt_VT;
 
 /* sub nodes value types*/
@@ -188,6 +186,7 @@ struct AST_patt {
         int64_t i;         /* literal int pattern */
         long double f;     /* literal float pattern */
         char *s;           /* literal string pattern */
+        int8_t b;         /* literal boolean value */
     };
 };
 
@@ -211,14 +210,14 @@ struct AST_ret_stmt {
     AST_expr value;
 };
 
-struct AST_type_stmt {
-    char *name;
-    AST_cons_decl *decls; /* array */
-};
-
 struct AST_cons_decl {
     char *tag;
     char **variants;
+};
+
+struct AST_type_stmt {
+    char *name;
+    AST_cons_decl *decls; /* array */
 };
 
 /* expressions sub nodes */
@@ -236,6 +235,7 @@ struct AST_binary_expr {
 struct AST_call_expr {
     AST_expr func;
     AST_expr *args;  /* array */
+    int32_t count;   /* number of arguments */
 };
 
 struct AST_cond_expr {
@@ -308,7 +308,8 @@ struct AST_while_expr {
 
 /* literal expressions sub nodes */
 struct AST_fn_lit {
-    AST_patt *params;  /* array */
+    AST_patt *params;   /* array */
+    int32_t count;      /* number of parameters */
     AST_piece body;
 };
 
@@ -334,6 +335,7 @@ struct AST_list_lit {
 struct AST_cons_patt {
     AST_expr tag;       /* always ident_expr */
     AST_patt *variants; /* array */
+    int32_t count;      /* number of variants */
 };
 
 struct AST_hash_patt {
@@ -343,6 +345,7 @@ struct AST_hash_patt {
 
 struct AST_list_patt {
     AST_patt *patts;    /* array */
+    int32_t count;      /* number of patterns */
 };
 
 struct AST_pair_patt {

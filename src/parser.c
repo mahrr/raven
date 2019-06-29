@@ -181,15 +181,15 @@ static Prec prec_of(Token *tok) {
 /** patterns nodes **/
 
 static AST_patt pattern(Parser*);
-static AST_patt *patterns(Parser*, TK_type, TK_type, char*);
+static AST_patt *patterns(Parser*, TK_type, TK_type, char*, int*);
 
 static AST_patt cons_patt(Parser *p) {
     Token *tag = next_token(p);
     next_token(p); /* consume '(' token */
 
-    AST_patt *variants = patterns(p, TK_COMMA, TK_RPAREN, "')'");
+    int count; /* patterns count */
+    AST_patt *variants = patterns(p, TK_COMMA, TK_RPAREN, "')'", &count);
     if (variants == NULL) return NULL;
-
 
     AST_expr ident = malloc(sizeof (*tag));
     ident->type = IDENT_EXPR;
@@ -200,6 +200,7 @@ static AST_patt cons_patt(Parser *p) {
     AST_cons_patt cons = malloc(sizeof (*cons));
     cons->tag = ident;
     cons->variants = variants;
+    cons->count = count;
 
     AST_patt patt = malloc(sizeof (*patt));
     patt->type = CONS_PATT;
@@ -224,24 +225,34 @@ static AST_patt const_patt(Parser *p) {
         break;
 
     case TK_RSTR:
-        patt->s = str_of_tok(tok);
-        patt->type = RSTR_CPATT;
-        break;
-
     case TK_STR:
         patt->s = str_of_tok(tok);
         patt->type = STR_CPATT;
         break;
 
-    default:
-        /* impossible but to discard compiler warnings */
+    case TK_TRUE:
+        patt->b = 1;
+        patt->type = BOOL_CPATT;
         break;
+
+    case TK_FALSE:
+        patt->b = 0;
+        patt->type = BOOL_CPATT;
+        break;
+
+    case TK_NIL:
+        patt->type = NIL_CPATT;
+        break;
+
+    default:
+        /* shoudl be impossible, but to discard compiler warnings */
+        assert(0);
     }
     
     return patt;
 }
 
-static AST_key hash_key(Parser *p, uint32_t index);
+static AST_key hash_key(Parser *p, int index);
 
 static AST_patt hash_patt(Parser *p) {
     next_token(p);  /* consume '{' */
@@ -253,7 +264,7 @@ static AST_patt hash_patt(Parser *p) {
     ARR_INITC(&patts, AST_patt, 4);
 
     if (!match_token(p, TK_RBRACE)) {
-        uint32_t index = 0;
+        int index = 0;      /* current implicit index */
         do {
             skip_newlines(p);
             AST_key key = hash_key(p, index);
@@ -277,7 +288,7 @@ static AST_patt hash_patt(Parser *p) {
     AST_hash_patt hash = malloc(sizeof (*hash));
     hash->keys = keys.elems;
     hash->patts = patts.elems;
-    
+
     AST_patt patt = malloc(sizeof (*patt));
     patt->type = HASH_PATT;
     patt->hash = hash;
@@ -303,11 +314,13 @@ static AST_patt ident_patt(Parser *p) {
 static AST_patt list_patt(Parser *p) {
     next_token(p);  /* consume '[' token */
 
-    AST_patt *patts = patterns(p, TK_COMMA, TK_RBRACKET, "]");
+    int count;  /* patterns count */
+    AST_patt *patts = patterns(p, TK_COMMA, TK_RBRACKET, "]", &count);
     if (patts == NULL) return NULL;
 
     AST_list_patt list = malloc(sizeof (*list));
     list->patts = patts;
+    list->count = count;
 
     AST_patt patt = malloc(sizeof (*patt));
     patt->type = LIST_PATT;
@@ -346,7 +359,7 @@ static AST_patt pair_patt(Parser *p) {
 
 static AST_piece piece(Parser*, int n, ...);
 static AST_expr expression(Parser*, Prec);
-static AST_expr *expressions(Parser*, TK_type, TK_type, char*);
+static AST_expr *expressions(Parser*, TK_type, TK_type, char*, int*);
 
 static AST_expr access_expr(Parser *p, AST_expr object) {
     Token *where = next_token(p);  /* consume 'DOT' token */
@@ -437,12 +450,14 @@ static AST_expr binary_expr(Parser *p, AST_expr left) {
 static AST_expr call_expr(Parser *p, AST_expr func) {
     next_token(p); /* consume '(' token */
 
-    AST_expr *args = expressions(p, TK_COMMA, TK_RPAREN, "')'");
+    int count; /* arguments counts */
+    AST_expr *args = expressions(p, TK_COMMA, TK_RPAREN, "')'", &count);
     if (args == NULL) return NULL;
 
     AST_call_expr call = malloc(sizeof (*call));
     call->func = func;
     call->args = args;
+    call->count = count;
 
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = CALL_EXPR;
@@ -810,7 +825,8 @@ static AST_expr fn_literal(Parser *p) {
     if (!expect_token(p, TK_LPAREN, "("))
         return NULL;
 
-    AST_patt *params = patterns(p, TK_COMMA, TK_RPAREN, ")");
+    int count; /* parameters count */
+    AST_patt *params = patterns(p, TK_COMMA, TK_RPAREN, ")", &count);
     if (params == NULL) return NULL;
 
     AST_piece body = piece(p, 1, TK_END);
@@ -818,6 +834,7 @@ static AST_expr fn_literal(Parser *p) {
     
     AST_fn_lit fn = malloc(sizeof (*fn));
     fn->params = params;
+    fn->count = count;
     fn->body = body;
 
     AST_lit_expr lit = malloc(sizeof (*lit));
@@ -831,7 +848,7 @@ static AST_expr fn_literal(Parser *p) {
     return expr;
 }
 
-static AST_key hash_key(Parser *p, uint32_t index) {
+static AST_key hash_key(Parser *p, int index) {
     /* [<expression>]:<value> */
     if (match_token(p, TK_LBRACKET)) {
         AST_expr expr = expression(p, LOW_PREC);
@@ -937,7 +954,7 @@ static AST_expr int_literal(Parser *p) {
 static AST_expr list_literal(Parser *p) {
     next_token(p);  /* consume '[' token */
 
-    AST_expr *values = expressions(p, TK_COMMA, TK_RBRACKET, "]");
+    AST_expr *values = expressions(p, TK_COMMA, TK_RBRACKET, "]", NULL);
     if (values == NULL) return NULL;
 
     AST_list_lit list = malloc(sizeof (*list));
@@ -1098,7 +1115,7 @@ static AST_stmt fn_stmt(Parser *p) {
     if (!expect_token(p, TK_LPAREN, "'('"))
         return NULL;
 
-    AST_patt *params = patterns(p, TK_COMMA, TK_RPAREN, ")");
+    AST_patt *params = patterns(p, TK_COMMA, TK_RPAREN, ")", NULL);
     if (params == NULL) return NULL;
 
     AST_piece body = piece(p, 1, TK_END);
@@ -1266,8 +1283,12 @@ static AST_patt pattern(Parser *p) {
         break;
 
     case TK_STR:
+    case TK_RSTR:
     case TK_INT:
     case TK_FLOAT:
+    case TK_TRUE:
+    case TK_FALSE:
+    case TK_NIL:
         patt = const_patt(p);
         break;
 
@@ -1284,24 +1305,27 @@ static AST_patt pattern(Parser *p) {
 /* return an array of zero or more AST_patt delimited by 
    'dl' token type and ended witn 'end' token type */
 static AST_patt*
-patterns(Parser *p, TK_type dl, TK_type end, char *end_name) {
+patterns(Parser *p, TK_type dl, TK_type end, char *end_name, int *n) {
     ARRAY(AST_patt) patts;
     ARR_INITC(&patts, AST_patt, 4);
-    
+
+    int patts_count = 0;
     if (!match_token(p, end)) {
         do {
             skip_newlines(p);
             AST_patt patt = pattern(p);
-            
             if (patt == NULL) goto fault;
             
             ARR_ADD(&patts, patt);
+            patts_count++;
         } while(match_token(p, dl));
         
         skip_newlines(p);
         if (!expect_token(p, end, end_name))
             goto fault;
     }
+
+    if (n) *n = patts_count;
     ARR_ADD(&patts, NULL);
     return patts.elems;
 
@@ -1344,11 +1368,12 @@ static AST_expr expression(Parser *p, Prec prec) {
 /* return an array of zero or more AST_expr delimited by 
    'dl' token type and ended witn 'end' token type */
 static AST_expr *
-expressions(Parser *p, TK_type dl, TK_type end, char *end_name) {
+expressions(Parser *p, TK_type dl, TK_type end, char *end_name, int *n) {
     ARRAY(AST_expr) exprs;
     ARR_INIT(&exprs, AST_expr);
     AST_expr expr;
 
+    int expr_count = 0;
     if (!match_token(p, end)) {
         do {
             skip_newlines(p);
@@ -1357,6 +1382,7 @@ expressions(Parser *p, TK_type dl, TK_type end, char *end_name) {
             if (expr == NULL) goto fault;
             
             ARR_ADD(&exprs, expr);
+            expr_count++;
         } while (match_token(p, dl));
         
         skip_newlines(p);
@@ -1364,6 +1390,7 @@ expressions(Parser *p, TK_type dl, TK_type end, char *end_name) {
             goto fault;
     }
 
+    if (n) *n = expr_count;
     ARR_ADD(&exprs, NULL);
     return exprs.elems;
 

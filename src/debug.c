@@ -1,14 +1,18 @@
 /*
- * (debug.c | 12 Mar 19 | Ahmad Maher)
+ * (debug.c | 12 Mar 19 | Ahmad Maher, Kareem Hamdy)
  *
 */
 
+#include <assert.h>
 #include <stdio.h>
 #include <stdarg.h>
 
 #include "ast.h"
 #include "list.h"
+#include "object.h"
 #include "token.h"
+
+/** INTERNALS **/
 
 /* string representation of each token type */
 char *tok_types_str[] = {
@@ -47,16 +51,6 @@ char *tok_types_str[] = {
     /* Errors and end of file */
     "ERR", "EOF",
 };
-
-void print_token(Token *t) {
-    printf("[%s @line %ld] %.*s (%d) : %s\n",
-           t->file,
-           t->line,
-           t->length,
-           t->lexeme,
-           t->length,
-           tok_types_str[t->type]);
-}
 
 /* the current identation level for the ast printer */
 static int indent_level = -1;
@@ -178,7 +172,11 @@ static void print_lit_expr(AST_lit_expr e) {
 
 static void print_patt(AST_patt p) {
     switch (p->type) {
-
+        
+    case BOOL_CPATT:
+        printf(p->b ? "true" : "false");
+        break;
+        
     case CONS_PATT:
         printf("(:cons ");
         print_expr(p->cons->tag);
@@ -215,10 +213,6 @@ static void print_patt(AST_patt p) {
         print_patt(p->pair->tl);
         printf(")");
         break;
-
-    case FALSE_CPATT:
-        printf("false");
-        break;
     
     case FLOAT_CPATT:
         printf("%Lf", p->f);
@@ -236,16 +230,8 @@ static void print_patt(AST_patt p) {
         printf("nil");
         break;
 
-    case RSTR_CPATT:
-        printf("`%s`", p->s);
-        break;
-
     case STR_CPATT:
         printf("'%s'", p->s);
-        break;
-
-    case TRUE_CPATT:
-        printf("true");
         break;
     }
 }
@@ -446,6 +432,18 @@ static void print_stmt(AST_stmt s) {
     }
 }
 
+/** INTEFACE **/
+
+void print_token(Token *t) {
+    printf("[%s @line %ld] %.*s (%d) : %s\n",
+           t->file,
+           t->line,
+           t->length,
+           t->lexeme,
+           t->length,
+           tok_types_str[t->type]);
+}
+
 void print_piece(AST_piece p) {
     indent_level++;
     for (int i = 0; p->stmts[i]; i++) {
@@ -453,4 +451,53 @@ void print_piece(AST_piece p) {
         print_stmt(p->stmts[i]);
     }
     indent_level--;
+}
+
+void inspect(Rav_obj *obj);
+
+static void inspect_list(Rav_obj *r) {
+    printf("[\n");
+    List *curr_list = r->l;
+    while (curr_list) {
+        inspect(curr_list->head);
+        curr_list = curr_list->tail;
+    }
+    printf("]\n");
+}
+
+void inspect(Rav_obj *obj) {
+    switch (obj->type) {
+    case INT_OBJ:
+        printf("value: %ld, type: int\n", obj->i);
+        break;
+    case FLOAT_OBJ:
+        printf("value: %Lf, type: float\n", obj->f);
+        break;
+    case BOOL_OBJ:
+        printf("value: %d, type: boolean\n", obj->b);
+        break;
+    case NIL_OBJ:
+        printf("value: nil, type: nil\n");
+        break;
+    case STR_OBJ:
+        printf("value: '%s', type: string\n", obj->s);
+        break;
+    case LIST_OBJ:
+        inspect_list(obj);
+        printf("type: list\n");
+        break;
+    case VOID_OBJ:
+        printf("value: (), type: void\n");
+        break;
+    case CL_OBJ:
+        printf("value:<fn>, type: function\n");
+        break;
+    case HASH_OBJ:
+        //TODO: inspect_hash
+        printf("value:<hash> type: hash\n");
+        break;
+    default:
+        fprintf(stderr, "[INTERNAL] invalid Rav_Type (%d)", obj->type);
+        assert(0);
+    }
 }

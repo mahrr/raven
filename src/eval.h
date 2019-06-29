@@ -17,11 +17,6 @@ typedef struct Evaluator {
     Env *current;    /* current environment */
     Table *vars;     /* variable lookup table */
 } Evaluator;
-/*
- print the the value of the Rav_object and it's type
- */
-
-void inspect(Rav_obj *r);
 
 /*
  * Initialize an evaluator state, allocate a space for

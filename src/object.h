@@ -54,6 +54,7 @@ struct Cl_obj {
     Env *env;
     /* list of parameters (AST_patt) */
     AST_patt *params;
+    int32_t arity;
     AST_piece body;
 };
 
@@ -80,10 +81,10 @@ struct Rav_obj {
     union {
         int b;          /* bool */
         long double f;  /* float */
-        List *l;         /* list */
         int64_t i;      /* integer */
         char *s;        /* string */
         Cl_obj *cl;     /* closure */
+        List *l;        /* list */
         Hash_obj *h;    /* hash */
     };
 };
