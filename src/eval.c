@@ -165,7 +165,7 @@ static Rav_obj *hash_object(Evaluator *e, AST_hash_lit hash_lit) {
             Rav_obj *object = eval(e, exprs[i]);
             hash_add(e, hash_obj, keys[i]->expr, object);
         } else {
-            fprintf(stderr, "[INTERNAL] invalide key type (%d)\n",
+            fprintf(stderr, "[INTERNAL] invalid key type (%d)\n",
                     keys[i]->type);
             assert(0);
         }
@@ -283,6 +283,31 @@ static Rav_obj *arth_bin(Rav_obj *left, Rav_obj *right, TK_type op) {
 
     return is_float ? calc_bin_float(l_fval, r_fval, op)
                     : calc_bin_int(l_ival, r_ival, op);
+}
+
+/* Equality Check */
+static Rav_obj *check_equality(Rav_obj *left, Rav_obj *right) {
+    /* there is no implicit type conversion in raven */
+    if (left->type != right->type)
+        return RFalse;
+
+    switch (left->type) {
+    case FLOAT_OBJ:
+        return left->f == right->f ? RTrue : RFalse;
+    case INT_OBJ:
+        return left->i == right->i ? RTrue : RFalse;
+    case STR_OBJ:
+        return !strcmp(left->s, right->s) ? RTrue : RFalse;
+
+    /* any other object are compared by their addresses,
+       so it needs to be the same object to pass the
+       check. for element to element check in the
+       collection object (e.g., lists and hashes),
+       compare functions from the standard library
+       could be used. */
+    default:
+        return left == right ? RTrue : RFalse;
+    }
 }
 
 /* List Operations */
@@ -424,6 +449,11 @@ match_hash(Evaluator *e, AST_patt patt, Rav_obj *hash, Env *env) {
 
 static int
 match(Evaluator *e, AST_patt patt, Rav_obj *object, Env *env) {
+    if (patt->type == CONS_PATT) {
+        printf("[TODO]: constructor patterns\n");
+        return 1;
+    }
+    
     if (!same_types(patt, object))
         return 0;
 
@@ -470,32 +500,27 @@ match(Evaluator *e, AST_patt patt, Rav_obj *object, Env *env) {
 
 /** Evaluating Expressions Nodes **/
 
-static Rav_obj *eval_lit(Evaluator *e, AST_lit_expr lit) {
-    switch (lit->type) {
-    case INT_LIT:
-        return int_object(lit->i);
-    case FLOAT_LIT:
-        return float_object(lit->f);
-    case TRUE_LIT:
-        return RTrue;
-    case FALSE_LIT:
-        return RFalse;
-    case NIL_LIT:
-        return RNil;
-    case STR_LIT:
-        return str_object(lit->s);
-    case LIST_LIT:
-        return list_object(e, lit->list->values);
-    case FN_LIT:
-        return fn_object(e, lit->fn);
-    case HASH_LIT:
-        return hash_object(e, lit->hash);
-        
-    default:
-        fprintf(stderr, "[INTERNAL] invalid lit_expr type (%d)\n",
-                lit->type);
-        assert(0);
+static Rav_obj *walk_piece(Evaluator *e, AST_piece piece, Env *env_new);
+
+static Rav_obj *eval_assign(Evaluator *e, AST_assign_expr expr) {
+    if (expr->lvalue->type == IDENT_EXPR) {
+        int *loc = table_get(e->vars, expr->lvalue);
+        Rav_obj *value = eval(e, expr->value);
+        env_set(e->current, value, loc[1], loc[0]);
+        return env_get(e->current, loc[1], loc[0]);
     }
+    
+    /* INDEX_EXPR */
+    Rav_obj *obj = eval(e, expr->lvalue->index->object);
+    if (obj->type != HASH_OBJ) {
+        // TODO: runtime error handeling
+        fprintf(stderr, "Error: index operation for non-hash type\n");
+        return RVoid;
+    }
+    
+    Rav_obj *value = eval(e, expr->value);
+    hash_add(e, obj->h, expr->lvalue->index->index, value);
+    return value;
 }
 
 static Rav_obj *eval_binary(Evaluator *e, AST_binary_expr expr) {
@@ -525,105 +550,18 @@ static Rav_obj *eval_binary(Evaluator *e, AST_binary_expr expr) {
         right = eval(e, expr->right);
         return list_cons(left, right);
 
+    /* equality */
+    case TK_EQ_EQ:
+        left = eval(e, expr->left);
+        right = eval(e, expr->right);
+        return check_equality(left, right);
+        
     /* arithemtic operators */
     default:
         left = eval(e, expr->left);
         right = eval(e, expr->right);
         return arth_bin(left, right, expr->op);
     }
-}
-
-static Rav_obj *walk_piece(Evaluator *e, AST_piece piece, Env *env_new);
-
-static Rav_obj *eval_if(Evaluator *e, AST_if_expr if_expr) {
-    Rav_obj *cond = eval(e, if_expr->cond);
-
-    /* then clause */
-    if (is_true(cond))
-        return walk_piece(e, if_expr->then, new_env(e->current));
-
-    /* elif clauses */
-    AST_elif *elif = if_expr->elifs;
-    for (int i = 0; elif[i]; i++) {
-        cond = eval(e, elif[i]->cond);
-        if (is_true(cond))
-            return walk_piece(e, elif[i]->then, new_env(e->current));
-    }
-    
-    /* else clause */
-    if (if_expr->alter != NULL)
-        return walk_piece(e, if_expr->alter, new_env(e->current));
-
-    /* all conditions is false, and there is no else */
-    return RNil;
-}
-
-static Rav_obj *eval_unary(Evaluator *e, AST_unary_expr unary) {
-    Rav_obj *operand = eval(e, unary->operand);
-    
-    switch (unary->op) {
-    case TK_MINUS:
-        if (operand->type == FLOAT_OBJ) {
-            return float_object(-operand->f);
-        } else if (operand->type == INT_OBJ) {
-            return int_object(-operand->i);
-        } else {
-            fprintf(stderr, "Error: apply (-) to non-numeric object\n");
-            return RVoid;
-        }
-    case TK_NOT:
-        return is_true(operand) ? RFalse : RTrue;
-        
-    default:
-        fprintf(stderr, "[INTERNAL] invalid unary->op (%d)\n", unary->op);
-        assert(0);
-    }
-}
-
-static Rav_obj *eval_index(Evaluator *e, AST_index_expr expr) {
-    Rav_obj *obj = eval(e, expr->object);
-    if (obj->type != HASH_OBJ) {
-        fprintf(stderr, "Error: index a non-hash object\n");
-        return RVoid;
-    }
-    
-    Rav_obj *index = eval(e, expr->index);
-    Rav_obj *value = hash_get(obj, index);
-    if (value == NULL)
-        return RNil;
-    return value;
-}
-
-static Rav_obj *eval_ident(Evaluator *e, AST_expr expr) {
-    int *loc = table_get(e->vars, expr);
-    if (e->current == NULL) {
-        fprintf(stderr, "[INTERNAL] lookup variable table miss\n");
-        assert(0);
-    }
-    
-    return env_get(e->current, loc[1], loc[0]);
-}
-
-static Rav_obj *eval_assign(Evaluator *e, AST_assign_expr expr) {
-    
-    if (expr->lvalue->type == IDENT_EXPR) {
-        int *loc = table_get(e->vars, expr->lvalue);
-        Rav_obj *value = eval(e, expr->value);
-        env_set(e->current, value, loc[1], loc[0]);
-        return env_get(e->current, loc[1], loc[0]);
-    }
-    
-    /* INDEX_EXPR */
-    Rav_obj *obj = eval(e, expr->lvalue->index->object);
-    if (obj->type != HASH_OBJ) {
-        // TODO: runtime error handeling
-        fprintf(stderr, "Error: index operation for non-hash type\n");
-        return RVoid;
-    }
-    
-    Rav_obj *value = eval(e, expr->value);
-    hash_add(e, obj->h, expr->lvalue->index->index, value);
-    return value;
 }
 
 static Rav_obj *eval_call(Evaluator *e, AST_call_expr call) {
@@ -665,6 +603,152 @@ static Rav_obj *eval_call(Evaluator *e, AST_call_expr call) {
     return res;
 }
 
+/* evaluate a cond match on a newly created environment */
+static Rav_obj *eval_arm(Evaluator *e, AST_arm arm) {
+    if (arm->type == EXPR_ARM)
+        return eval(e, arm->e);
+
+    return walk_piece(e, arm->p, new_env(e->current));
+}
+
+static Rav_obj *eval_cond(Evaluator *e, AST_cond_expr cond) {
+    for (int i = 0; cond->exprs[i]; i++) {
+        Rav_obj *obj = eval(e, cond->exprs[i]);
+        if (is_true(obj))
+            return eval_arm(e, cond->arms[i]);
+    }
+
+    /* no condition evaluates to true */
+    return RNil;
+}
+
+static Rav_obj *eval_ident(Evaluator *e, AST_expr expr) {
+    int *loc = table_get(e->vars, expr);
+    if (e->current == NULL) {
+        fprintf(stderr, "[INTERNAL] lookup variable table miss\n");
+        assert(0);
+    }
+    
+    return env_get(e->current, loc[1], loc[0]);
+}
+
+static Rav_obj *eval_if(Evaluator *e, AST_if_expr if_expr) {
+    Rav_obj *cond = eval(e, if_expr->cond);
+
+    /* then clause */
+    if (is_true(cond))
+        return walk_piece(e, if_expr->then, new_env(e->current));
+
+    /* elif clauses */
+    AST_elif *elif = if_expr->elifs;
+    for (int i = 0; elif[i]; i++) {
+        cond = eval(e, elif[i]->cond);
+        if (is_true(cond))
+            return walk_piece(e, elif[i]->then, new_env(e->current));
+    }
+    
+    /* else clause */
+    if (if_expr->alter != NULL)
+        return walk_piece(e, if_expr->alter, new_env(e->current));
+
+    /* all conditions is false, and there is no else */
+    return RNil;
+}
+
+static Rav_obj *eval_index(Evaluator *e, AST_index_expr expr) {
+    Rav_obj *obj = eval(e, expr->object);
+    if (obj->type != HASH_OBJ) {
+        fprintf(stderr, "Error: index a non-hash object\n");
+        return RVoid;
+    }
+    
+    Rav_obj *index = eval(e, expr->index);
+    Rav_obj *value = hash_get(obj, index);
+    if (value == NULL)
+        return RNil;
+    return value;
+}
+
+static Rav_obj *eval_lit(Evaluator *e, AST_lit_expr lit) {
+    switch (lit->type) {
+    case INT_LIT:
+        return int_object(lit->i);
+    case FLOAT_LIT:
+        return float_object(lit->f);
+    case TRUE_LIT:
+        return RTrue;
+    case FALSE_LIT:
+        return RFalse;
+    case NIL_LIT:
+        return RNil;
+    case STR_LIT:
+        return str_object(lit->s);
+    case LIST_LIT:
+        return list_object(e, lit->list->values);
+    case FN_LIT:
+        return fn_object(e, lit->fn);
+    case HASH_LIT:
+        return hash_object(e, lit->hash);
+        
+    default:
+        fprintf(stderr, "[INTERNAL] invalid lit_expr type (%d)\n",
+                lit->type);
+        assert(0);
+    }
+}
+
+/* evaluate a match arm on specified envirnoment */
+static Rav_obj *eval_match_arm(Evaluator *e, AST_arm arm, Env *env) {
+    if (arm->type == EXPR_ARM) {
+        Env *prev = e->current;
+        e->current = env;
+        Rav_obj *res = eval(e, arm->e);
+        e->current = prev;
+        return res;
+    }
+
+    return walk_piece(e, arm->p, env);
+}
+
+static Rav_obj *eval_match(Evaluator *e, AST_match_expr match_expr) {
+    AST_patt *patts = match_expr->patts;
+    AST_arm *arms = match_expr->arms;
+    Rav_obj *value = eval(e, match_expr->value);
+    
+    for (int i = 0; patts[i]; i++) {
+        Env *env = new_env(e->current);
+        if (match(e, patts[i], value, env))
+            return eval_match_arm(e, arms[i], env);
+
+        free_env(env);
+    }
+
+    /* no match occurs */
+    return RNil;
+}
+
+static Rav_obj *eval_unary(Evaluator *e, AST_unary_expr unary) {
+    Rav_obj *operand = eval(e, unary->operand);
+    
+    switch (unary->op) {
+    case TK_MINUS:
+        if (operand->type == FLOAT_OBJ) {
+            return float_object(-operand->f);
+        } else if (operand->type == INT_OBJ) {
+            return int_object(-operand->i);
+        } else {
+            fprintf(stderr, "Error: apply (-) to non-numeric object\n");
+            return RVoid;
+        }
+    case TK_NOT:
+        return is_true(operand) ? RFalse : RTrue;
+        
+    default:
+        fprintf(stderr, "[INTERNAL] invalid unary->op (%d)\n", unary->op);
+        assert(0);
+    }
+}
+
 static Rav_obj *eval_while(Evaluator *e, AST_while_expr expr) {
     Rav_obj *res = RNil; /* by default */
     
@@ -696,12 +780,20 @@ static void decl_function(Evaluator *e, AST_fn_stmt fn_stmt) {
     env_add(e->current, r_obj);
 }
 
+/* 
+ * Note: (TODO)
+ * on let pattern mismatch, the repl session can't continue
+ * as the repl session uses the same resolver, and failed 
+ * match will corrupt the global scope for the resolver.
+ * so for now it will end with assert(0), later when 
+ * implementing runtime error handling, it will be fixed.
+*/
 static void match_let(Evaluator *e, AST_let_stmt let) {
     Rav_obj *value = eval(e, let->value);
     if (!match(e, let->patt, value, e->current)) {
         // TODO: runtime handling
         fprintf(stderr, "Error: Let pattern mismatch\n");
-        return;
+        assert(0);
     }
 }
 
@@ -770,8 +862,7 @@ Rav_obj *eval(Evaluator *e, AST_expr expr) {
     case CALL_EXPR:
         return eval_call(e, expr->call);
     case COND_EXPR:
-        printf("[TODO] cond expressions\n");
-        return RNil;
+        return eval_cond(e, expr->cond);
     case FOR_EXPR:
         printf("[TODO] for expressions\n");
         return RNil;
@@ -786,8 +877,7 @@ Rav_obj *eval(Evaluator *e, AST_expr expr) {
     case LIT_EXPR:
         return eval_lit(e, expr->lit);
     case MATCH_EXPR:
-        printf("[TODO] match expressions\n");
-        return RNil;
+        return eval_match(e, expr->match);
     case UNARY_EXPR:
         return eval_unary(e, expr->unary);
     case WHILE_EXPR:
@@ -823,7 +913,8 @@ Rav_obj *execute(Evaluator *e, AST_stmt stmt) {
         return exec_fixed(e, stmt->fixed);
         
     default:
-        fprintf(stderr, "[INTERNAL] invalid stmt_type (%d)\n", stmt->type);
+        fprintf(stderr, "[INTERNAL] invalid stmt_type (%d)\n",
+                stmt->type);
         assert(0);
     }
 }

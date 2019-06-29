@@ -194,15 +194,14 @@ static void resolve_match(Resolver *r, AST_match_expr match) {
     AST_arm *arms = match->arms;
     
     for (int i = 0; patts[i]; i++) {
+        push_scope(r);
         if (arms[i]->type == EXPR_ARM) {
             resolve_patt(r, patts[i]);
             resolve_expr(r, arms[i]->e);
-            continue;
+        } else {
+            resolve_patt(r, patts[i]);
+            resolve_stmts(r, arms[i]->p->stmts);
         }
-
-        push_scope(r);
-        resolve_patt(r, patts[i]);
-        resolve_stmts(r, arms[i]->p->stmts);
         pop_scope(r);
     }
 }
