@@ -19,13 +19,18 @@ List *list_append(List *list, List *tail) {
 }
 
 void *list_remove(List *list, int pos) {
-    for (int i = 0; i < pos; i++)
-        list = list->tail;
-    
-    List *rem = list->tail;
-    void *x = rem->head;
+    List **lp = &list;
+    int i;
+    for (i = 0; (*lp) && i < pos; i++)
+        lp = &(*lp)->tail;
 
-    list->tail = rem->tail;
+    if (!(*lp) || (i != pos))
+        return NULL;
+    
+    List *rem = *lp;
+    void *x = (*lp)->head;
+
+    *lp = (*lp)->tail;
     free(rem);
     return x;
 }

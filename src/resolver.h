@@ -21,6 +21,7 @@ typedef struct Resolver {
     int been_error;          /* error flag */
     unsigned state;          /* the current state of the resolver */
     ARRAY(Table*) scopes;    /* stack of scopes */
+    ARRAY(char*) latest;     /* the last resolved stmt defined names */
     ARRAY(Err) errors;       /* resolving errors */
 } Resolver;
 
@@ -37,9 +38,22 @@ void init_resolver(Resolver *r, Evaluator *e);
 */
 void free_resolver(Resolver *r);
 
+/* 
+ * if an error occured, removes the defined variables 
+ * in the last resolved statement. it's useful only
+ * in the repl context, as the repl session share
+ * the same global scope.
+*/
+void resolver_recover(Resolver *r);
+
+/*
+ * resolve an AST_stmt, and return 0 on success and
+ * any other integer on failure. it's used only in repl.
+*/
+int resolve_statement(Resolver *r, AST_stmt s);
 /*
  * resolve an AST_piece, and return 0 on success and 
- * any other integer on errors.
+ * any other integer on failure.
 */
 int resolve(Resolver *r, AST_piece p);
 

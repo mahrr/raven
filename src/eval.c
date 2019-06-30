@@ -392,7 +392,8 @@ Rav_obj *hash_get(Rav_obj *hash, Rav_obj *index) {
    types for matching. */
 static int same_types(AST_patt patt, Rav_obj *object) {
     return ((patt->type == IDENT_PATT) ||
-            (patt->type == BOOL_CPATT && object->type == BOOL_OBJ)   ||
+            (patt->type == BOOL_CPATT && object->type == BOOL_OBJ) ||
+            (patt->type == CONS_PATT && object->type == VARI_OBJ)  ||
             (patt->type == FLOAT_CPATT && object->type == FLOAT_OBJ) ||
             (patt->type == HASH_PATT && object->type == HASH_OBJ) ||
             (patt->type == LIST_PATT && object->type == LIST_OBJ) ||
@@ -404,6 +405,28 @@ static int same_types(AST_patt patt, Rav_obj *object) {
 
 static int
 match(Evaluator *e, AST_patt patt, Rav_obj *object, Env *env);
+
+static int
+match_cons(Evaluator *e, AST_patt patt, Rav_obj *variant, Env *env) {
+    AST_patt *patts = patt->cons->patts;
+    Rav_obj **elems = variant->vr->elems;
+
+    Rav_obj *cons = eval(e, patt->cons->tag);
+    /* check if it's the same constructor */
+    if (variant->vr->cons != cons)
+        return 0;
+
+    /* check for correct number of parameter patterns */
+    if (patt->cons->count != variant->vr->count)
+        return 0;
+
+    for (int i = 0; patts[i]; i++) {
+        if (!match(e, patts[i], elems[i], env))
+            return 0;
+    }
+
+    return 1;
+}
 
 static int
 match_list(Evaluator *e, AST_patt patt, Rav_obj *list, Env *env) {
@@ -472,11 +495,6 @@ match_hash(Evaluator *e, AST_patt patt, Rav_obj *hash, Env *env) {
 
 static int
 match(Evaluator *e, AST_patt patt, Rav_obj *object, Env *env) {
-    if (patt->type == CONS_PATT) {
-        printf("[TODO]: constructor patterns\n");
-        return 0;
-    }
-    
     if (!same_types(patt, object))
         return 0;
 
@@ -500,6 +518,9 @@ match(Evaluator *e, AST_patt patt, Rav_obj *object, Env *env) {
         return 1;
         
     /* recursives patterns */
+    case CONS_PATT:
+        return match_cons(e, patt, object, env);
+        
     case LIST_PATT:
         return match_list(e, patt, object, env);
 
@@ -508,11 +529,6 @@ match(Evaluator *e, AST_patt patt, Rav_obj *object, Env *env) {
 
     case HASH_PATT:
         return match_hash(e, patt, object, env);
-
-    /* TODO: constructor patterns */
-    case CONS_PATT:
-        printf("[TODO] cons patterns");
-        return 0;
     
     default:
         fprintf(stderr, "[INTERNAL] invalid pattern type (%d)\n",
@@ -768,10 +784,12 @@ static Rav_obj *eval_match(Evaluator *e, AST_match_expr match_expr) {
     
     for (int i = 0; patts[i]; i++) {
         Env *env = new_env(e->current);
-        if (match(e, patts[i], value, env))
+        Env *prev = e->current;
+        e->current = env;
+        if (match(e, patts[i], value, env)) {
             return eval_match_arm(e, arms[i], env);
-
-        free_env(env);
+        }
+        e->current = prev;
     }
 
     /* no match occurs */

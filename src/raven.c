@@ -58,18 +58,21 @@ void run_line(const char *line, Resolver *r, Evaluator *e) {
     if (piece == NULL)
         return;
 
-    if (resolve(r, piece)) {
-        Err *errors = resolver_errors(r);
-        int errnum = resolver_errnum(r);
-        log_errs(errors, errnum, stderr);
+    for (int i = 0; piece->stmts[i]; i++) {
+        if (resolve_statement(r, piece->stmts[i])) {
+            Err *errors = resolver_errors(r);
+            int errnum = resolver_errnum(r);
+            log_errs(errors, errnum, stderr);
+        
+            /* reset the resolver errors */
+            r->been_error = 0;
+            r->errors.len = 0;
+            return;
+        }
 
-        /* reset the resolver errors */
-        r->been_error = 0;
-        r->errors.len = 0;
-        return;
+        // TODO: put a runtime flag to recover the resolver
+        inspect(execute(e, piece->stmts[i]));
     }
-
-    inspect(walk(e, piece));
 
     free_lexer(&l);
     free_parser(&p);

@@ -95,6 +95,9 @@ static void define(Resolver *r, Token *where, const char *name) {
     
     /* add the variable to the scope */
     table_put(scope, name, var);
+
+    /* add variable to the latest register */
+    ARR_ADD(&r->latest, (char*)name);
 }
 
 
@@ -359,8 +362,10 @@ static void resolve_exprs(Resolver *r, AST_expr *exprs) {
 }
 
 static void resolve_stmt(Resolver *r, AST_stmt stmt) {
+    /* reset the latest register */
+    r->latest.len = 0;
+    
     switch (stmt->type) {
-        
     case EXPR_STMT:
         resolve_expr(r, stmt->expr->expr);
         break;
@@ -406,9 +411,11 @@ static void resolve_stmt(Resolver *r, AST_stmt stmt) {
         
         break;
     }
-
+        
     default:
-        assert(0);  /* invalid type */
+        fprintf(stderr, "[INTERNAL] invalid stmt type (%d)\n",
+                stmt->type);
+        assert(0);
     }
 }
 
@@ -431,7 +438,11 @@ void init_resolver(Resolver *r, Evaluator *e) {
     r->state = 0;
     
     ARR_INIT(&r->scopes, Table*);
+    ARR_INIT(&r->latest, char*);
     ARR_INIT(&r->errors, Err);
+
+    /* push the global scope */
+    push_scope(r);
 }
 
 void free_resolver(Resolver *r) {
@@ -440,19 +451,31 @@ void free_resolver(Resolver *r) {
 
     /* free the resolver arrays */
     ARR_FREE(&r->scopes);
+    ARR_FREE(&r->latest);
     ARR_FREE(&r->errors);
 }
 
-int resolve(Resolver *r, AST_piece piece) {
-    /* push the global scope. if it's not already
-       pushed. the global scope should be persist 
-       between resolve calls for the same resolver,
-       until the resolver is freed. this is mainly
-       useful in repl sessions. */
-    if (r->scopes.len == 0) {
-        push_scope(r);
-    }
+void resolver_recover(Resolver *r) {
+    char **defined = r->latest.elems;
+    Table *scope = r->scopes.elems[r->scopes.len - 1];
     
+    for (int i = 0; i < r->latest.len; i++)
+        table_remove(scope, defined[i]);
+    
+    r->latest.len = 0;
+}
+
+int resolve_statement(Resolver *r, AST_stmt s) {
+    resolve_stmt(r, s);
+    
+    /* an error occured and there are an already defined variables */
+    if (r->been_error && r->latest.len != 0)
+        resolver_recover(r);
+    
+    return r->been_error;
+}
+
+int resolve(Resolver *r, AST_piece piece) {    
     resolve_stmts(r, piece->stmts);
     return r->been_error;
 }

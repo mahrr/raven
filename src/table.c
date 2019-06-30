@@ -36,24 +36,6 @@ static Entry *entry_add(Entry *entry, Elem *elem) {
     return entry;
 }
 
-/* 
- * remove an element from a table entry at
- * specified position, and returns its data.
-*/
-static void *entry_rem(Entry *entry, int pos) {
-    for (int i = 0; i < pos; i++)
-        entry = entry->link;
-    
-    Entry *rem = entry->link;
-    entry->link = rem->link;
-    
-    void *rm_data = rem->elem->data;
-    free(rem->elem);
-    free(rem);
-
-    return rm_data;
-}
-
 /* return the table element with specified key */
 static Elem *get_elem(Table *table, const void *key) {
     uint64_t hash = table->hash(key);
@@ -133,12 +115,17 @@ void *table_remove(Table *table, const void *key) {
     unsigned index = hash % table->size;
 
     Elem *elem;
-    Entry *entry = table->entries[index];
-    for (int i = 0; entry; entry = entry->link, i++) {
-        elem = (Elem*)entry->elem;
+    Entry **ep = &table->entries[index];
+    for ( ; *ep; ep = &(*ep)->link) {
+        elem = (Elem*)(*ep)->elem;
         if (hash == elem->hash && table->comp(elem->key, key)) {
+            void *rem = elem->data;
+            Entry *e = *ep;
+            *ep = (*ep)->link;
             table->elems--;
-            return entry_rem(entry, i);
+            free(elem);
+            free(e);
+            return rem;
         }
     }
 

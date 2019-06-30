@@ -336,7 +336,7 @@ struct AST_list_lit {
 /* patterns sub nodes */
 struct AST_cons_patt {
     AST_expr tag;       /* always ident_expr */
-    AST_patt *patts;     /* array */
+    AST_patt *patts;    /* array */
     int8_t count;       /* number of variants */
 };
 
