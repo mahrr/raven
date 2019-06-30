@@ -187,9 +187,9 @@ static AST_patt cons_patt(Parser *p) {
     Token *tag = next_token(p);
     next_token(p); /* consume '(' token */
 
-    int count; /* patterns count */
-    AST_patt *variants = patterns(p, TK_COMMA, TK_RPAREN, "')'", &count);
-    if (variants == NULL) return NULL;
+    int count;  /* patterns count */
+    AST_patt *patts = patterns(p, TK_COMMA, TK_RPAREN, "')'", &count);
+    if (patts == NULL) return NULL;
 
     AST_expr ident = malloc(sizeof (*tag));
     ident->type = IDENT_EXPR;
@@ -199,7 +199,7 @@ static AST_patt cons_patt(Parser *p) {
     
     AST_cons_patt cons = malloc(sizeof (*cons));
     cons->tag = ident;
-    cons->variants = variants;
+    cons->patts = patts;
     cons->count = count;
 
     AST_patt patt = malloc(sizeof (*patt));
@@ -831,7 +831,7 @@ static AST_expr fn_literal(Parser *p) {
 
     AST_piece body = piece(p, 1, TK_END);
     if (body == NULL) return NULL;
-    
+
     AST_fn_lit fn = malloc(sizeof (*fn));
     fn->params = params;
     fn->count = count;
@@ -1115,7 +1115,8 @@ static AST_stmt fn_stmt(Parser *p) {
     if (!expect_token(p, TK_LPAREN, "'('"))
         return NULL;
 
-    AST_patt *params = patterns(p, TK_COMMA, TK_RPAREN, ")", NULL);
+    int count;
+    AST_patt *params = patterns(p, TK_COMMA, TK_RPAREN, ")", &count);
     if (params == NULL) return NULL;
 
     AST_piece body = piece(p, 1, TK_END);
@@ -1123,6 +1124,7 @@ static AST_stmt fn_stmt(Parser *p) {
     AST_fn_stmt fn = malloc(sizeof (*fn));
     fn->name = ident_of_tok(name);
     fn->params = params;
+    fn->count = count;
     fn->body = body;
     
     AST_stmt stmt = malloc(sizeof (*stmt));
@@ -1171,41 +1173,44 @@ static AST_stmt ret_stmt(Parser *p) {
     return stmt;
 }
 
-static AST_cons_decl cons_decl(Parser *p) {
+static AST_variant cons_variant(Parser *p) {
     if (!expect_token(p, TK_PIPE, "'|'"))
         return NULL;
 
-    Token *tok = expect_token(p, TK_IDENT, "tag name");
+    Token *tok = expect_token(p, TK_IDENT, "variant name");
     if (tok == NULL) return NULL;
 
-    char *tag = ident_of_tok(tok);
+    char *name = ident_of_tok(tok);
 
-    ARRAY(char*) variants;
-    ARR_INITC(&variants, char*, 2);
+    ARRAY(char*) params;
+    ARR_INITC(&params, char*, 2);
 
+    int count = 0;
     if (match_token(p, TK_LPAREN)) {
         do {
             skip_newlines(p);
-            Token *name = expect_token(p, TK_IDENT, "variant name");
+            Token *name = expect_token(p, TK_IDENT, "data name");
             if (name == NULL) goto fault;
 
-            ARR_ADD(&variants, ident_of_tok(name));
+            count++;
+            ARR_ADD(&params, ident_of_tok(name));
         } while (match_token(p, TK_COMMA));
 
         skip_newlines(p);
         if (!expect_token(p, TK_RPAREN, "')'"))
             goto fault;
 
-        ARR_ADD(&variants, NULL);
+        ARR_ADD(&params, NULL);
     }
 
-    AST_cons_decl decl = malloc(sizeof (*decl));
-    decl->tag = tag;
-    decl->variants = variants.elems;
-    return decl;
+    AST_variant variant = malloc(sizeof (*variant));
+    variant->name = name;
+    variant->params = params.elems;
+    variant->count = count;
+    return variant;
 
  fault:
-    ARR_FREE(&variants);
+    ARR_FREE(&params);
     return NULL;
 }
 
@@ -1218,22 +1223,22 @@ static AST_stmt type_stmt(Parser *p) {
     if (!expect_token(p, TK_EQ, "'='"))
         return NULL;
     
-    ARRAY(AST_cons_decl) decls;
-    ARR_INITC(&decls, AST_cons_decl, 4);
+    ARRAY(AST_variant) variants;
+    ARR_INITC(&variants, AST_variant, 4);
 
     skip_newlines(p);
     while (!match_token(p, TK_END)) {
-        AST_cons_decl decl = cons_decl(p);
-        if (decl == NULL) goto fault;
+        AST_variant variant = cons_variant(p);
+        if (variant == NULL) goto fault;
         
-        ARR_ADD(&decls, decl);
+        ARR_ADD(&variants, variant);
         skip_newlines(p);
     }
-    ARR_ADD(&decls, NULL);
+    ARR_ADD(&variants, NULL);
 
     AST_type_stmt type_stmt = malloc(sizeof (*type_stmt));
     type_stmt->name = ident_of_tok(name);
-    type_stmt->decls = decls.elems;
+    type_stmt->variants = variants.elems;
 
     AST_stmt stmt = malloc(sizeof (*stmt));
     stmt->type = TYPE_STMT;
@@ -1242,7 +1247,7 @@ static AST_stmt type_stmt(Parser *p) {
     return stmt;
 
  fault:
-    ARR_FREE(&decls);
+    ARR_FREE(&variants);
     return NULL;
 }
 

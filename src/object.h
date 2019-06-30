@@ -22,7 +22,9 @@ typedef struct Env Env;
 
 typedef struct Rav_obj Rav_obj;
 typedef struct Cl_obj Cl_obj;
+typedef struct Cons_obj Cons_obj;
 typedef struct Hash_obj Hash_obj;
+typedef struct Variant_obj Variant_obj;
 
 /* 
  * void object returns from the statements 
@@ -41,11 +43,13 @@ typedef enum {
     VOID_OBJ,
     FLOAT_OBJ,
     CL_OBJ,
+    CONS_OBJ,
     HASH_OBJ,
     LIST_OBJ,
     INT_OBJ,
     NIL_OBJ,
     STR_OBJ,
+    VARI_OBJ
 } Rav_type;
 
 /* closure object */
@@ -54,8 +58,22 @@ struct Cl_obj {
     Env *env;
     /* list of parameters (AST_patt) */
     AST_patt *params;
-    int32_t arity;
+    int8_t arity;
     AST_piece body;
+};
+
+/* constructor object, which are declared with type statements */
+struct Cons_obj {
+    char *type;       /* the constructor data type name */
+    char *name;       /* constructor name */
+    int8_t arity;     /* number of constructor parameters */
+};
+
+/* variant object, the result of calling a constructor object */
+struct Variant_obj {
+    Rav_obj *cons;    /* the variant constructor */
+    Rav_obj **elems;  /* array of elements */
+    int8_t count;     /* number of data elements */
 };
 
 /*
@@ -77,15 +95,17 @@ struct Hash_obj {
 
 struct Rav_obj {
     Rav_type type;
-    uint32_t mode;
+    uint8_t mode;   /* status bits used internally by the evaluator */
     union {
-        int b;          /* bool */
-        long double f;  /* float */
-        int64_t i;      /* integer */
-        char *s;        /* string */
-        Cl_obj *cl;     /* closure */
-        List *l;        /* list */
-        Hash_obj *h;    /* hash */
+        int8_t b;        /* boolean */
+        long double f;   /* float */
+        int64_t i;       /* integer */
+        char *s;         /* string */
+        Cl_obj *cl;      /* closure */
+        Cons_obj *cn;    /* constructor */
+        Hash_obj *h;     /* hash */
+        List *l;         /* list */
+        Variant_obj *vr; /* variant */
     };
 };
 

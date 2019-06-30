@@ -528,7 +528,7 @@ void init_lexer(Lexer *lexer, const char *src, const char *file) {
     lexer->file = file;
     lexer->line = 1;
     lexer->been_error = 0;
-    ARR_INIT(&lexer->tokens, Token);
+    ARR_INITC(&lexer->tokens, Token, 64);
     ARR_INIT(&lexer->errors, Err);
 }
 

@@ -225,7 +225,7 @@ static void resolve_patt(Resolver *r, AST_patt patt) {
         
     case CONS_PATT:
         resolve_expr(r, patt->cons->tag);
-        resolve_patts(r, patt->cons->variants);
+        resolve_patts(r, patt->cons->patts);
         break;
 
     case IDENT_PATT:
@@ -399,10 +399,10 @@ static void resolve_stmt(Resolver *r, AST_stmt stmt) {
 
     case TYPE_STMT: {
         AST_type_stmt type_stmt = stmt->type_stmt;
-        AST_cons_decl *decls = type_stmt->decls;
+        AST_variant *variants = type_stmt->variants;
 
-        for (int i = 0; decls[i]; i++)
-            define(r, stmt->where, decls[i]->tag);
+        for (int i = 0; variants[i]; i++)
+            define(r, stmt->where, variants[i]->name);
         
         break;
     }

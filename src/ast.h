@@ -94,8 +94,8 @@ typedef struct AST_let_stmt  *AST_let_stmt;
 typedef struct AST_ret_stmt  *AST_ret_stmt;
 typedef struct AST_type_stmt *AST_type_stmt;
 
-/* constructor declaration for type statements */
-typedef struct AST_cons_decl *AST_cons_decl;
+/* constructor variant for type statements */
+typedef struct AST_variant *AST_variant;
 
 /* expressions sub nodes */
 typedef struct AST_assign_expr *AST_assign_expr;
@@ -198,6 +198,7 @@ struct AST_expr_stmt {
 struct AST_fn_stmt {
     char *name;
     AST_patt *params;  /* array */
+    int8_t count;      /* number of parameters */
     AST_piece body;
 };
 
@@ -210,14 +211,15 @@ struct AST_ret_stmt {
     AST_expr value;
 };
 
-struct AST_cons_decl {
-    char *tag;
-    char **variants;
+struct AST_variant {
+    char *name;     /* the variant name */
+    char **params;  /* array */
+    int8_t count;   /* number of parameters */
 };
 
 struct AST_type_stmt {
-    char *name;
-    AST_cons_decl *decls; /* array */
+    char *name;   /* the type name */
+    AST_variant *variants; /* array */
 };
 
 /* expressions sub nodes */
@@ -235,7 +237,7 @@ struct AST_binary_expr {
 struct AST_call_expr {
     AST_expr func;
     AST_expr *args;  /* array */
-    int32_t count;   /* number of arguments */
+    int8_t count;    /* number of arguments */
 };
 
 struct AST_cond_expr {
@@ -334,8 +336,8 @@ struct AST_list_lit {
 /* patterns sub nodes */
 struct AST_cons_patt {
     AST_expr tag;       /* always ident_expr */
-    AST_patt *variants; /* array */
-    int32_t count;      /* number of variants */
+    AST_patt *patts;     /* array */
+    int8_t count;       /* number of variants */
 };
 
 struct AST_hash_patt {
@@ -345,7 +347,7 @@ struct AST_hash_patt {
 
 struct AST_list_patt {
     AST_patt *patts;    /* array */
-    int32_t count;      /* number of patterns */
+    int8_t count;       /* number of patterns */
 };
 
 struct AST_pair_patt {

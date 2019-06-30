@@ -53,11 +53,22 @@ static int is_true(Rav_obj *o) {
 
 /** Constructors Functions **/
 
-Rav_obj *new_object(Rav_type type, uint32_t mode) {
+Rav_obj *new_object(Rav_type type, uint8_t mode) {
     Rav_obj *object = malloc(sizeof(*object));
     object->type = type;
     object->mode = mode;
     return object;
+}
+
+static Rav_obj *cons_object(char *type, char *name, int8_t arity) {
+    Cons_obj *cons = malloc(sizeof (*cons));
+    cons->type = type;
+    cons->name = name;
+    cons->arity = arity;
+    
+    Rav_obj *result = new_object(CONS_OBJ, 0);
+    result->cn = cons;
+    return result;
 }
 
 static Rav_obj *int_object(int64_t value) {
@@ -99,6 +110,18 @@ static Rav_obj *fn_object(Evaluator *e, AST_fn_lit expr) {
     
     Rav_obj *result = new_object(CL_OBJ, 0);
     result->cl = cl_obj;
+    return result;
+}
+
+static Rav_obj*
+variant_object(Rav_obj *cons, int8_t count, Rav_obj **elems) {
+    Variant_obj *variant = malloc(sizeof (*variant));
+    variant->cons = cons;
+    variant->count = count;
+    variant->elems = elems;
+
+    Rav_obj *result = new_object(VARI_OBJ, 0);
+    result->vr = variant;
     return result;
 }
 
@@ -451,7 +474,7 @@ static int
 match(Evaluator *e, AST_patt patt, Rav_obj *object, Env *env) {
     if (patt->type == CONS_PATT) {
         printf("[TODO]: constructor patterns\n");
-        return 1;
+        return 0;
     }
     
     if (!same_types(patt, object))
@@ -564,20 +587,12 @@ static Rav_obj *eval_binary(Evaluator *e, AST_binary_expr expr) {
     }
 }
 
-static Rav_obj *eval_call(Evaluator *e, AST_call_expr call) {
-    Rav_obj *fun = eval(e, call->func);
-    
-    if (fun->type != CL_OBJ) {
-        //TODO: runtime error handeling
-        fprintf(stderr, "Error: Call a non-callable object\n");
-        return RVoid;
-    }
-
+static Rav_obj *call_fn(Evaluator *e, Rav_obj *fn, AST_call_expr call) {
     AST_expr *args = call->args;
     int args_num = call->count;
     
-    AST_patt *params = fun->cl->params;
-    int arity = fun->cl->arity;
+    AST_patt *params = fn->cl->params;
+    int arity = fn->cl->arity;
 
     if (args_num != arity) {
         //TODO: runtime error handeling
@@ -585,8 +600,8 @@ static Rav_obj *eval_call(Evaluator *e, AST_call_expr call) {
         return RVoid;
     }
     
-    Env *env_new = new_env(fun->cl->env);
-    for (int i; args[i]; i++) {
+    Env *env_new = new_env(fn->cl->env);
+    for (int i = 0; args[i]; i++) {
         Rav_obj *arg = eval(e, args[i]);
         if (!match(e, params[i], arg, env_new)) {
             // TODO: runtime error handling
@@ -594,13 +609,49 @@ static Rav_obj *eval_call(Evaluator *e, AST_call_expr call) {
         }
     }
 
-    Rav_obj *res = walk_piece(e, fun->cl->body, env_new);
+    Rav_obj *res = walk_piece(e, fn->cl->body, env_new);
     if (res->mode & From_Return) {
         res->mode &= ~From_Return;
         return res;
     }
     
     return res;
+}
+
+static Rav_obj*
+call_cons(Evaluator *e, Rav_obj *cons, AST_call_expr call) {
+    AST_expr *args = call->args;
+    int args_num = call->count;
+
+    if (cons->cn->arity != args_num) {
+        //TODO: runtime error handeling
+        fprintf(stderr, "Error: Constructor arity mismatch\n");
+        return RVoid;
+    }
+
+    Rav_obj **elems = malloc(sizeof (*elems) * args_num);
+    for (int i = 0; args[i]; i++) {
+        Rav_obj *arg = eval(e, args[i]);
+        elems[i] = arg;
+    }
+
+    Rav_obj *variant = variant_object(cons, args_num, elems);
+    return variant;
+}
+
+static Rav_obj *eval_call(Evaluator *e, AST_call_expr call) {
+    Rav_obj *callee = eval(e, call->func);
+    
+    if (callee->type != CL_OBJ && callee->type != CONS_OBJ) {
+        //TODO: runtime error handeling
+        fprintf(stderr, "Error: Call a non-callable object\n");
+        return RVoid;
+    }
+
+    if (callee->type == CL_OBJ)
+        return call_fn(e, callee, call);
+
+    return call_cons(e, callee, call);
 }
 
 /* evaluate a cond match on a newly created environment */
@@ -772,8 +823,9 @@ static Rav_obj *eval_while(Evaluator *e, AST_while_expr expr) {
 static void decl_function(Evaluator *e, AST_fn_stmt fn_stmt) {
     Cl_obj *cl_obj = malloc(sizeof(Cl_obj));
     cl_obj->body = fn_stmt->body;
-    cl_obj->env = e->current;
     cl_obj->params = fn_stmt->params;
+    cl_obj->arity = fn_stmt->count;
+    cl_obj->env = e->current;
 
     Rav_obj *r_obj = new_object(CL_OBJ, 0);
     r_obj->cl = cl_obj;
@@ -794,6 +846,17 @@ static void match_let(Evaluator *e, AST_let_stmt let) {
         // TODO: runtime handling
         fprintf(stderr, "Error: Let pattern mismatch\n");
         assert(0);
+    }
+}
+
+static void decl_type(Evaluator *e, AST_type_stmt type_stmt) {
+    char *cons_type = type_stmt->name;
+    AST_variant *vars = type_stmt->variants;
+    
+    for (int i = 0; vars[i]; i++) {
+        Rav_obj *cons = cons_object(cons_type, vars[i]->name,
+                                    vars[i]->count);
+        env_add(e->current, cons);
     }
 }
 
@@ -904,7 +967,7 @@ Rav_obj *execute(Evaluator *e, AST_stmt stmt) {
         return RVoid;
 
     case TYPE_STMT:
-        printf("[TODO] type statement\n");
+        decl_type(e, stmt->type_stmt);
         return RVoid;
 
     case RET_STMT:

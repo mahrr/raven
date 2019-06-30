@@ -43,6 +43,7 @@ AST_piece parse(const char *src, const char *file, Lexer *l, Parser *p) {
 
 #ifdef PRINT_AST
     print_piece(piece);
+    putchar('\n');
 #endif        
 
     return piece;
@@ -91,8 +92,6 @@ int run_src(const char *src, const char *file) {
     init_eval(&e, next_prime(ident_num));
     init_resolver(&r, &e);
 
-    printf("[DEBUG] %u\n", next_prime(ident_num));
-    
     if (resolve(&r, piece)) {
         Err *errors = resolver_errors(&r);
         int errnum = resolver_errnum(&r);

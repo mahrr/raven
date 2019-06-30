@@ -180,7 +180,7 @@ static void print_patt(AST_patt p) {
     case CONS_PATT:
         printf("(:cons ");
         print_expr(p->cons->tag);
-        print_patts(p->cons->variants);
+        print_patts(p->cons->patts);
         putchar(')');
         break;
 
@@ -380,11 +380,11 @@ static void print_exprs(AST_expr *exprs) {
     }
 }
 
-static void print_decls(AST_cons_decl *decls) {
-    for (int i = 0; decls[i]; i++) {
-        printf("  (%s :", decls[i]->tag);
-        for (int j = 0; decls[i]->variants[j]; j++)
-            printf(" %s", decls[i]->variants[j]);
+static void print_decls(AST_variant *variants) {
+    for (int i = 0; variants[i]; i++) {
+        printf("  (%s :", variants[i]->name);
+        for (int j = 0; variants[i]->params[j]; j++)
+            printf(" %s", variants[i]->params[j]);
         printf(")\n");
     }
 }
@@ -422,7 +422,7 @@ static void print_stmt(AST_stmt s) {
 
     case TYPE_STMT:
         printf("{type %s\n", s->type_stmt->name);
-        print_decls(s->type_stmt->decls);
+        print_decls(s->type_stmt->variants);
         printf("}\n");
         break;
 
@@ -455,49 +455,82 @@ void print_piece(AST_piece p) {
 
 void inspect(Rav_obj *obj);
 
-static void inspect_list(Rav_obj *r) {
-    printf("[\n");
-    List *curr_list = r->l;
-    while (curr_list) {
-        inspect(curr_list->head);
-        curr_list = curr_list->tail;
+static void inspect_table(Table *table, char *name) {
+    if (!table)
+        return;
+
+    printf("%.7s table has %d elements\n", name, table->elems);
+    return;
+}
+
+static void inspect_hash(Hash_obj *hash) {
+    /* floats */
+    printf("value: <hash>, type: Hash\n");
+    if (hash->array) {
+        printf("table array has %d (%d) elements\n",
+               hash->array->len, hash->array->cap);
     }
-    printf("]\n");
+    inspect_table(hash->float_table, "floats");
+    inspect_table(hash->int_table, "ints");
+    inspect_table(hash->str_table, "str");
+    inspect_table(hash->obj_table, "objects");
+}
+
+static void inspect_list(List *list) {
+    printf("[\n");
+    while (list) {
+        inspect(list->head);
+        list = list->tail;
+    }
+    printf("],\ntype: List\n");
+}
+
+static void inspect_variant(Variant_obj *variant) {
+    printf("%s(\n", variant->cons->cn->name);
+    for (int i = 0; i < variant->count; i++)
+        inspect(variant->elems[i]);
+    printf("),\ntype: Variant of %s\n", variant->cons->cn->type);
 }
 
 void inspect(Rav_obj *obj) {
     switch (obj->type) {
     case INT_OBJ:
-        printf("value: %ld, type: int\n", obj->i);
+        printf("value: %ld, type: Int\n", obj->i);
         break;
     case FLOAT_OBJ:
-        printf("value: %Lf, type: float\n", obj->f);
+        printf("value: %Lf, type: Float\n", obj->f);
         break;
     case BOOL_OBJ:
-        printf("value: %d, type: boolean\n", obj->b);
+        printf("value: %d, type: Boolean\n", obj->b);
         break;
     case NIL_OBJ:
-        printf("value: nil, type: nil\n");
+        printf("value: nil, type: Nil\n");
         break;
     case STR_OBJ:
-        printf("value: '%s', type: string\n", obj->s);
+        printf("value: '%s', type: String\n", obj->s);
         break;
     case LIST_OBJ:
-        inspect_list(obj);
-        printf("type: list\n");
+        inspect_list(obj->l);
         break;
     case VOID_OBJ:
-        printf("value: (), type: void\n");
+        printf("value: (), type: Void\n");
         break;
     case CL_OBJ:
-        printf("value:<fn>, type: function\n");
+        printf("value:<fn>(-%d-), type: Function\n", obj->cl->arity);
+        break;
+    case CONS_OBJ:
+        printf("value: %s(-%d-), type: Constructor of %s\n",
+               obj->cn->name, obj->cn->arity, obj->cn->type);
         break;
     case HASH_OBJ:
-        //TODO: inspect_hash
-        printf("value:<hash> type: hash\n");
+        inspect_hash(obj->h);
+        break;
+    case VARI_OBJ:
+        inspect_variant(obj->vr);
         break;
     default:
-        fprintf(stderr, "[INTERNAL] invalid Rav_Type (%d)", obj->type);
+        fprintf(stderr, "[INTERNAL] invalid Rav_Type (%d)",
+                obj->type);
         assert(0);
     }
 }
