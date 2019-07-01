@@ -13,8 +13,8 @@
 #include "table.h"
 
 typedef struct Evaluator {
-    Env *global;     /* global environment  */
-    Env *current;    /* current environment */
+    Table *global;   /* <string: object> global environment  */
+    Env *current;    /* current local environment */
     Table *vars;     /* variable lookup table */
 } Evaluator;
 

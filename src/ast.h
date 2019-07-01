@@ -186,7 +186,7 @@ struct AST_patt {
         int64_t i;         /* literal int pattern */
         long double f;     /* literal float pattern */
         char *s;           /* literal string pattern */
-        int8_t b;         /* literal boolean value */
+        int8_t b;          /* literal boolean value */
     };
 };
 

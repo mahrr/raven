@@ -51,6 +51,18 @@ static int is_true(Rav_obj *o) {
     }
 }
 
+/* define an object on a local environment 'env' if it's not NULL,
+   otherwise it defines the object on the global environemt */
+static void define(Evaluator *e, char *name, Rav_obj *object, Env *env) {
+    /* not on the global environmet */
+    if (env) {
+        env_add(env, object);
+        return;
+    }
+
+    table_put(e->global, name, object);
+}
+
 /** Constructors Functions **/
 
 Rav_obj *new_object(Rav_type type, uint8_t mode) {
@@ -514,7 +526,7 @@ match(Evaluator *e, AST_patt patt, Rav_obj *object, Env *env) {
     /* identifier pattern matches against any value.
        it then adds the value to the environment. */
     case IDENT_PATT:
-        env_add(env, object);
+        define(e, patt->ident, object, env);
         return 1;
         
     /* recursives patterns */
@@ -542,11 +554,25 @@ match(Evaluator *e, AST_patt patt, Rav_obj *object, Env *env) {
 static Rav_obj *walk_piece(Evaluator *e, AST_piece piece, Env *env_new);
 
 static Rav_obj *eval_assign(Evaluator *e, AST_assign_expr expr) {
+    Rav_obj *value = eval(e, expr->value);
+        
     if (expr->lvalue->type == IDENT_EXPR) {
+        /* check the locals environments first */
         int *loc = table_get(e->vars, expr->lvalue);
-        Rav_obj *value = eval(e, expr->value);
-        env_set(e->current, value, loc[1], loc[0]);
-        return env_get(e->current, loc[1], loc[0]);
+        if (loc != NULL) {
+            env_set(e->current, value, loc[1], loc[0]);
+        } else {
+            char *name = expr->lvalue->ident;
+            /* check the global environment */
+            if (table_lookup(e->global, name))
+                table_put(e->global, name, value);
+            else {
+                //TODO: runtime error handling
+                fprintf(stderr, "Error: assign to a not defined name\n");
+                return RVoid;
+            }
+        }
+        return value;
     }
     
     /* INDEX_EXPR */
@@ -556,8 +582,6 @@ static Rav_obj *eval_assign(Evaluator *e, AST_assign_expr expr) {
         fprintf(stderr, "Error: index operation for non-hash type\n");
         return RVoid;
     }
-    
-    Rav_obj *value = eval(e, expr->value);
     hash_add(e, obj->h, expr->lvalue->index->index, value);
     return value;
 }
@@ -690,13 +714,20 @@ static Rav_obj *eval_cond(Evaluator *e, AST_cond_expr cond) {
 }
 
 static Rav_obj *eval_ident(Evaluator *e, AST_expr expr) {
+    /* check if it's a local first */
     int *loc = table_get(e->vars, expr);
-    if (e->current == NULL) {
-        fprintf(stderr, "[INTERNAL] lookup variable table miss\n");
-        assert(0);
-    }
-    
-    return env_get(e->current, loc[1], loc[0]);
+    if (loc != NULL)
+        return env_get(e->current, loc[1], loc[0]);
+
+    /* check if it's a global */
+    Rav_obj *value = table_get(e->global, expr->ident);
+    if (value != NULL)
+        return value;
+
+    // TODO: runtime 
+    fprintf(stderr, "Name Error '%s': undefined variable usage.\n",
+            expr->ident);
+    return RVoid;
 }
 
 static Rav_obj *eval_if(Evaluator *e, AST_if_expr if_expr) {
@@ -836,7 +867,7 @@ static Rav_obj *eval_while(Evaluator *e, AST_while_expr expr) {
 
 /** Executing Statements Nodes **/
 
-static void decl_function(Evaluator *e, AST_fn_stmt fn_stmt) {
+static void def_function(Evaluator *e, AST_fn_stmt fn_stmt) {
     Cl_obj *cl_obj = malloc(sizeof(Cl_obj));
     cl_obj->body = fn_stmt->body;
     cl_obj->params = fn_stmt->params;
@@ -845,34 +876,25 @@ static void decl_function(Evaluator *e, AST_fn_stmt fn_stmt) {
 
     Rav_obj *r_obj = new_object(CL_OBJ, 0);
     r_obj->cl = cl_obj;
-    env_add(e->current, r_obj);
+    define(e, fn_stmt->name, r_obj, e->current);
 }
 
-/* 
- * Note: (TODO)
- * on let pattern mismatch, the repl session can't continue
- * as the repl session uses the same resolver, and failed 
- * match will corrupt the global scope for the resolver.
- * so for now it will end with assert(0), later when 
- * implementing runtime error handling, it will be fixed.
-*/
 static void match_let(Evaluator *e, AST_let_stmt let) {
     Rav_obj *value = eval(e, let->value);
     if (!match(e, let->patt, value, e->current)) {
         // TODO: runtime handling
         fprintf(stderr, "Error: Let pattern mismatch\n");
-        assert(0);
     }
 }
 
-static void decl_type(Evaluator *e, AST_type_stmt type_stmt) {
+static void def_type(Evaluator *e, AST_type_stmt type_stmt) {
     char *cons_type = type_stmt->name;
     AST_variant *vars = type_stmt->variants;
     
     for (int i = 0; vars[i]; i++) {
         Rav_obj *cons = cons_object(cons_type, vars[i]->name,
                                     vars[i]->count);
-        env_add(e->current, cons);
+        define(e, vars[i]->name, cons, e->current);
     }
 }
 
@@ -920,15 +942,16 @@ static Rav_obj *walk_piece(Evaluator *e, AST_piece piece, Env *env_new) {
 /*** INTERFACE ***/
 
 void init_eval(Evaluator *e, int vars) {
-    e->global = new_env(NULL);
-    e->current = e->global;
-
+    e->global = malloc(sizeof(Table));
     e->vars = malloc(sizeof(Table));
+    init_table(e->global, 191, hash_str, free, comp_str);
     init_table(e->vars, vars, hash_ptr, free, comp_ptr);
+
+    e->current = NULL;
 }
 
 void free_eval(Evaluator *e) {
-    free_env(e->current);
+    free_table(e->global);
     free_table(e->vars);
 }
 
@@ -975,7 +998,7 @@ Rav_obj *execute(Evaluator *e, AST_stmt stmt) {
         return eval(e, stmt->expr->expr);
     
     case FN_STMT:
-        decl_function(e, stmt->fn);
+        def_function(e, stmt->fn);
         return RVoid;
 
     case LET_STMT:
@@ -983,7 +1006,7 @@ Rav_obj *execute(Evaluator *e, AST_stmt stmt) {
         return RVoid;
 
     case TYPE_STMT:
-        decl_type(e, stmt->type_stmt);
+        def_type(e, stmt->type_stmt);
         return RVoid;
 
     case RET_STMT:
@@ -999,5 +1022,5 @@ Rav_obj *execute(Evaluator *e, AST_stmt stmt) {
 }
 
 Rav_obj *walk(Evaluator *e, AST_piece piece) {
-    return walk_piece(e, piece, e->global);
+    return walk_piece(e, piece, e->current);
 }

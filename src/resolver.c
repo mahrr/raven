@@ -79,6 +79,10 @@ reg_error(Resolver *r, Err_Type type, Token *where, const char *msg) {
 
 /* add a variable in the innermost scope of the resolver */
 static void define(Resolver *r, Token *where, const char *name) {
+    /* global scope */
+    if (r->scopes.len == 0)
+        return;
+    
     /* peek the scope on the top of stack */
     int depth = r->scopes.len - 1;
     Table *scope = r->scopes.elems[depth];
@@ -95,9 +99,6 @@ static void define(Resolver *r, Token *where, const char *name) {
     
     /* add the variable to the scope */
     table_put(scope, name, var);
-
-    /* add variable to the latest register */
-    ARR_ADD(&r->latest, (char*)name);
 }
 
 
@@ -135,9 +136,7 @@ static void resolve_local(Resolver *r, AST_expr expr) {
             return;
         }
     }
-
-    /* the variable is not found */
-    reg_error(r, NAME_ERR, expr->where, "undefined variable usage");
+    /* assumes it's a global variable */
 }
 
 /* resolve function body */
@@ -361,10 +360,7 @@ static void resolve_exprs(Resolver *r, AST_expr *exprs) {
         resolve_expr(r, exprs[i]);
 }
 
-static void resolve_stmt(Resolver *r, AST_stmt stmt) {
-    /* reset the latest register */
-    r->latest.len = 0;
-    
+static void resolve_stmt(Resolver *r, AST_stmt stmt) {   
     switch (stmt->type) {
     case EXPR_STMT:
         resolve_expr(r, stmt->expr->expr);
@@ -438,40 +434,17 @@ void init_resolver(Resolver *r, Evaluator *e) {
     r->state = 0;
     
     ARR_INIT(&r->scopes, Table*);
-    ARR_INIT(&r->latest, char*);
     ARR_INIT(&r->errors, Err);
-
-    /* push the global scope */
-    push_scope(r);
 }
 
 void free_resolver(Resolver *r) {
-    /* remove the global scope. */
-    pop_scope(r);
-
     /* free the resolver arrays */
     ARR_FREE(&r->scopes);
-    ARR_FREE(&r->latest);
     ARR_FREE(&r->errors);
-}
-
-void resolver_recover(Resolver *r) {
-    char **defined = r->latest.elems;
-    Table *scope = r->scopes.elems[r->scopes.len - 1];
-    
-    for (int i = 0; i < r->latest.len; i++)
-        table_remove(scope, defined[i]);
-    
-    r->latest.len = 0;
 }
 
 int resolve_statement(Resolver *r, AST_stmt s) {
     resolve_stmt(r, s);
-    
-    /* an error occured and there are an already defined variables */
-    if (r->been_error && r->latest.len != 0)
-        resolver_recover(r);
-    
     return r->been_error;
 }
 
