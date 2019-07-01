@@ -1199,9 +1199,8 @@ static AST_variant cons_variant(Parser *p) {
         skip_newlines(p);
         if (!expect_token(p, TK_RPAREN, "')'"))
             goto fault;
-
-        ARR_ADD(&params, NULL);
     }
+    ARR_ADD(&params, NULL);
 
     AST_variant variant = malloc(sizeof (*variant));
     variant->name = name;

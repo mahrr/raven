@@ -365,7 +365,7 @@ static void print_expr(AST_expr e) {
 
     case WHILE_EXPR: {
         AST_while_expr wh = e->while_expr;
-        paren_block("while", wh->cond, wh->body);
+        paren_block("|while|", wh->cond, wh->body);
         break;
     }
         
@@ -380,10 +380,10 @@ static void print_exprs(AST_expr *exprs) {
     }
 }
 
-static void print_decls(AST_variant *variants) {
+static void print_variants(AST_variant *variants) {
     for (int i = 0; variants[i]; i++) {
-        printf("  (%s :", variants[i]->name);
-        for (int j = 0; variants[i]->params[j]; j++)
+        printf("  (%s:", variants[i]->name);
+        for (int j = 0; j < variants[i]->count; j++)
             printf(" %s", variants[i]->params[j]);
         printf(")\n");
     }
@@ -422,7 +422,7 @@ static void print_stmt(AST_stmt s) {
 
     case TYPE_STMT:
         printf("{type %s\n", s->type_stmt->name);
-        print_decls(s->type_stmt->variants);
+        print_variants(s->type_stmt->variants);
         printf("}\n");
         break;
 

@@ -767,10 +767,7 @@ static Rav_obj *eval_lit(Evaluator *e, AST_lit_expr lit) {
 /* evaluate a match arm on specified envirnoment */
 static Rav_obj *eval_match_arm(Evaluator *e, AST_arm arm, Env *env) {
     if (arm->type == EXPR_ARM) {
-        Env *prev = e->current;
-        e->current = env;
         Rav_obj *res = eval(e, arm->e);
-        e->current = prev;
         return res;
     }
 
@@ -789,6 +786,7 @@ static Rav_obj *eval_match(Evaluator *e, AST_match_expr match_expr) {
         if (match(e, patts[i], value, env)) {
             return eval_match_arm(e, arms[i], env);
         }
+        free(env);
         e->current = prev;
     }
 
