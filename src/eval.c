@@ -72,6 +72,18 @@ Rav_obj *new_object(Rav_type type, uint8_t mode) {
     return object;
 }
 
+static Rav_obj *clos_object(Evaluator *e, AST_fn_lit expr) {
+    Closure_obj *clos = malloc(sizeof (*clos));
+    clos->body = expr->body;
+    clos->env = e->current;
+    clos->params = expr->params;
+    clos->arity = expr->count;
+    
+    Rav_obj *result = new_object(CLOS_OBJ, 0);
+    result->cl = clos;
+    return result;
+}
+
 static Rav_obj *cons_object(char *type, char *name, int8_t arity) {
     Cons_obj *cons = malloc(sizeof (*cons));
     cons->type = type;
@@ -83,21 +95,9 @@ static Rav_obj *cons_object(char *type, char *name, int8_t arity) {
     return result;
 }
 
-static Rav_obj *int_object(int64_t value) {
-    Rav_obj *result = new_object(INT_OBJ, 0);
-    result->i = value;
-    return result;
-}
-
 static Rav_obj *float_object(long double value) {
     Rav_obj *result = new_object(FLOAT_OBJ, 0);
     result->f = value;
-    return result;
-}
-
-static Rav_obj *str_object(char *value) {
-    Rav_obj *result = new_object(STR_OBJ, 0);
-    result->s = value;
     return result;
 }
 
@@ -113,15 +113,15 @@ static Rav_obj *list_object(Evaluator *e, AST_expr *values) {
     return result;
 }
 
-static Rav_obj *fn_object(Evaluator *e, AST_fn_lit expr) {
-    Cl_obj *cl_obj = malloc(sizeof(Cl_obj));
-    cl_obj->body = expr->body;
-    cl_obj->env = e->current;
-    cl_obj->params = expr->params;
-    cl_obj->arity = expr->count;
-    
-    Rav_obj *result = new_object(CL_OBJ, 0);
-    result->cl = cl_obj;
+static Rav_obj *int_object(int64_t value) {
+    Rav_obj *result = new_object(INT_OBJ, 0);
+    result->i = value;
+    return result;
+}
+
+static Rav_obj *str_object(char *value) {
+    Rav_obj *result = new_object(STR_OBJ, 0);
+    result->s = value;
     return result;
 }
 
@@ -382,6 +382,7 @@ static Rav_obj *list_concat(Rav_obj *left, Rav_obj *right) {
 /* Hash Operations */
 
 Rav_obj *hash_get(Rav_obj *hash, Rav_obj *index) {
+    Rav_obj *result = NULL;
     switch (index->type) {
     case INT_OBJ:
         // TODO: int hashing
@@ -392,10 +393,16 @@ Rav_obj *hash_get(Rav_obj *hash, Rav_obj *index) {
         printf("[TODO] float hashing\n");
         return RVoid;
     case STR_OBJ:
-        return table_get(hash->h->str_table, index->s);
+        if (hash->h->str_table)
+            result = table_get(hash->h->str_table, index->s);
+        break;
     default:
-        return table_get(hash->h->obj_table, index);
+        if (hash->h->obj_table)
+            result = table_get(hash->h->obj_table, index);
+        break;
     }
+
+    return result ? result : RNil;
 }
 
 /** Pattern Matching Functions **/
@@ -627,6 +634,39 @@ static Rav_obj *eval_binary(Evaluator *e, AST_binary_expr expr) {
     }
 }
 
+static Rav_obj*
+call_builtin(Evaluator *e, Rav_obj *fn, AST_call_expr call) {
+    AST_expr *args = call->args;
+    int args_num = call->count;
+    int arity = fn->bl->arity;
+
+    if (arity != -1 && arity != args_num) {
+        //TODO: runtime error handeling
+        fprintf(stderr, "Error: Fucntion arity mismatch\n");
+        return RVoid;
+    }
+
+    Rav_obj **args_objs = NULL;
+
+    /* if not a zero parameters function, allocate
+       space for the arguments objects pointers. */    
+    if (args_num != 0)
+        args_objs = malloc(sizeof (*args_objs) * args_num);
+
+    for (int i = 0; args[i]; i++) {
+        Rav_obj *arg = eval(e, args[i]);
+        args_objs[i] = arg;
+    }
+
+    if (args_objs)
+        args_objs[args_num] = NULL;
+
+    Rav_obj *result = fn->bl->fn(args_objs);
+    free(args_objs);
+
+    return result;
+}
+
 static Rav_obj *call_fn(Evaluator *e, Rav_obj *fn, AST_call_expr call) {
     AST_expr *args = call->args;
     int args_num = call->count;
@@ -682,13 +722,18 @@ call_cons(Evaluator *e, Rav_obj *cons, AST_call_expr call) {
 static Rav_obj *eval_call(Evaluator *e, AST_call_expr call) {
     Rav_obj *callee = eval(e, call->func);
     
-    if (callee->type != CL_OBJ && callee->type != CONS_OBJ) {
+    if (callee->type != BLTIN_OBJ &&
+        callee->type != CLOS_OBJ && callee->type != CONS_OBJ) {
         //TODO: runtime error handeling
         fprintf(stderr, "Error: Call a non-callable object\n");
         return RVoid;
     }
 
-    if (callee->type == CL_OBJ)
+    if (callee->type == BLTIN_OBJ)
+        return call_builtin(e, callee, call);
+
+        
+    if (callee->type == CLOS_OBJ)
         return call_fn(e, callee, call);
 
     return call_cons(e, callee, call);
@@ -784,7 +829,7 @@ static Rav_obj *eval_lit(Evaluator *e, AST_lit_expr lit) {
     case LIST_LIT:
         return list_object(e, lit->list->values);
     case FN_LIT:
-        return fn_object(e, lit->fn);
+        return clos_object(e, lit->fn);
     case HASH_LIT:
         return hash_object(e, lit->hash);
         
@@ -868,15 +913,15 @@ static Rav_obj *eval_while(Evaluator *e, AST_while_expr expr) {
 /** Executing Statements Nodes **/
 
 static void def_function(Evaluator *e, AST_fn_stmt fn_stmt) {
-    Cl_obj *cl_obj = malloc(sizeof(Cl_obj));
-    cl_obj->body = fn_stmt->body;
-    cl_obj->params = fn_stmt->params;
-    cl_obj->arity = fn_stmt->count;
-    cl_obj->env = e->current;
+    Closure_obj *clos = malloc(sizeof (*clos));
+    clos->body = fn_stmt->body;
+    clos->params = fn_stmt->params;
+    clos->arity = fn_stmt->count;
+    clos->env = e->current;
 
-    Rav_obj *r_obj = new_object(CL_OBJ, 0);
-    r_obj->cl = cl_obj;
-    define(e, fn_stmt->name, r_obj, e->current);
+    Rav_obj *object = new_object(CLOS_OBJ, 0);
+    object->cl = clos;
+    define(e, fn_stmt->name, object, e->current);
 }
 
 static void match_let(Evaluator *e, AST_let_stmt let) {

@@ -494,40 +494,55 @@ static void inspect_variant(Variant_obj *variant) {
 
 void inspect(Rav_obj *obj) {
     switch (obj->type) {
-    case INT_OBJ:
-        printf("value: %ld, type: Int\n", obj->i);
-        break;
-    case FLOAT_OBJ:
-        printf("value: %Lf, type: Float\n", obj->f);
-        break;
     case BOOL_OBJ:
         printf("value: %d, type: Boolean\n", obj->b);
         break;
-    case NIL_OBJ:
-        printf("value: nil, type: Nil\n");
+
+    case BLTIN_OBJ:
+        printf("value:<fn>(-%d-), type: Builtin\n", obj->bl->arity);
         break;
-    case STR_OBJ:
-        printf("value: '%s', type: String\n", obj->s);
+
+    case CLOS_OBJ:
+        printf("value:<fn>(-%d-), type: CLosure\n", obj->cl->arity);
         break;
-    case LIST_OBJ:
-        inspect_list(obj->l);
-        break;
-    case VOID_OBJ:
-        printf("value: (), type: Void\n");
-        break;
-    case CL_OBJ:
-        printf("value:<fn>(-%d-), type: Function\n", obj->cl->arity);
-        break;
+
     case CONS_OBJ:
         printf("value: %s(-%d-), type: Constructor of %s\n",
                obj->cn->name, obj->cn->arity, obj->cn->type);
         break;
+
+    case FLOAT_OBJ:
+        printf("value: %Lf, type: Float\n", obj->f);
+        break;
+        
     case HASH_OBJ:
         inspect_hash(obj->h);
         break;
+
+    case LIST_OBJ:
+        inspect_list(obj->l);
+        break;
+
+    case INT_OBJ:
+        printf("value: %ld, type: Int\n", obj->i);
+        break;
+
+    case NIL_OBJ:
+        printf("value: nil, type: Nil\n");
+        break;
+
+    case STR_OBJ:
+        printf("value: '%s', type: String\n", obj->s);
+        break;
+
     case VARI_OBJ:
         inspect_variant(obj->vr);
         break;
+
+    case VOID_OBJ:
+        printf("value: (), type: Void\n");
+        break;
+
     default:
         fprintf(stderr, "[INTERNAL] invalid Rav_Type (%d)",
                 obj->type);

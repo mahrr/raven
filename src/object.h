@@ -21,10 +21,18 @@
 typedef struct Env Env;
 
 typedef struct Rav_obj Rav_obj;
-typedef struct Cl_obj Cl_obj;
+typedef struct Builtin_obj Builtin_obj;
+typedef struct Closure_obj Closure_obj;
 typedef struct Cons_obj Cons_obj;
 typedef struct Hash_obj Hash_obj;
 typedef struct Variant_obj Variant_obj;
+
+/* 
+ * built_in functions type, takes a NULL terminated array
+ * of Rav_objects pointers. this allow a variable number 
+ * of arguments (indefinite arity) functions.
+*/
+typedef Rav_obj *(*Builtin)(Rav_obj **objects);
 
 /* 
  * void object returns from the statements 
@@ -40,20 +48,26 @@ typedef struct Variant_obj Variant_obj;
 
 typedef enum {
     BOOL_OBJ,
-    VOID_OBJ,
-    FLOAT_OBJ,
-    CL_OBJ,
+    BLTIN_OBJ,
+    CLOS_OBJ,
     CONS_OBJ,
+    FLOAT_OBJ,
     HASH_OBJ,
     LIST_OBJ,
     INT_OBJ,
     NIL_OBJ,
     STR_OBJ,
-    VARI_OBJ
+    VARI_OBJ,
+    VOID_OBJ
 } Rav_type;
 
+struct Builtin_obj {
+    Builtin fn;    /* a pointer to the acutal function */
+    int8_t arity;  /* -1 if variadic */
+};
+
 /* closure object */
-struct Cl_obj {
+struct Closure_obj {
     /* the environemt in which the function was defined */
     Env *env;
     /* list of parameters (AST_patt) */
@@ -101,7 +115,8 @@ struct Rav_obj {
         long double f;   /* float */
         int64_t i;       /* integer */
         char *s;         /* string */
-        Cl_obj *cl;      /* closure */
+        Builtin_obj *bl; /* builtin function */
+        Closure_obj *cl; /* closure */
         Cons_obj *cn;    /* constructor */
         Hash_obj *h;     /* hash */
         List *l;         /* list */
