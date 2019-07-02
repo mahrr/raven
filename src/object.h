@@ -124,4 +124,10 @@ struct Rav_obj {
     };
 };
 
+/* print a string representation of an object to the stdout */
+void print_object(Rav_obj *object);
+
+/* an object constructor */
+Rav_obj *new_object(Rav_type type, uint8_t mode);
+
 #endif

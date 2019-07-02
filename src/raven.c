@@ -70,8 +70,10 @@ void run_line(const char *line, Resolver *r, Evaluator *e) {
             return;
         }
 
-        // TODO: put a runtime flag to recover the resolver
-        inspect(execute(e, piece->stmts[i]));
+        Rav_obj *result = execute(e, piece->stmts[i]);
+        
+        printf("=> ");
+        print_object(result);
     }
 
     free_lexer(&l);
@@ -102,7 +104,7 @@ int run_src(const char *src, const char *file) {
         return 1;
     }
 
-    inspect(walk(&e, piece));
+    print_object(walk(&e, piece));
 
     free_lexer(&l);
     free_parser(&p);
@@ -127,9 +129,10 @@ void repl() {
     init_eval(&e, 191);
 
     for (;;) {
-        fputs("#> ", stdout);
+        fputs(">> ", stdout);
         fgets(buf, MAX_LINE, stdin);
         run_line(buf, &r, &e);
+        putchar('\n');
     }
 
     free_resolver(&r);

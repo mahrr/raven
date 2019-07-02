@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -std=c99 -g -Wall -DPRINT_AST -o
+CFLAGS = -std=c99 -g -Wall -o
 PFLAGS = -std=c99 -g -Wall -pg -O2 -o 
 OFLAGS = -std=c99 -march=native -g -Wall -O2 -o
 SRCDIR = ./src

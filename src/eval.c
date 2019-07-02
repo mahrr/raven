@@ -13,6 +13,7 @@
 #include <string.h>  /* strcmp */
 
 #include "ast.h"
+#include "builtin.h"
 #include "env.h"
 #include "eval.h"
 #include "hashing.h"
@@ -64,13 +65,6 @@ static void define(Evaluator *e, char *name, Rav_obj *object, Env *env) {
 }
 
 /** Constructors Functions **/
-
-Rav_obj *new_object(Rav_type type, uint8_t mode) {
-    Rav_obj *object = malloc(sizeof(*object));
-    object->type = type;
-    object->mode = mode;
-    return object;
-}
 
 static Rav_obj *clos_object(Evaluator *e, AST_fn_lit expr) {
     Closure_obj *clos = malloc(sizeof (*clos));
@@ -984,6 +978,29 @@ static Rav_obj *walk_piece(Evaluator *e, AST_piece piece, Env *env_new) {
     return result;
 }
 
+static void
+define_builtin(Evaluator *e, char *name, Builtin fn, int arity) {
+    Builtin_obj *builtin = malloc(sizeof (*builtin));
+    builtin->fn = fn;
+    builtin->arity = arity;
+
+    Rav_obj *object = new_object(BLTIN_OBJ, 0);
+    object->bl = builtin;
+    
+    define(e, name, object, NULL);
+}
+
+/* define the built-in functions in the global scope */
+static void define_builtins(Evaluator *e) {
+    /* printting functions */
+    define_builtin(e, "print", Rav_print, -1);
+    define_builtin(e, "println", Rav_println, -1);
+    
+    /* list functions */
+    define_builtin(e, "hd", Rav_hd, 1);
+    define_builtin(e, "tl", Rav_tl, 1);
+}
+
 /*** INTERFACE ***/
 
 void init_eval(Evaluator *e, int vars) {
@@ -992,6 +1009,7 @@ void init_eval(Evaluator *e, int vars) {
     init_table(e->global, 191, hash_str, free, comp_str);
     init_table(e->vars, vars, hash_ptr, free, comp_ptr);
 
+    define_builtins(e);
     e->current = NULL;
 }
 
