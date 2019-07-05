@@ -7,6 +7,8 @@
 #include <stdlib.h>  /* strtoll */
 #include <stdint.h>  /* int64_t */
 
+#include <stdio.h>
+
 #include "strutil.h" /* strndup */
 #include "token.h"
 
@@ -25,11 +27,15 @@ int64_t int_of_tok(Token *tok) {
     case 'O':
         i = strtoll(tok->lexeme + 2, &endptr, 8);
         break;
+    case 'x':
+    case 'X':
+        i = strtoll(tok->lexeme + 2, &endptr, 16);
+        break;
     default:
-        i = strtoll(tok->lexeme, &endptr, 0);
+        i = strtoll(tok->lexeme, &endptr, 10);
         break;
     }
-
+    
     assert(endptr == (tok->lexeme + tok->length));
     return i;
 }
