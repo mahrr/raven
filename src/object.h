@@ -125,6 +125,9 @@ struct Rav_obj {
 };
 
 /* print a string representation of an object to the stdout */
+void echo_object(Rav_obj *object);
+
+/* like echo_object, except it escape strings before printing */
 void print_object(Rav_obj *object);
 
 /* an object constructor */

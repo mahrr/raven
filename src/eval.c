@@ -158,14 +158,14 @@ hash_add(Evaluator *e, Hash_obj *hash, AST_expr key, Rav_obj *data) {
     Rav_obj *key_obj = eval(e, key);
     
     switch (key_obj->type) {
-    case STR_LIT:
+    case STR_OBJ:
         hash_add_sym(hash, key_obj->s, data);
         break;
-    case INT_LIT:
+    case INT_OBJ:
         // TODO: int keys
         printf("[TODO] int keys");
         break;
-    case FLOAT_LIT:
+    case FLOAT_OBJ:
         // TODO: int keys
         printf("[TODO] float keys");
         break;
@@ -975,7 +975,7 @@ static Rav_obj *walk_piece(Evaluator *e, AST_piece piece, Env *env_new) {
     }
     
     e->current = old_env;
-    return result;
+    return result->type == VOID_OBJ ? RNil : result;
 }
 
 static void

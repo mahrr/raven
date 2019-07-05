@@ -14,9 +14,6 @@
 
 /** INTERNALS **/
 
-static void echo_object(Rav_obj *object);
-void print_object(Rav_obj *object);
-
 // TODO:
 static void print_hash(Rav_obj *hash) {
     printf("<hash>");
@@ -59,14 +56,14 @@ static void print_variant(Rav_obj *variant) {
     putchar(')');
 }
 
-static void echo_object(Rav_obj *object) {
+/** INTERFACE **/
+
+void echo_object(Rav_obj *object) {
     if (object->type == STR_OBJ)
         printf("'%s'", object->s);
     else
         print_object(object);
 }
-
-/** INTERFACE **/
 
 void print_object(Rav_obj *object) {
     switch(object->type) {

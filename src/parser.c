@@ -1297,7 +1297,8 @@ static AST_patt pattern(Parser *p) {
         break;
 
     default:
-        assert(0);
+        reg_error(p, "unexpected symbol");
+        return NULL;
     }
 
     if (patt != NULL)

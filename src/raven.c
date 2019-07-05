@@ -44,7 +44,7 @@ AST_piece parse(const char *src, const char *file, Lexer *l, Parser *p) {
 #ifdef PRINT_AST
     print_piece(piece);
     putchar('\n');
-#endif        
+#endif
 
     return piece;
 }
@@ -71,9 +71,11 @@ void run_line(const char *line, Resolver *r, Evaluator *e) {
         }
 
         Rav_obj *result = execute(e, piece->stmts[i]);
-        
-        printf("=> ");
-        print_object(result);
+        if (result->type != VOID_OBJ) {
+            printf("=> ");
+            echo_object(result);
+            putchar('\n');
+        }
     }
 
     free_lexer(&l);
@@ -104,7 +106,7 @@ int run_src(const char *src, const char *file) {
         return 1;
     }
 
-    print_object(walk(&e, piece));
+    walk(&e, piece);
 
     free_lexer(&l);
     free_parser(&p);
@@ -132,7 +134,6 @@ void repl() {
         fputs(">> ", stdout);
         fgets(buf, MAX_LINE, stdin);
         run_line(buf, &r, &e);
-        putchar('\n');
     }
 
     free_resolver(&r);
