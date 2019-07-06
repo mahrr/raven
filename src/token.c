@@ -7,8 +7,6 @@
 #include <stdlib.h>  /* strtoll */
 #include <stdint.h>  /* int64_t */
 
-#include <stdio.h>
-
 #include "strutil.h" /* strndup */
 #include "token.h"
 

@@ -106,6 +106,6 @@ char *escape(const char *unescaped, char *escaped, int size) {
         }
     }
     
-    escaped[++j] = '\0';
+    escaped[j] = '\0';
     return NULL;
 }

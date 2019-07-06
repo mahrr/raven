@@ -17,6 +17,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#include "array.h"
 #include "table.h"
 
 /* 
@@ -64,10 +65,10 @@ void init_table(Table *table, int size, Hash_Fn hash,
 
     /* allocate array of list pointers */
     table->entries = (Entry**)malloc(sizeof(Entry*) * size);
-
-    /* allocate lists for each entry */
     for (int i = 0; i < size; i++)
         table->entries[i] = NULL;
+
+    ARR_INIT(&table->indexes, int);
 }
 
 int table_lookup(Table *table, const void *key) {
@@ -92,6 +93,9 @@ void *table_put(Table *table, const void *key, void *data) {
     /* no element with the same key exists */
     uint64_t hash = table->hash(key);
     unsigned index = hash % table->size;
+
+    /* register that index as a populated index */
+    ARR_ADD(&table->indexes, index);
 
     /* allocate a new element block */
     elem = malloc(sizeof(Elem));
@@ -149,4 +153,5 @@ void free_table(Table *table) {
         }
     }
     free(table->entries);
+    ARR_FREE(&table->indexes);
 }

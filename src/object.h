@@ -100,7 +100,7 @@ struct Variant_obj {
  * 
 */
 struct Hash_obj {
-    ARRAY(int) *array;
+    ARRAY(Rav_obj*) *array;
     Table *float_table;
     Table *int_table;
     Table *str_table;

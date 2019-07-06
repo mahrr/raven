@@ -19,6 +19,7 @@
 #include "hashing.h"
 #include "list.h"
 #include "object.h"
+#include "strutil.h"
 #include "table.h"
 
 /*** INTERNALS ***/
@@ -733,8 +734,7 @@ static Rav_obj *eval_call(Evaluator *e, AST_call_expr call) {
     return call_cons(e, callee, call);
 }
 
-/* evaluate a cond match on a newly created environment */
-static Rav_obj *eval_arm(Evaluator *e, AST_arm arm) {
+static Rav_obj *eval_cond_arm(Evaluator *e, AST_arm arm) {
     if (arm->type == EXPR_ARM)
         return eval(e, arm->e);
 
@@ -745,10 +745,135 @@ static Rav_obj *eval_cond(Evaluator *e, AST_cond_expr cond) {
     for (int i = 0; cond->exprs[i]; i++) {
         Rav_obj *obj = eval(e, cond->exprs[i]);
         if (is_true(obj))
-            return eval_arm(e, cond->arms[i]);
+            return eval_cond_arm(e, cond->arms[i]);
     }
 
     /* no condition evaluates to true */
+    return RNil;
+}
+
+/* return a raven object represent a given table key */
+static Rav_obj *key_object(Rav_type type, const void *key) {
+    switch (type) {
+    case FLOAT_OBJ: {
+        Rav_obj *key_obj = new_object(FLOAT_OBJ, 0);
+        key_obj->f = *((float*)key);
+        return key_obj;
+    }
+    case INT_OBJ: {
+        Rav_obj *key_obj = new_object(INT_OBJ, 0);
+        key_obj->i = *((int*)key);
+        return key_obj;
+    }
+    case STR_OBJ: {
+        Rav_obj *key_obj = new_object(STR_OBJ, 0);
+        key_obj->s = (char*)key;
+        return key_obj;
+    }
+        /* the key itself is a raven object */
+    default:
+        return (Rav_obj*)key;
+    }
+}
+
+static void
+iter_table(Evaluator *e, Table *table, Rav_type key_type,
+           AST_for_expr for_expr) {
+
+    if (table == NULL) return;
+    
+    for (int i = 0; i < table->indexes.len; i++) {
+        int index = table->indexes.elems[i];
+        Entry *entry = table->entries[index];
+
+        for ( ; entry; entry = entry->link) {
+            /* building an two element list (key, value) */
+            Rav_obj *object = new_object(LIST_OBJ, 0);
+
+            /* add the raven object that represent the key */
+            Rav_obj *key = key_object(key_type, entry->elem->key);
+            object->l = list_add(NULL, key);
+
+            /* add the raven object that represent the value */
+            object->l = list_add(object->l, entry->elem->data);
+            
+            Env *env = new_env(e->current);
+            if (match(e, for_expr->patt, object, env))
+                walk_piece(e, for_expr->body, env);
+            else {
+                free_env(env);
+                free_list(&object->l, free);
+                free(object);
+                return;
+            }
+        }
+    }
+    
+}
+
+static void
+iter_hash(Evaluator *e, Rav_obj *iter, AST_for_expr for_expr) {
+    Hash_obj *hash = iter->h;
+
+    //iter_array(e, hash->array, for_expr);
+    //iter_table(e, hash->float_table, FLOAT_OBJ, for_expr);
+    //iter_table(e, hash->int_table, INT_OBJ, for_expr);
+    iter_table(e, hash->str_table, STR_OBJ, for_expr);
+    iter_table(e, hash->obj_table, HASH_OBJ, for_expr);
+}
+
+static void
+iter_list(Evaluator *e, Rav_obj *iter, AST_for_expr for_expr) {
+    List *list = iter->l;
+    
+    for ( ; list; list = list->tail) {
+        Env *env = new_env(e->current);
+        if (match(e, for_expr->patt, list->head, env))
+            walk_piece(e, for_expr->body, env);
+        else {
+            free_env(env);
+            return;
+        }
+    }
+}
+
+static void
+iter_str(Evaluator *e, Rav_obj *iter, AST_for_expr for_expr) {
+    char *str = iter->s;
+    
+    for ( ; *str != '\0'; str++) {
+        Rav_obj *ch = str_object(strndup(str, 1));
+        Env *env = new_env(e->current);
+
+        if (match(e, for_expr->patt, ch, env))
+            walk_piece(e, for_expr->body, env);
+        else {
+            free_env(env);
+            free(ch->s);
+            free(ch);
+            return;
+        }
+    }
+}
+
+static Rav_obj *eval_for(Evaluator *e, AST_for_expr for_expr) {
+    Rav_obj *iter = eval(e, for_expr->iter);
+
+    switch (iter->type) {
+    case HASH_OBJ:
+        iter_hash(e, iter, for_expr);
+        break;
+    case LIST_OBJ:
+        iter_list(e, iter, for_expr);
+        break;
+    case STR_OBJ:
+        iter_str(e, iter, for_expr);
+        break;
+    default:
+        fprintf(stderr, "non-iterable object in for\n");
+        return RVoid;
+    }
+
     return RNil;
 }
 
@@ -1029,8 +1154,7 @@ Rav_obj *eval(Evaluator *e, AST_expr expr) {
     case COND_EXPR:
         return eval_cond(e, expr->cond);
     case FOR_EXPR:
-        printf("[TODO] for expressions\n");
-        return RNil;
+        return eval_for(e, expr->for_expr);
     case GROUP_EXPR:
         return eval(e, expr->group->expr);
     case IDENT_EXPR:

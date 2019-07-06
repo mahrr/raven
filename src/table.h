@@ -13,6 +13,8 @@
 
 #include <stdint.h>
 
+#include "array.h"
+
 /* function types */
 typedef uint64_t (*Hash_Fn)  (const void *key);
 typedef void     (*DFree_Fn) (void *data);
@@ -31,12 +33,14 @@ typedef struct Entry {
 } Entry;
 
 typedef struct Table {
-    int elems;        /* number of elements in the table */
-    int size;         /* number of entries in the table */
-    Hash_Fn hash;     /* key hashing function */
-    Comp_Fn comp;     /* key comparing function */
-    DFree_Fn free;    /* element deallocation function */
-    Entry **entries;  /* array of linked lists of elements blocks */
+    int elems;              /* number of elements in the table */
+    int size;               /* number of entries in the table */
+    Hash_Fn hash;           /* key hashing function */
+    Comp_Fn comp;           /* key comparing function */
+    DFree_Fn free;          /* element deallocation function */
+    Entry **entries;        /* array of linked lists of elements blocks */
+    ARRAY(int) indexes;   /* array of indexes of populated entries */ 
+
 } Table;
 
 #define table_size(table) ((table)->size)   /* get number of entries */
