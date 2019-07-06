@@ -2,7 +2,7 @@
 
 ## Encoding
 
-raven reads an ASCII coded text. UTF-8 is consedred for
+Raven reads an ASCII encoded text. UTF-8 is considered for
 future versions.
 
 <br>
@@ -39,9 +39,7 @@ Long comments can be nested.
 identifier ::= (alpha | '_') (digit | alpha | '_')* ;
 ```
 
-raven has the traditional naming rules. Identifiers start
-with letter or underscore and then may extends to letters,
-digits and underscores.
+Raven has the traditional naming rules. Identifiers start with letter or underscore and then may extends to letters, digits and underscores.
 
 <br>
 
@@ -63,7 +61,7 @@ dec_digit ::= oct_digit
 oct_digit ::= '0' ... '7' ;
 ```
 
-Hexidicemal, octal and binary forms are supported.
+Hexadecimal, octal and binary forms are supported.
 
 ### Float literals
 
@@ -79,13 +77,11 @@ exponent_part ::= ('e' | 'E') ('-' | '+')? digit+ ;
 
 Scientific notation is supported.
 
-Note that the `-` in the scientific notation is a part of the float literal token. but if the `-` was leading a numeric literal, it's considered an prefix operator not part of the literal token.
+Note that the `-` in the scientific notation is a part of the float literal token, but if the `-` was leading a numeric literal, it's considered a prefix operator not part of the literal token.
 
 ### String literals
 
-raven support escaped strings literals and raw string literals.
-
-Escaped strings use double and single qoutes and raw strings use backticks.
+Raven support escaped strings literals and raw string literals. Escaped strings use double and single quotes and raw strings use backticks.
 
 ```EBNF
 
@@ -94,9 +90,9 @@ escaped_string ::= '"' non_dq_char*  | escape_seq* '"'
 
 raw_string     ::= '`' non_bt_char* '`' ;
 
-non_dq_char    ::= <any ASCII char expect double qoute or newline or back slash> ;
+non_dq_char    ::= <any ASCII char expect double quote or newline or back slash> ;
 
-non_sq_char    ::= <any ASCII char expect single qoute or newline or back slash> ;
+non_sq_char    ::= <any ASCII char expect single quote or newline or back slash> ;
 
 non_bt_char    ::= <any ASCII char expect backtick> ;
 
@@ -126,7 +122,7 @@ true false nil
 
 ## Reserved
 
-The following are the langauge keywords. They Can't be used as an identifier name.
+The following are the language keywords. They cannot be used as an identifier name.
 
 ```
 break case cond continue do elif else end false 
@@ -137,7 +133,7 @@ fn for if in let match nil return while true type
 
 ## Operators and Precedence
 
- Operator precedence follows this table ,from higher to lower priority.
+Operator precedence follows this table, from higher to lower priority.
 
 Operator | Function    | Associations
 ---------|-------------|-------------
@@ -161,4 +157,4 @@ or        | Logical OR              | left
 do end = -> ( ) [ ] { } ; , NL
 ```
 
-Usually newlines could be used as statements delimiters, but you can also use semicolons to seperate statements on the same line.
+Usually newlines could be used as statements delimiters, but you can also use semicolons to separate statements on the same line.
