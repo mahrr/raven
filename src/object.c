@@ -16,7 +16,7 @@
 
 // TODO:
 static void print_hash(Rav_obj *hash) {
-    printf("<hash>");
+    printf("<hash> at %p", (void*)hash);
 }
 
 static void print_list(Rav_obj *list) {

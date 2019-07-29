@@ -479,7 +479,7 @@ static Token *consume(Lexer *l) {
     case '!':
         if (match_char(l, '='))
             return add_token(l, TK_BANG_EQ);
-
+        break;
 
     case '"':
     case '\'':

@@ -46,10 +46,38 @@ Rav_obj *Rav_println(Rav_obj **objects) {
 /** List Functions **/
 
 Rav_obj *Rav_hd(Rav_obj **objects) {
+    if (objects[0]->type != LIST_OBJ) {
+        //TODO: Error Handling
+        fprintf(stderr,
+                "Type Error: hd: bad argument type, list is expected\n");
+        return RVoid;
+    }
+
+    if (!objects[0]->l) {
+        //TODO: Error Handling
+        fprintf(stderr,
+                "Error: passed empty list to 'hd'\n");
+        return RVoid;
+    }
+    
     return objects[0]->l->head;
 }
 
 Rav_obj *Rav_tl(Rav_obj **objects) {
+    if (objects[0]->type != LIST_OBJ) {
+        //TODO: Error Handling
+        fprintf(stderr,
+                "Type Error: tl: bad argument type, list is expected\n");
+        return RVoid;
+    }
+
+    if (!objects[0]->l) {
+        //TODO: Error Handling
+        fprintf(stderr,
+                "Error: passed empty list to 'tl'\n");
+        return RVoid;
+    }
+    
     Rav_obj *tail = new_object(LIST_OBJ, 0);
     tail->l = objects[0]->l->tail;
     return tail;

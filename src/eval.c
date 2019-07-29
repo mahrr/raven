@@ -28,8 +28,8 @@
 
 Rav_obj False_obj = {BOOL_OBJ, 0, {.b = 0}};
 Rav_obj True_obj  = {BOOL_OBJ, 0, {.b = 1}};
-Rav_obj Nil_obj   = {NIL_OBJ, 0, {}};
-Rav_obj Void_obj  = {VOID_OBJ, 0, {}};
+Rav_obj Nil_obj   = {NIL_OBJ,  0, {0}};
+Rav_obj Void_obj  = {VOID_OBJ, 0, {0}};
 
 #define RTrue  (Rav_obj *)(&True_obj)
 #define RFalse (Rav_obj *)(&False_obj)
@@ -1068,7 +1068,7 @@ static Rav_obj *exec_return(Evaluator *e, AST_ret_stmt ret_stmt) {
     return result;
 }
 
-static Rav_obj *exec_fixed(Evaluator *e, TK_type type) {
+static Rav_obj *exec_fixed(TK_type type) {
     Rav_obj *res;
     if (type == TK_BREAK) {
         res = RNil;
@@ -1199,7 +1199,7 @@ Rav_obj *execute(Evaluator *e, AST_stmt stmt) {
     case RET_STMT:
         return exec_return(e, stmt->ret);
     case FIXED_STMT:
-        return exec_fixed(e, stmt->fixed);
+        return exec_fixed(stmt->fixed);
         
     default:
         fprintf(stderr, "[INTERNAL] invalid stmt_type (%d)\n",

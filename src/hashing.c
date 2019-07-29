@@ -62,7 +62,7 @@ int comp_ptr(const void *key1, const void *key2) {
  * simple prime number test. 
  * tested on chen, circular and cuban primes.
 */
-static int is_prime(uint32_t n) {
+static int is_prime(int n) {
     if (n == 2 || n == 3 ) return 1;
     if (n % 2 == 0 || n % 3 == 0) return 0;
 
@@ -84,7 +84,7 @@ uint32_t next_prime(uint32_t n) {
     if (n <= 3)
         return 3;
     
-    for (int i = n; i < 2 * n; i++)
+    for (int i = n; i < 2 * (int)n; i++)
         if (is_prime(i)) return i;
     
     assert(0);
