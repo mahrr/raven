@@ -29,7 +29,7 @@
         type *elems;                            \
     }
 
-/* initialize an array with custome capacity 'n' */
+/* initialize an array with custom capacity 'n' */
 #define ARR_INITC(arr, type, n)                 \
     (arr)->len = 0;                             \
     (arr)->cap = n;                             \

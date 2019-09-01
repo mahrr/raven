@@ -620,6 +620,11 @@ static Rav_obj *eval_binary(Evaluator *e, AST_binary_expr expr) {
         left = eval(e, expr->left);
         right = eval(e, expr->right);
         return check_equality(left, right);
+
+    case TK_BANG_EQ:
+        left = eval(e, expr->left);
+        right = eval(e, expr->right);
+        return check_equality(left, right) == RTrue ? RFalse : RTrue;
         
     /* arithemtic operators */
     default:
