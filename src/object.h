@@ -96,13 +96,10 @@ struct Variant_obj {
  * Hash in raven allows any kind of object to be a key.
  * Because every type of object has its own hash fucntion,
  * the hash object maintains a table for each kind of key,
- * strings, floats and ref objects (e.g. lists and hashes).
- * The integer keys are mapped to a dynamic array, or
- * a int hash table based on index range and convergent.
+ * ints, floats, strings and ref objects (e.g. lists and hashes).
  * 
 */
 struct Hash_obj {
-    ARRAY(Rav_obj*) *array;
     Table *float_table;
     Table *int_table;
     Table *str_table;

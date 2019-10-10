@@ -208,11 +208,7 @@ static Rav_obj *hash_object(Evaluator *e, AST_hash_lit hash_lit) {
     AST_expr *exprs = hash_lit->values;
     
     for (int i = 0; keys[i]; i++) {
-        if (keys[i]->type == INDEX_KEY) {
-            // TODO: implicit index key
-            printf("[TODO] implicit index key\n");
-            return RVoid;
-        } else if (keys[i]->type == SYMBOL_KEY) {
+        if (keys[i]->type == SYMBOL_KEY) {
             Rav_obj *object = eval(e, exprs[i]);
             hash_add_sym(hash_obj, keys[i]->symbol, object);
         } else if (keys[i]->type == EXPR_KEY) {
@@ -514,12 +510,13 @@ match_hash(Evaluator *e, AST_patt patt, Rav_obj *hash, Env *env) {
         Rav_obj *obj;
         if (keys[i]->type == EXPR_KEY) {
             Rav_obj *index = eval(e, keys[i]->expr);
-            obj = hash_get(index, hash);
+            obj = hash_get(hash, index);
         } else if (keys[i]->type == SYMBOL_KEY) {
             obj = table_get(hash->h->str_table, keys[i]->symbol);
         } else {
-            printf("[TODO] implicit key\n");
-            return 0;
+            fprintf(stderr, "[INTERNAL] invalid key type (%d)\n",
+                    keys[i]->type);
+            assert(0);
         }
 
         /* key not found in the hash */

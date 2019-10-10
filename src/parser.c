@@ -252,7 +252,7 @@ static AST_patt const_patt(Parser *p) {
     return patt;
 }
 
-static AST_key hash_key(Parser *p, int index);
+static AST_key hash_key(Parser *p);
 
 static AST_patt hash_patt(Parser *p) {
     next_token(p);  /* consume '{' */
@@ -264,13 +264,11 @@ static AST_patt hash_patt(Parser *p) {
     ARR_INITC(&patts, AST_patt, 4);
 
     if (!match_token(p, TK_RBRACE)) {
-        int index = 0;      /* current implicit index */
         do {
             skip_newlines(p);
-            AST_key key = hash_key(p, index);
+            AST_key key = hash_key(p);
             if (key == NULL) goto fault;
-            index++;
-
+        
             AST_patt patt = pattern(p);
             if (patt == NULL) goto fault;
 
@@ -848,7 +846,7 @@ static AST_expr fn_literal(Parser *p) {
     return expr;
 }
 
-static AST_key hash_key(Parser *p, int index) {
+static AST_key hash_key(Parser *p) {
     /* [<expression>]:<value> */
     if (match_token(p, TK_LBRACKET)) {
         AST_expr expr = expression(p, LOW_PREC);
@@ -867,20 +865,18 @@ static AST_key hash_key(Parser *p, int index) {
     }
 
     /* <name>:<value> */
-    if (curr_token_is(p, TK_IDENT) && peek_token_is(p, TK_COLON)) {
-        char *symbol = ident_of_tok(next_token(p));
-        next_token(p); /* consume ':' */
-
-        AST_key key = malloc(sizeof (*key));
-        key->type = SYMBOL_KEY;
-        key->symbol = symbol;
-        return key;
-    }
-
-    /* <value> */
+    Token *sym = expect_token(p, TK_IDENT, "symbol");
+    if (sym == NULL)
+        return NULL;
+    
+    char *symbol = ident_of_tok(sym);
+    
+    if (!expect_token(p, TK_COLON, "symbol"))
+        return NULL;
+    
     AST_key key = malloc(sizeof (*key));
-    key->type = INDEX_KEY;
-    key->index = index;
+    key->type = SYMBOL_KEY;
+    key->symbol = symbol;
     return key;
 }
 
@@ -895,13 +891,11 @@ static AST_expr hash_literal(Parser *p) {
 
     /* not an empty hash */
     if (!match_token(p, TK_RBRACE)) {
-        uint32_t index = 0;
         do {
             skip_newlines(p);
-            AST_key key = hash_key(p, index);
+            AST_key key = hash_key(p);
             if (key == NULL) goto fault;
-            index++;
-                
+                        
             AST_expr value = expression(p, LOW_PREC);
             if (value == NULL) goto fault;
 

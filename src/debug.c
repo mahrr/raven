@@ -104,7 +104,8 @@ static void print_key(AST_key key) {
     } else if (key->type == SYMBOL_KEY) {
         printf("%s:", key->symbol);
     } else {
-        printf("%u:", key->index);
+        fprintf(stderr, "[INTERNAL] invalid key type (%d)\n", key->type);
+        assert(0);
     }
 }
 

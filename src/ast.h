@@ -70,7 +70,6 @@ typedef enum {
 typedef enum {
     SYMBOL_KEY,
     EXPR_KEY,
-    INDEX_KEY
 } Hash_Key_VT;
 
 typedef enum {
@@ -320,7 +319,6 @@ struct AST_key {
     union {
         char *symbol;
         AST_expr expr;
-        uint32_t index;
     };
 };
 
