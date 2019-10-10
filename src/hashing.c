@@ -5,9 +5,27 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <stdint.h>  /* int64_t */
 #include <string.h>
+#include <math.h>    /* fabs */
 
 #include "hashing.h"
+
+
+uint64_t hash_float(const void *key) {
+    double f = *(double*)key;
+    uint64_t ui;
+    memcpy(&ui, &f, sizeof (uint64_t));
+    return ui & 0xfffffffffffff000;
+}
+
+uint64_t hash_int(const void *key) {
+    uint64_t x = *(uint64_t*)key;
+    x = (x ^ (x >> 30)) * UINT64_C(0xbf58476d1ce4e5b9);
+    x = (x ^ (x >> 27)) * UINT64_C(0x94d049bb133111eb);
+    x = x ^ (x >> 31);
+    return x;
+}
 
 /*
  * The function was adapted from the dragon book
@@ -47,6 +65,14 @@ uint64_t hash_ptr(const void *key) {
     val = val ^ (val >> 28);
     val = val + (val << 31);
     return val;
+}
+
+int comp_float(const void *key1, const void *key2) {
+    return fabs(*(double*)key1) - (*(double*)key2) < 0.000000001;
+}
+
+int comp_int(const void *key1, const void *key2) {
+    return (*(int64_t*)key1 == *(int64_t*)key2);
 }
 
 int comp_str(const void *key1, const void *key2) {

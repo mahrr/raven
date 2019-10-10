@@ -2,7 +2,7 @@
  * (list.h | 28 Nov 18 | Ahmad Maher)
  *
  * A simple linked list used as the underlying data structure 
- * for the raven list and for hash tables chainning.
+ * for the raven list.
  *
 */
 

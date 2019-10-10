@@ -38,9 +38,11 @@ typedef Rav_obj *(*Builtin)(Rav_obj **objects);
  * void object returns from the statements 
  * execution if it's not an expression statement.
  * it's always discarded, and can't be used 
- * inside the langauges itself, as the language
+ * inside the language itself, as the language
  * syntax doesn't permit a statement in a place
- * of an expression.
+ * of an expression. It's a side effect of the
+ * enforcment that the 'eval' function must
+ * return a Rav_Obj pointer.
  * it's different from a nil object in that
  * the console doesn't consider it for printting
  * unlike nil objects which are printed normally.
@@ -110,9 +112,10 @@ struct Hash_obj {
 struct Rav_obj {
     Rav_type type;
     uint8_t mode;   /* status bits used internally by the evaluator */
+    /* head ?? */
     union {
         int8_t b;        /* boolean */
-        long double f;   /* float */
+        double f;        /* float */
         int64_t i;       /* integer */
         char *s;         /* string */
         Builtin_obj *bl; /* builtin function */
@@ -122,6 +125,7 @@ struct Rav_obj {
         List *l;         /* list */
         Variant_obj *vr; /* variant */
     };
+    //Rav_obj *tail;  /* cell oriented objects ?? */
 };
 
 /* print a string representation of an object to the stdout */

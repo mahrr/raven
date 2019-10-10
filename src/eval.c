@@ -90,7 +90,7 @@ static Rav_obj *cons_object(char *type, char *name, int8_t arity) {
     return result;
 }
 
-static Rav_obj *float_object(long double value) {
+static Rav_obj *float_object(double value) {
     Rav_obj *result = new_object(FLOAT_OBJ, 0);
     result->f = value;
     return result;
@@ -132,24 +132,50 @@ variant_object(Rav_obj *cons, int8_t count, Rav_obj **elems) {
     return result;
 }
 
-/* add an object 'data' to an hash object with a string key */
-static void hash_add_sym(Hash_obj *hash, char *key, Rav_obj *data) {
-    /* make sure the hash object initialize its string table */
-    if (hash->str_table == NULL) {
+static void hash_add_float(Hash_obj *hash, double k, Rav_obj *data) {
+    double *key = malloc(sizeof (double));
+    *key = (double)k;
+
+    if (hash->float_table == NULL) {
+        hash->float_table = malloc(sizeof (Table));
+        init_table(hash->float_table, 191, hash_float, free, comp_float);
+    }
+
+    /* if the table has already a value associated with that key,
+       free the newly allocated key */
+    if (table_put(hash->float_table, key, data) != NULL)
+        free(key);
+}
+
+static void hash_add_int(Hash_obj *hash, int k, Rav_obj *data) {
+    uint64_t *key = malloc(sizeof (uint64_t));
+    *key = k;
+    
+    if (hash->int_table == NULL) {
+        hash->int_table = malloc(sizeof (Table));
+        init_table(hash->int_table, 191, hash_int, free, comp_int);
+    }
+
+    /* if the table has already a value associated with that key,
+       free the newly allocated key */
+    if (table_put(hash->int_table, key, data) != NULL)
+        free(key);
+}
+
+static void hash_add_sym(Hash_obj *hash, char *k, Rav_obj *data) {
+        if (hash->str_table == NULL) {
         hash->str_table = malloc(sizeof (Table));
         init_table(hash->str_table, 191, hash_str, free, comp_str);
     }
-    table_put(hash->str_table, key, data);
+    table_put(hash->str_table, k, data);
 }
 
-/* add an object 'data' to an hash object with an object key */
-static void hash_add_obj(Hash_obj *hash, Rav_obj *obj, Rav_obj *data) {
-    /* make sure the hash object initialize its object table */
+static void hash_add_obj(Hash_obj *hash, Rav_obj *k, Rav_obj *data) {
     if (hash->obj_table == NULL) {
         hash->obj_table = malloc(sizeof(Table));
         init_table(hash->obj_table, 191, hash_ptr, free, comp_ptr);
     }
-    table_put(hash->obj_table, obj, data);
+    table_put(hash->obj_table, k, data);
 }
 
 /* evaluate a key expression and adds object 'data' to a hash
@@ -163,12 +189,10 @@ hash_add(Evaluator *e, Hash_obj *hash, AST_expr key, Rav_obj *data) {
         hash_add_sym(hash, key_obj->s, data);
         break;
     case INT_OBJ:
-        // TODO: int keys
-        printf("[TODO] int keys");
+        hash_add_int(hash, key_obj->i, data);
         break;
     case FLOAT_OBJ:
-        // TODO: int keys
-        printf("[TODO] float keys");
+        hash_add_float(hash, key_obj->f, data);
         break;
         
         /* pointer hashing for bool literals, nil, lists and hashes */
@@ -211,12 +235,12 @@ static Rav_obj *hash_object(Evaluator *e, AST_hash_lit hash_lit) {
 
 /* Binary Operations */
 
-static long double float_of(Rav_obj *obj) {
+static double float_of(Rav_obj *obj) {
     if (obj->type == FLOAT_OBJ) return obj->f;
-    return (long double)obj->i;
+    return (double)obj->i;
 }
 
-static Rav_obj* calc_bin_float(long double l, long double r, TK_type op) {
+static Rav_obj* calc_bin_float(double l, double r, TK_type op) {
     switch (op) {
         /* logic operations */
     case TK_GT:
@@ -241,7 +265,7 @@ static Rav_obj* calc_bin_float(long double l, long double r, TK_type op) {
     case TK_SLASH:
         return float_object(l / r);
     case TK_PERCENT:
-        return float_object(fmodl(l, r));
+        return float_object(fmod(l, r));
     default:
         /* ERROR */
         return float_object(0);
@@ -282,7 +306,7 @@ static Rav_obj *calc_bin_int(int64_t l, int64_t r, TK_type op) {
 
 static Rav_obj *arth_bin(Rav_obj *left, Rav_obj *right, TK_type op) {
     /* left and right values */
-    long double r_fval, l_fval;
+    double r_fval, l_fval;
     int64_t r_ival, l_ival;
     
     int is_float = 0; /* flag for floating point operation */
@@ -377,16 +401,17 @@ static Rav_obj *list_concat(Rav_obj *left, Rav_obj *right) {
 /* Hash Operations */
 
 Rav_obj *hash_get(Rav_obj *hash, Rav_obj *index) {
-    Rav_obj *result = NULL;
+    Rav_obj *result = RNil;
+    
     switch (index->type) {
-    case INT_OBJ:
-        // TODO: int hashing
-        printf("[TODO] int hashing\n");
-        return RVoid;
     case FLOAT_OBJ:
-        // TODO: float hashing
-        printf("[TODO] float hashing\n");
-        return RVoid;
+        if (hash->h->float_table)
+            result = table_get(hash->h->float_table, &(index->f));
+        break;
+    case INT_OBJ:
+        if (hash->h->int_table)
+            result = table_get(hash->h->int_table, &(index->i));
+        break;
     case STR_OBJ:
         if (hash->h->str_table)
             result = table_get(hash->h->str_table, index->s);
@@ -397,7 +422,7 @@ Rav_obj *hash_get(Rav_obj *hash, Rav_obj *index) {
         break;
     }
 
-    return result ? result : RNil;
+    return result;
 }
 
 /** Pattern Matching Functions **/
@@ -543,12 +568,10 @@ match(Evaluator *e, AST_patt patt, Rav_obj *object, Env *env) {
 
     case HASH_PATT:
         return match_hash(e, patt, object, env);
-    
-    default:
-        fprintf(stderr, "[INTERNAL] invalid pattern type (%d)\n",
-                patt->type);
-        assert(0);
     }
+    
+    fprintf(stderr, "[INTERNAL] invalid pattern type (%d)\n", patt->type);
+    assert(0);
 }
 
 /** Evaluating Expressions Nodes **/
@@ -949,6 +972,7 @@ static Rav_obj *eval_lit(Evaluator *e, AST_lit_expr lit) {
     case NIL_LIT:
         return RNil;
     case STR_LIT:
+    case RSTR_LIT:  //TODO
         return str_object(lit->s);
     case LIST_LIT:
         return list_object(e, lit->list->values);
@@ -956,12 +980,10 @@ static Rav_obj *eval_lit(Evaluator *e, AST_lit_expr lit) {
         return clos_object(e, lit->fn);
     case HASH_LIT:
         return hash_object(e, lit->hash);
-        
-    default:
-        fprintf(stderr, "[INTERNAL] invalid lit_expr type (%d)\n",
-                lit->type);
-        assert(0);
     }
+    
+    fprintf(stderr, "[INTERNAL] invalid lit_expr type (%d)\n", lit->type);
+    assert(0);
 }
 
 /* evaluate a match arm on specified envirnoment */
@@ -1176,12 +1198,10 @@ Rav_obj *eval(Evaluator *e, AST_expr expr) {
         return eval_unary(e, expr->unary);
     case WHILE_EXPR:
         return eval_while(e, expr->while_expr);
-        
-    default:
-        fprintf(stderr, "[INTERNAL] invalid expr_type (%d)\n",
-                expr->type);
-        assert(0);
     }
+    
+    fprintf(stderr, "[INTERNAL] invalid expr_type (%d)\n", expr->type);
+    assert(0);
 }
 
 Rav_obj *execute(Evaluator *e, AST_stmt stmt) {
@@ -1205,12 +1225,10 @@ Rav_obj *execute(Evaluator *e, AST_stmt stmt) {
         return exec_return(e, stmt->ret);
     case FIXED_STMT:
         return exec_fixed(stmt->fixed);
-        
-    default:
-        fprintf(stderr, "[INTERNAL] invalid stmt_type (%d)\n",
-                stmt->type);
-        assert(0);
     }
+    
+    fprintf(stderr, "[INTERNAL] invalid stmt_type (%d)\n", stmt->type);
+    assert(0);
 }
 
 Rav_obj *walk(Evaluator *e, AST_piece piece) {

@@ -184,7 +184,7 @@ struct AST_patt {
         AST_pair_patt pair;
         char *ident;       /* identifier(variable) pattern */
         int64_t i;         /* literal int pattern */
-        long double f;     /* literal float pattern */
+        double f;          /* literal float pattern */
         char *s;           /* literal string pattern */
         int8_t b;          /* literal boolean value */
     };
@@ -278,7 +278,7 @@ struct AST_lit_expr {
         AST_fn_lit fn;
         AST_hash_lit hash;
         AST_list_lit list;
-        long double f; /* float literal */
+        double f;      /* float literal */
         int64_t i;     /* integer literal */
         char *s;       /* string literal */
     };

@@ -38,18 +38,18 @@ int64_t int_of_tok(Token *tok) {
     return i;
 }
 
-long double float_of_tok(Token *tok) {
+double float_of_tok(Token *tok) {
     assert(tok->type == TK_FLOAT);
     
-    char *endptr;  /* for strtold function */
-    long double f = strtold(tok->lexeme, &endptr);
+    char *endptr;  /* for strtod function */
+    double f = strtod(tok->lexeme, &endptr);
     
     assert(endptr == (tok->lexeme + tok->length));
     return f;
 }
 
 char *str_of_tok(Token *tok) {
-    assert(tok->type == TK_STR);
+    assert(tok->type == TK_STR || tok->type == TK_RSTR);
     
     return strndup(tok->lexeme + 1, tok->length - 2);
 }

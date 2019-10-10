@@ -39,8 +39,7 @@ typedef struct Table {
     Comp_Fn comp;           /* key comparing function */
     DFree_Fn free;          /* element deallocation function */
     Entry **entries;        /* array of linked lists of elements blocks */
-    ARRAY(int) indexes;   /* array of indexes of populated entries */ 
-
+    ARRAY(int) indexes;     /* array of indexes of populated entries */
 } Table;
 
 #define table_size(table) ((table)->size)   /* get number of entries */

@@ -77,7 +77,7 @@ void print_object(Rav_obj *object) {
         printf("<closure>/%d", object->cl->arity);
         break;
     case FLOAT_OBJ:
-        printf("%Lg", object->f);
+        printf("%g", object->f);
         break;
     case HASH_OBJ:
         print_hash(object);

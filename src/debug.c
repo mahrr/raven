@@ -145,7 +145,7 @@ static void print_lit_expr(AST_lit_expr e) {
         break;
         
     case FLOAT_LIT:
-        printf("%Lf", e->f);
+        printf("%f", e->f);
         break;
         
     case INT_LIT:
@@ -168,6 +168,9 @@ static void print_lit_expr(AST_lit_expr e) {
         printf("true");
         break;
     }
+
+    fprintf(stderr, "[INTERNAL] invalid literal type (%d)", e->type);
+    assert(0);
 }
 
 static void print_patt(AST_patt p) {
@@ -215,7 +218,7 @@ static void print_patt(AST_patt p) {
         break;
     
     case FLOAT_CPATT:
-        printf("%Lf", p->f);
+        printf("%f", p->f);
         break;
 
     case IDENT_PATT:
@@ -234,6 +237,9 @@ static void print_patt(AST_patt p) {
         printf("'%s'", p->s);
         break;
     }
+
+    fprintf(stderr, "[INTERNAL] invalid pattern type (%d)\n", p->type);
+    assert(0);
 }
 
 static void print_patts(AST_patt *patts) {
@@ -370,6 +376,9 @@ static void print_expr(AST_expr e) {
     }
         
     }
+
+    fprintf(stderr, "[INTERNAL] invalid expression type (%d)\n", e->type);
+    assert(0);
 }
 
 static void print_exprs(AST_expr *exprs) {
@@ -430,6 +439,9 @@ static void print_stmt(AST_stmt s) {
         printf("{%s}\n", tok_types_str[s->fixed]);
         break;
     }
+
+    fprintf(stderr, "[INTERNAL] invalid statement type (%d)\n", s->type);
+    assert(0);
 }
 
 /** INTEFACE **/
@@ -512,7 +524,7 @@ void inspect(Rav_obj *obj) {
         break;
 
     case FLOAT_OBJ:
-        printf("value: %Lf, type: Float\n", obj->f);
+        printf("value: %f, type: Float\n", obj->f);
         break;
         
     case HASH_OBJ:
@@ -542,10 +554,8 @@ void inspect(Rav_obj *obj) {
     case VOID_OBJ:
         printf("value: (), type: Void\n");
         break;
-
-    default:
-        fprintf(stderr, "[INTERNAL] invalid Rav_Type (%d)",
-                obj->type);
-        assert(0);
     }
+    
+    fprintf(stderr, "[INTERNAL] invalid Rav_Type (%d)", obj->type);
+    assert(0);
 }

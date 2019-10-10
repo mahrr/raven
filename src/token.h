@@ -63,7 +63,7 @@ typedef struct Token {
 int64_t int_of_tok(Token *tok);
 
 /* return the float value of TK_FLOAT token. */
-long double float_of_tok(Token *tok);
+double float_of_tok(Token *tok);
 
 /* 
  * return a duplicate string (you need to free it)
