@@ -21,4 +21,7 @@ Rav_obj *Rav_hd(Rav_obj **objects);
 /* return the tail of a list object */
 Rav_obj *Rav_tl(Rav_obj **objects);
 
+/* return the length of a collection (e.g. list, string, hash ...) */
+Rav_obj *Rav_len(Rav_obj **objects);
+
 #endif

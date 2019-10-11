@@ -25,6 +25,7 @@ typedef struct Builtin_obj Builtin_obj;
 typedef struct Closure_obj Closure_obj;
 typedef struct Cons_obj Cons_obj;
 typedef struct Hash_obj Hash_obj;
+typedef struct Str_obj Str_obj;
 typedef struct Variant_obj Variant_obj;
 
 /* 
@@ -85,11 +86,11 @@ struct Cons_obj {
     int8_t arity;     /* number of constructor parameters */
 };
 
-/* variant object, the result of calling a constructor object */
-struct Variant_obj {
-    Rav_obj *cons;    /* the variant constructor */
-    Rav_obj **elems;  /* array of elements */
-    int8_t count;     /* number of data elements */
+/* string object */
+struct Str_obj {
+    char *str;        /* a pointer to the actual string */
+    int len;          /* the length of the string (NULL excluded) */
+    int israw;        /* 0 -> to be escaped, 1 -> raw string */
 };
 
 /*
@@ -106,6 +107,13 @@ struct Hash_obj {
     Table *obj_table;
 };
 
+/* variant object, the result of calling a constructor object */
+struct Variant_obj {
+    Rav_obj *cons;    /* the variant constructor */
+    Rav_obj **elems;  /* array of elements */
+    int8_t count;     /* number of data elements */
+};
+
 struct Rav_obj {
     Rav_type type;
     uint8_t mode;   /* status bits used internally by the evaluator */
@@ -114,7 +122,7 @@ struct Rav_obj {
         int8_t b;        /* boolean */
         double f;        /* float */
         int64_t i;       /* integer */
-        char *s;         /* string */
+        Str_obj *s;      /* string */
         Builtin_obj *bl; /* builtin function */
         Closure_obj *cl; /* closure */
         Cons_obj *cn;    /* constructor */

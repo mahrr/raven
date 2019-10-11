@@ -114,9 +114,14 @@ static Rav_obj *int_object(int64_t value) {
     return result;
 }
 
-static Rav_obj *str_object(char *value) {
+static Rav_obj *str_object(char *value, int israw) {
+    Str_obj *s = malloc(sizeof (*s));
+    s->str = value;
+    s->len = strlen(value);
+    s->israw = israw;
+    
     Rav_obj *result = new_object(STR_OBJ, 0);
-    result->s = value;
+    result->s = s;
     return result;
 }
 
@@ -163,7 +168,7 @@ static void hash_add_int(Hash_obj *hash, int k, Rav_obj *data) {
 }
 
 static void hash_add_sym(Hash_obj *hash, char *k, Rav_obj *data) {
-        if (hash->str_table == NULL) {
+    if (hash->str_table == NULL) {
         hash->str_table = malloc(sizeof (Table));
         init_table(hash->str_table, 191, hash_str, free, comp_str);
     }
@@ -186,7 +191,7 @@ hash_add(Evaluator *e, Hash_obj *hash, AST_expr key, Rav_obj *data) {
     
     switch (key_obj->type) {
     case STR_OBJ:
-        hash_add_sym(hash, key_obj->s, data);
+        hash_add_sym(hash, key_obj->s->str, data);
         break;
     case INT_OBJ:
         hash_add_int(hash, key_obj->i, data);
@@ -347,7 +352,7 @@ static Rav_obj *check_equality(Rav_obj *left, Rav_obj *right) {
     case INT_OBJ:
         return left->i == right->i ? RTrue : RFalse;
     case STR_OBJ:
-        return !strcmp(left->s, right->s) ? RTrue : RFalse;
+        return !strcmp(left->s->str, right->s->str) ? RTrue : RFalse;
 
     /* any other object are compared by their addresses,
        so it needs to be the same object to pass the
@@ -410,7 +415,7 @@ Rav_obj *hash_get(Rav_obj *hash, Rav_obj *index) {
         break;
     case STR_OBJ:
         if (hash->h->str_table)
-            result = table_get(hash->h->str_table, index->s);
+            result = table_get(hash->h->str_table, index->s->str);
         break;
     default:
         if (hash->h->obj_table)
@@ -543,7 +548,7 @@ match(Evaluator *e, AST_patt patt, Rav_obj *object, Env *env) {
     case INT_CPATT:
         return patt->i == object->i;
     case STR_CPATT:
-        return !strcmp(patt->s, object->s);
+        return !strcmp(patt->s, object->s->str);
     case NIL_CPATT:
         return 1;
 
@@ -581,18 +586,21 @@ static Rav_obj *eval_assign(Evaluator *e, AST_assign_expr expr) {
     if (expr->lvalue->type == IDENT_EXPR) {
         /* check the locals environments first */
         int *loc = table_get(e->vars, expr->lvalue);
+        
         if (loc != NULL) {
             env_set(e->current, value, loc[1], loc[0]);
-        } else {
-            char *name = expr->lvalue->ident;
-            /* check the global environment */
-            if (table_lookup(e->global, name))
-                table_put(e->global, name, value);
-            else {
-                //TODO: runtime error handling
-                fprintf(stderr, "Error: assign to a not defined name\n");
-                return RVoid;
-            }
+            return value;
+        }
+        
+        /* check the global environment */
+        char *name = expr->lvalue->ident;
+        
+        if (table_lookup(e->global, name))
+            table_put(e->global, name, value);
+        else {
+            //TODO: runtime error handling
+            fprintf(stderr, "Error: assign to a not defined name\n");
+            return RVoid;
         }
         return value;
     }
@@ -604,6 +612,7 @@ static Rav_obj *eval_assign(Evaluator *e, AST_assign_expr expr) {
         fprintf(stderr, "Error: index operation for non-hash type\n");
         return RVoid;
     }
+    
     hash_add(e, obj->h, expr->lvalue->index->index, value);
     return value;
 }
@@ -781,18 +790,15 @@ static Rav_obj *eval_cond(Evaluator *e, AST_cond_expr cond) {
 static Rav_obj *key_object(Rav_type type, const void *key) {
     switch (type) {
     case FLOAT_OBJ: {
-        Rav_obj *key_obj = new_object(FLOAT_OBJ, 0);
-        key_obj->f = *((float*)key);
+        Rav_obj *key_obj = float_object(*((float*)key));
         return key_obj;
     }
     case INT_OBJ: {
-        Rav_obj *key_obj = new_object(INT_OBJ, 0);
-        key_obj->i = *((int*)key);
+        Rav_obj *key_obj = int_object(*((int*)key));
         return key_obj;
     }
     case STR_OBJ: {
-        Rav_obj *key_obj = new_object(STR_OBJ, 0);
-        key_obj->s = (char*)key;
+        Rav_obj *key_obj = str_object((char *)key, 0);
         return key_obj;
     }
         /* the key itself is a raven object */
@@ -840,9 +846,8 @@ static void
 iter_hash(Evaluator *e, Rav_obj *iter, AST_for_expr for_expr) {
     Hash_obj *hash = iter->h;
 
-    //iter_array(e, hash->array, for_expr);
-    //iter_table(e, hash->float_table, FLOAT_OBJ, for_expr);
-    //iter_table(e, hash->int_table, INT_OBJ, for_expr);
+    iter_table(e, hash->float_table, FLOAT_OBJ, for_expr);
+    iter_table(e, hash->int_table, INT_OBJ, for_expr);
     iter_table(e, hash->str_table, STR_OBJ, for_expr);
     iter_table(e, hash->obj_table, HASH_OBJ, for_expr);
 }
@@ -864,10 +869,11 @@ iter_list(Evaluator *e, Rav_obj *iter, AST_for_expr for_expr) {
 
 static void
 iter_str(Evaluator *e, Rav_obj *iter, AST_for_expr for_expr) {
-    char *str = iter->s;
+    char *str = iter->s->str;
+    int israw = iter->s->israw;
     
     for ( ; *str != '\0'; str++) {
-        Rav_obj *ch = str_object(strndup(str, 1));
+        Rav_obj *ch = str_object(strndup(str, 1), israw);
         Env *env = new_env(e->current);
 
         if (match(e, for_expr->patt, ch, env))
@@ -969,8 +975,8 @@ static Rav_obj *eval_lit(Evaluator *e, AST_lit_expr lit) {
     case NIL_LIT:
         return RNil;
     case STR_LIT:
-    case RSTR_LIT:  //TODO
-        return str_object(lit->s);
+    case RSTR_LIT:
+        return str_object(lit->s, lit->type == RSTR_LIT);
     case LIST_LIT:
         return list_object(e, lit->list->values);
     case FN_LIT:
@@ -1023,6 +1029,7 @@ static Rav_obj *eval_unary(Evaluator *e, AST_unary_expr unary) {
         } else if (operand->type == INT_OBJ) {
             return int_object(-operand->i);
         } else {
+            // TODO: runtime error handling
             fprintf(stderr, "Error: apply (-) to non-numeric object\n");
             return RVoid;
         }
@@ -1148,6 +1155,8 @@ static void define_builtins(Evaluator *e) {
     /* list functions */
     define_builtin(e, "hd", Rav_hd, 1);
     define_builtin(e, "tl", Rav_tl, 1);
+
+    define_builtin(e, "len", Rav_len, 1);
 }
 
 /*** INTERFACE ***/

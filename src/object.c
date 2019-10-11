@@ -33,11 +33,17 @@ static void print_list(Rav_obj *list) {
 }
 
 static void print_str(Rav_obj *str) {
-    size_t slen = strlen(str->s);
+    if (str->s->israw) {
+        fputs(str->s->str, stdout);
+        return;
+    }
+
+    /* escaped string */
+    size_t slen = str->s->len;
     char *escaped = malloc(slen);
 
-    escape(str->s, escaped, slen);
-    printf("%s", escaped);
+    escape(str->s->str, escaped, slen);
+    fputs(escaped, stdout);
     
     free(escaped);
 }
@@ -60,7 +66,7 @@ static void print_variant(Rav_obj *variant) {
 
 void echo_object(Rav_obj *object) {
     if (object->type == STR_OBJ)
-        printf("'%s'", object->s);
+        printf("'%s'", object->s->str);
     else
         print_object(object);
 }

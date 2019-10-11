@@ -11,17 +11,19 @@
 #include "strutil.h"
 
 char *strdup(const char *s) {
-    char *dup = malloc(strlen(s));
-    strcpy(dup, s);
+    int len = strlen(s) + 1;
+    char *dup = malloc(len);
+    
+    memcpy(dup, s, len);
     return dup;
 }
 
 char *strndup(const char *s, size_t n) {
     size_t slen = strlen(s);
     size_t ssize = slen > n ? n : slen;
-
     char *dup = malloc(ssize + 1);
-    strncpy(dup, s, n);
+    
+    memcpy(dup, s, ssize);
     dup[ssize] = '\0';
     
     return dup;

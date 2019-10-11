@@ -479,10 +479,6 @@ static void inspect_table(Table *table, char *name) {
 static void inspect_hash(Hash_obj *hash) {
     /* floats */
     printf("value: <hash>, type: Hash\n");
-    if (hash->array) {
-        printf("table array has %d (%d) elements\n",
-               hash->array->len, hash->array->cap);
-    }
     inspect_table(hash->float_table, "floats");
     inspect_table(hash->int_table, "ints");
     inspect_table(hash->str_table, "str");
@@ -545,7 +541,7 @@ void inspect(Rav_obj *obj) {
         break;
 
     case STR_OBJ:
-        printf("value: '%s', type: String\n", obj->s);
+        printf("value: '%s', type: String\n", obj->s->str);
         break;
 
     case VARI_OBJ:

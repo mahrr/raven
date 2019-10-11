@@ -82,3 +82,40 @@ Rav_obj *Rav_tl(Rav_obj **objects) {
     tail->l = objects[0]->l->tail;
     return tail;
 }
+
+static int hash_elems(Hash_obj *hash) {
+    int elems = 0;
+    elems += hash->float_table ? table_elems(hash->float_table) : 0;
+    elems += hash->int_table ? table_elems(hash->int_table) : 0;
+    elems += hash->str_table ? table_elems(hash->str_table) : 0;
+    elems += hash->obj_table ? table_elems(hash->obj_table) : 0;
+    return elems;
+}
+
+Rav_obj *Rav_len(Rav_obj **objects) {
+    Rav_obj *result;
+    
+    switch (objects[0]->type) {
+    case STR_OBJ: 
+        result = new_object(INT_OBJ, 0);
+        result->i = objects[0]->s->len;
+        break;
+
+    case LIST_OBJ:
+        result = new_object(INT_OBJ, 0);
+        result->i = list_len(objects[0]->l);
+        break;
+
+    case HASH_OBJ:
+        result = new_object(INT_OBJ, 0);
+        result->i = hash_elems(objects[0]->h);
+        break;
+
+    default:
+        // TODO: runtime error handling
+        fprintf(stderr, "Error: len applied to a non-collection.\n");
+        return RVoid;
+    }
+
+    return result;
+}
