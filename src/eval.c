@@ -1148,6 +1148,9 @@ define_builtin(Evaluator *e, char *name, Builtin fn, int arity) {
 
 /* define the built-in functions in the global scope */
 static void define_builtins(Evaluator *e) {
+    define_builtin(e, "typ", Rav_typ, 1);   
+    define_builtin(e, "len", Rav_len, 1);
+    
     /* printting functions */
     define_builtin(e, "print", Rav_print, -1);
     define_builtin(e, "println", Rav_println, -1);
@@ -1155,8 +1158,6 @@ static void define_builtins(Evaluator *e) {
     /* list functions */
     define_builtin(e, "hd", Rav_hd, 1);
     define_builtin(e, "tl", Rav_tl, 1);
-
-    define_builtin(e, "len", Rav_len, 1);
 }
 
 /*** INTERFACE ***/

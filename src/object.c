@@ -14,7 +14,7 @@
 
 /** INTERNALS **/
 
-// TODO:
+// TODO
 static void print_hash(Rav_obj *hash) {
     printf("<hash> at %p", (void*)hash);
 }
@@ -63,6 +63,17 @@ static void print_variant(Rav_obj *variant) {
 }
 
 /** INTERFACE **/
+
+/* string correspond to the Rav_type enum */
+static char *str_obj_types[] = {
+    "boolean", "function", "function",
+    "constructor", "float", "hash", "list",
+    "integer", "nil", "string", "variant"
+};
+
+char *object_type(Rav_obj *object) {
+    return str_obj_types[object->type];
+}
 
 void echo_object(Rav_obj *object) {
     if (object->type == STR_OBJ)

@@ -133,6 +133,9 @@ struct Rav_obj {
     //Rav_obj *tail;  /* cell oriented objects ?? */
 };
 
+/* return a string representation of an object type */
+char *object_type(Rav_obj *object);
+
 /* print a string representation of an object to the stdout */
 void echo_object(Rav_obj *object);
 
