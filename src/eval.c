@@ -31,11 +31,6 @@ Rav_obj True_obj  = {BOOL_OBJ, 0, {.b = 1}};
 Rav_obj Nil_obj   = {NIL_OBJ,  0, {0}};
 Rav_obj Void_obj  = {VOID_OBJ, 0, {0}};
 
-#define RTrue  (Rav_obj *)(&True_obj)
-#define RFalse (Rav_obj *)(&False_obj)
-#define RNil   (Rav_obj *)(&Nil_obj)
-#define RVoid  (Rav_obj *)(&Void_obj)
-
 /* status bits for object mode */
 #define From_Return   0x01
 #define From_Break    0x02
@@ -353,13 +348,15 @@ static Rav_obj *check_equality(Rav_obj *left, Rav_obj *right) {
         return left->i == right->i ? RTrue : RFalse;
     case STR_OBJ:
         return !strcmp(left->s->str, right->s->str) ? RTrue : RFalse;
-
+    
     /* any other object are compared by their addresses,
        so it needs to be the same object to pass the
        check. for element to element check in the
        collection object (e.g., lists and hashes),
        compare functions from the standard library
        could be used. */
+    case LIST_OBJ:
+        return left->l == right->l ? RTrue : RFalse;
     default:
         return left == right ? RTrue : RFalse;
     }

@@ -12,16 +12,6 @@
 #include "object.h"
 #include "strutil.h"
 
-extern Rav_obj False_obj;
-extern Rav_obj True_obj;
-extern Rav_obj Nil_obj;
-extern Rav_obj Void_obj;
-
-#define RTrue  (Rav_obj *)(&True_obj)
-#define RFalse (Rav_obj *)(&False_obj)
-#define RNil   (Rav_obj *)(&Nil_obj)
-#define RVoid  (Rav_obj *)(&Void_obj)
-
 /* return the number of all elements in each table of a hash object */
 static int hash_elems(Hash_obj *hash) {
     int elems = 0;

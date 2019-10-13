@@ -117,7 +117,6 @@ struct Variant_obj {
 struct Rav_obj {
     Rav_type type;
     uint8_t mode;   /* status bits used internally by the evaluator */
-    /* head ?? */
     union {
         int8_t b;        /* boolean */
         double f;        /* float */
@@ -130,8 +129,17 @@ struct Rav_obj {
         List *l;         /* list */
         Variant_obj *vr; /* variant */
     };
-    //Rav_obj *tail;  /* cell oriented objects ?? */
 };
+
+extern Rav_obj False_obj;
+extern Rav_obj True_obj;
+extern Rav_obj Nil_obj;
+extern Rav_obj Void_obj;
+
+#define RTrue  (Rav_obj *)(&True_obj)
+#define RFalse (Rav_obj *)(&False_obj)
+#define RNil   (Rav_obj *)(&Nil_obj)
+#define RVoid  (Rav_obj *)(&Void_obj)
 
 /* return a string representation of an object type */
 char *object_type(Rav_obj *object);
