@@ -832,7 +832,7 @@ iter_table(Evaluator *e, Table *table, Rav_type key_type,
                 free_env(env);
                 free_list(&object->l, free);
                 free(object);
-                return;
+                continue;
             }
         }
     }
@@ -859,7 +859,7 @@ iter_list(Evaluator *e, Rav_obj *iter, AST_for_expr for_expr) {
             walk_piece(e, for_expr->body, env);
         else {
             free_env(env);
-            return;
+            continue;
         }
     }
 }
@@ -879,7 +879,7 @@ iter_str(Evaluator *e, Rav_obj *iter, AST_for_expr for_expr) {
             free_env(env);
             free(ch->s);
             free(ch);
-            return;
+            continue;
         }
     }
 }
