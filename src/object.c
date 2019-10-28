@@ -34,7 +34,7 @@ static void print_list(Rav_obj *list) {
 
 static void print_str(Rav_obj *str) {
     if (str->s->israw) {
-        fputs(str->s->str, stdout);
+        fwrite(str->s->str, 1, str->s->len, stdout);
         return;
     }
 
@@ -42,8 +42,8 @@ static void print_str(Rav_obj *str) {
     size_t slen = str->s->len;
     char *escaped = malloc(slen);
 
-    escape(str->s->str, escaped, slen);
-    fputs(escaped, stdout);
+    int elen = strescp(str->s->str, escaped, slen, NULL);
+    fwrite(escaped, 1, elen, stdout);
     
     free(escaped);
 }
@@ -76,9 +76,11 @@ char *object_type(Rav_obj *object) {
 }
 
 void echo_object(Rav_obj *object) {
-    if (object->type == STR_OBJ)
-        printf("'%s'", object->s->str);
-    else
+    if (object->type == STR_OBJ) {
+        putchar('\'');
+        fwrite(object->s->str, 1, object->s->len, stdout);
+        putchar('\'');
+    } else
         print_object(object);
 }
 
@@ -94,7 +96,7 @@ void print_object(Rav_obj *object) {
         printf("<closure>/%d", object->cl->arity);
         break;
     case FLOAT_OBJ:
-        printf("%g", object->f);
+        printf("%.16g", object->f);
         break;
     case HASH_OBJ:
         print_hash(object);

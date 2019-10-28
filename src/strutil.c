@@ -29,8 +29,9 @@ char *strndup(const char *s, size_t n) {
     return dup;
 }
 
-char *escape(const char *unescaped, char *escaped, int size) {
-    int i, j; /* string counters */
+int
+strescp(const char *unescaped, char *escaped, size_t size, char **end) {
+    unsigned i, j; /* string counters */
     
     for (i = 0, j = 0; i < size; i++, j++) {
         if (unescaped[i] != '\\') {
@@ -58,8 +59,13 @@ char *escape(const char *unescaped, char *escaped, int size) {
             i++; /* consumes 'x' */
 
             /* terminated before digits*/
-            if (i+2 >= size+1)
-                return (char*)(unescaped+i-1);  /* at the 'x' */
+            if (i+2 >= size+1) {
+                if (end) {
+                    /* at the 'x' */
+                    *end =(char*)(unescaped+i-1);
+                }
+                return -1;
+            }
                 
             /* the next two digits */
             char digits[2];
@@ -70,8 +76,13 @@ char *escape(const char *unescaped, char *escaped, int size) {
             int conv = strtol(digits, &e, 16);
 
             /* invalid two digits */
-            if (*e != '\0')
-                return (char*)(unescaped+i-1); /* at the 'x' */
+            if (*e != '\0') {
+                if (end) {
+                    /* at the 'x' */
+                    *end = (char*)(unescaped+i-1);
+                }
+                return -1;
+            }
 
             escaped[j] = (char)conv;
             break;
@@ -81,8 +92,11 @@ char *escape(const char *unescaped, char *escaped, int size) {
             /* \NNN -> three ocatal format */
             if (isdigit(unescaped[i])) {
                 /* terminated before three digits */
-                if (i+3 >= size+1)
-                    return (char*)(unescaped+i);
+                if (i+3 >= size+1) {
+                    if (end)
+                        *end = (char*)(unescaped+i);
+                    return -1;
+                }
 
                 char digits[3];
                 digits[0] = unescaped[i++];
@@ -93,21 +107,36 @@ char *escape(const char *unescaped, char *escaped, int size) {
                 int conv = strtol(digits, &e, 8);
 
                 /* invalid three digits octal */
-                if (*e != '\0')
-                    return (char*)(unescaped+i-2); /* at first digit */
+                if (*e != '\0') {
+                    if (end) {
+                        /* at first digit */
+                        *end = (char*)(unescaped+i-2);
+                    }
+                    return -1;
+                }
 
                 /* the converted number above ASCII limit */
-                if (conv > 255)
-                    return (char*)(unescaped+i-2); /* at first digit */
+                if (conv > 255) {
+                    if (end) {
+                        /* at first digit */
+                        *end = (char*)(unescaped+i-2);
+                    }
+                    return -1;
+                }
 
                 escaped[j] = (char)conv;
                 break;
             }
-            return (char*)(unescaped+i);
+            
+            if (end)
+                *end = (char*)(unescaped+i);
+            return -1;
         }
         }
     }
-    
+
+    if (end)
+        *end = NULL;
     escaped[j] = '\0';
-    return NULL;
+    return j;
 }

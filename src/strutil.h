@@ -28,12 +28,16 @@ char *strndup(const char *s, size_t n);
 
 
 /* 
- * escape a literal string s to the presumably allocated 
+ * escapes a literal string s to the presumably allocated 
  * space pointed by 'escaped' pointer which the function
  * assumes it point to enough space to hold the original
- * string. return NULL on success, and a pointer to the 
- * invalid escape on failure. 
+ * string. return the size of the escaped string on success, 
+ * and -1 on invalid escape sequence. Given 'end' is not
+ * NULL, the function stores a pointer to the beginning
+ * of the invalid escape sequence in the location refrenced
+ * by 'end'.
+ *
 */
-char *escape(const char *s, char *escaped, int size);
+int strescp(const char *s, char *escaped, size_t size, char **end);
 
 #endif

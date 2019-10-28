@@ -373,16 +373,17 @@ static Token *cons_str(Lexer *l) {
     
     /* check for escaping errors */
     char *buf = malloc(size);  /* escape string buffer */
-    char *res = escape(l->fixed, buf, size);
+    char *end;
+    strescp(l->fixed, buf, size, &end);
     free(buf);
     
     /* escape error */
-    if (res != NULL) {
+    if (end != NULL) {
         Token *err = add_token(l, TK_ERR);
         /* the lexeme point to the escape error,
          * not the start of the token. */
-        err->lexeme = res;
-        err->length = l->current - res;
+        err->lexeme = end;
+        err->length = l->current - end;
         reg_error(l, err, MSG_INVLD);
         return err;
     }
