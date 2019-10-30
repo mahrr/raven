@@ -1,5 +1,5 @@
 /*
- * (eval.c | 26 April 19 | Kareem Hamdy, Amr Anwar)
+ * (eval.c | 26 April 19 | Ahmad Maher, Kareem Hamdy, Amr Anwar)
  *
  * Raven syntax tree interpreter implementation.
  *
@@ -7,15 +7,18 @@
 
 #include <assert.h>
 #include <math.h>
+#include <setjmp.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>  /* strcmp */
+#include <stdarg.h>
+#include <string.h>
 
 #include "ast.h"
 #include "builtin.h"
 #include "env.h"
 #include "eval.h"
+#include "error.h"
 #include "hashing.h"
 #include "list.h"
 #include "object.h"
@@ -26,15 +29,47 @@
 
 /** Constants **/
 
-Rav_obj False_obj = {BOOL_OBJ, 0, {.b = 0}};
-Rav_obj True_obj  = {BOOL_OBJ, 0, {.b = 1}};
-Rav_obj Nil_obj   = {NIL_OBJ,  0, {0}};
-Rav_obj Void_obj  = {VOID_OBJ, 0, {0}};
+// TODO: use stack unwinding instead of status bits
 
 /* status bits for object mode */
 #define From_Return   0x01
 #define From_Break    0x02
 #define From_Continue 0x04
+
+Rav_obj False_obj = {BOOL_OBJ, 0, {.b = 0}};
+Rav_obj True_obj  = {BOOL_OBJ, 0, {.b = 1}};
+Rav_obj Nil_obj   = {NIL_OBJ,  0, {0}};
+Rav_obj Void_obj  = {VOID_OBJ, 0, {0}};
+
+/* the current expression being evaluated.
+   it's used for error reporting */
+static AST_expr curr_expr;
+
+/* buffer used for constructing error messages */
+static char err_msg_buf[256];
+
+/* 
+ * construct an error message, report the error to
+ * the stderr, then longjump (unwinding the stack)
+ * to eval_err jmp_buf.
+ */
+static Rav_obj *rt_err(const char *msg, ...) {
+    va_list ap;
+    va_start(ap, msg);
+    vsprintf(err_msg_buf, msg, ap);
+    va_end(ap);
+    
+    Err error = {
+        RUNTIME_ERR,
+        *(curr_expr->where),
+        err_msg_buf
+    };
+    log_err(&error, stderr);
+    longjmp(eval_err, 1);
+
+    /* unreachable, but for warnings */
+    return RNil;
+}
 
 /* Object predicate for truthness */
 static int is_true(Rav_obj *o) {
@@ -318,17 +353,16 @@ static Rav_obj *arth_bin(Rav_obj *left, Rav_obj *right, TK_type op) {
         l_ival = left->i;
         r_ival = right->i;
     } else {
-        // TODO: runtime error handeling
-        fprintf(stderr, "Error: arithmetics to non-numerical operands\n");
-        return RVoid;
+        // TODO: runtime error handling
+        return rt_err("arithmetics to non-numerical operands (%s . %s)",
+                      object_type(left), object_type(right));
     }
 
     /* check for zero division */
     if ((op == TK_SLASH || op == TK_PERCENT) &&
         float_of(right) == 0.0) {
         // TODO: runtime error handeling
-        fprintf(stderr, "Error: Zero divisor\n");
-        return RVoid;
+        return rt_err("zero divisor");
     }
 
     return is_float ? calc_bin_float(l_fval, r_fval, op)
@@ -367,8 +401,7 @@ static Rav_obj *check_equality(Rav_obj *left, Rav_obj *right) {
 static Rav_obj *list_cons(Rav_obj *left, Rav_obj *right) {
     if (right->type != LIST_OBJ) {
         // TODO: runtime error handling
-        fprintf(stderr, "Error: Cons to an object that is not a list\n");
-        return RNil;
+        return rt_err("cons to an non list (%s)", object_type(right));
     }
 
     List *l = list_push(right->l, left);
@@ -383,8 +416,8 @@ static void *shallow_copy(void *r) { return r; }
 static Rav_obj *list_concat(Rav_obj *left, Rav_obj *right) {
     if (left->type != LIST_OBJ || right->type != LIST_OBJ) {
         // TODO: runtime error handling
-        fprintf(stderr, "Error: Concat operands are not list objects\n");
-        return RVoid;
+        return rt_err("concat apply to non list objects (%s . %s)",
+                      object_type(left), object_type(right));
     }
     
     List *new_list = NULL;
@@ -596,8 +629,7 @@ static Rav_obj *eval_assign(Evaluator *e, AST_assign_expr expr) {
             table_put(e->global, name, value);
         else {
             //TODO: runtime error handling
-            fprintf(stderr, "Error: assign to a not defined name\n");
-            return RVoid;
+            return rt_err("assign to a not defined name '%s'", name);
         }
         return value;
     }
@@ -606,8 +638,8 @@ static Rav_obj *eval_assign(Evaluator *e, AST_assign_expr expr) {
     Rav_obj *obj = eval(e, expr->lvalue->index->object);
     if (obj->type != HASH_OBJ) {
         // TODO: runtime error handeling
-        fprintf(stderr, "Error: index operation for non-hash type\n");
-        return RVoid;
+        return rt_err("index operation for non-hash type (%s)",
+                      object_type(obj));
     }
     
     hash_add(e, obj->h, expr->lvalue->index->index, value);
@@ -668,8 +700,8 @@ call_builtin(Evaluator *e, Rav_obj *fn, AST_call_expr call) {
 
     if (arity != -1 && arity != args_num) {
         //TODO: runtime error handeling
-        fprintf(stderr, "Error: Fucntion arity mismatch\n");
-        return RVoid;
+        return rt_err("fucntion arity mismatch got=(%d) expected=(%d)",
+                      args_num, arity);
     }
 
     Rav_obj **args_objs = NULL;
@@ -702,8 +734,8 @@ static Rav_obj *call_fn(Evaluator *e, Rav_obj *fn, AST_call_expr call) {
 
     if (args_num != arity) {
         //TODO: runtime error handeling
-        fprintf(stderr, "Error: Fucntion arity mismatch\n");
-        return RVoid;
+        return rt_err("fucntion arity mismatch got=(%d) expected=(%d)",
+                      args_num, arity);
     }
     
     Env *env_new = new_env(fn->cl->env);
@@ -711,7 +743,7 @@ static Rav_obj *call_fn(Evaluator *e, Rav_obj *fn, AST_call_expr call) {
         Rav_obj *arg = eval(e, args[i]);
         if (!match(e, params[i], arg, env_new)) {
             // TODO: runtime error handling
-            fprintf(stderr, "Error: Argument pattern mismatch\n");
+            return rt_err("argument #%d pattern mismatch", i+1);
         }
     }
 
@@ -731,8 +763,8 @@ call_cons(Evaluator *e, Rav_obj *cons, AST_call_expr call) {
 
     if (cons->cn->arity != args_num) {
         //TODO: runtime error handeling
-        fprintf(stderr, "Error: Constructor arity mismatch\n");
-        return RVoid;
+        return rt_err("constructor arity mismatch got=(%d) expected=(%d)",
+                      args_num, cons->cn->arity);
     }
 
     Rav_obj **elems = malloc(sizeof (*elems) * args_num);
@@ -751,8 +783,8 @@ static Rav_obj *eval_call(Evaluator *e, AST_call_expr call) {
     if (callee->type != BLTIN_OBJ &&
         callee->type != CLOS_OBJ && callee->type != CONS_OBJ) {
         //TODO: runtime error handeling
-        fprintf(stderr, "Error: Call a non-callable object\n");
-        return RVoid;
+        return rt_err("call a non-callable object (%s)",
+                      object_type(callee));
     }
 
     if (callee->type == BLTIN_OBJ)
@@ -916,10 +948,8 @@ static Rav_obj *eval_ident(Evaluator *e, AST_expr expr) {
     if (value != NULL)
         return value;
 
-    // TODO: runtime 
-    fprintf(stderr, "Name Error '%s': undefined variable usage.\n",
-            expr->ident);
-    return RVoid;
+    // TODO: runtime error handling
+    return rt_err("undefined variable '%s'", expr->ident);
 }
 
 static Rav_obj *eval_if(Evaluator *e, AST_if_expr if_expr) {
@@ -948,8 +978,8 @@ static Rav_obj *eval_if(Evaluator *e, AST_if_expr if_expr) {
 static Rav_obj *eval_index(Evaluator *e, AST_index_expr expr) {
     Rav_obj *obj = eval(e, expr->object);
     if (obj->type != HASH_OBJ) {
-        fprintf(stderr, "Error: index a non-hash object\n");
-        return RVoid;
+        // TODO: runtime error handling
+        return rt_err("index a non-hash object (%s)", object_type(obj));
     }
     
     Rav_obj *index = eval(e, expr->index);
@@ -1027,9 +1057,10 @@ static Rav_obj *eval_unary(Evaluator *e, AST_unary_expr unary) {
             return int_object(-operand->i);
         } else {
             // TODO: runtime error handling
-            fprintf(stderr, "Error: apply (-) to non-numeric object\n");
-            return RVoid;
+            return rt_err("apply negation to non-numeric object (%s)",
+                          object_type(operand));
         }
+        
     case TK_NOT:
         return is_true(operand) ? RFalse : RTrue;
         
@@ -1073,10 +1104,9 @@ static void def_function(Evaluator *e, AST_fn_stmt fn_stmt) {
 
 static void match_let(Evaluator *e, AST_let_stmt let) {
     Rav_obj *value = eval(e, let->value);
-    if (!match(e, let->patt, value, e->current)) {
+    if (!match(e, let->patt, value, e->current))
         // TODO: runtime handling
-        fprintf(stderr, "Error: Let pattern mismatch\n");
-    }
+        rt_err("let pattern mismatch");
 }
 
 static void def_type(Evaluator *e, AST_type_stmt type_stmt) {
@@ -1175,6 +1205,8 @@ void free_eval(Evaluator *e) {
 }
 
 Rav_obj *eval(Evaluator *e, AST_expr expr) {
+    curr_expr = expr;
+    
     switch (expr->type) {
     case ASSIGN_EXPR:
         return eval_assign(e, expr->assign);

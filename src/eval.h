@@ -18,6 +18,7 @@ typedef struct Evaluator {
     Table *vars;     /* variable lookup table */
 } Evaluator;
 
+
 /*
  * Initialize an evaluator state, allocate a space for
  * global environment and variable table, and it set 

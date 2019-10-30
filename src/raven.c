@@ -5,10 +5,11 @@
  *
 */
 
+#include <errno.h>
+#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 #include "ast.h"
 #include "debug.h"
@@ -134,6 +135,10 @@ void repl() {
         fputs(">> ", stdout);
         if (!fgets(buf, MAX_LINE, stdin))
             break;
+
+        if (setjmp(eval_err) != 0)
+            continue;
+        
         run_line(buf, &r, &e);
     }
 
@@ -141,23 +146,24 @@ void repl() {
     free_eval(&e);
 }
 
-int run_file(const char *file) {
+void run_file(const char *file) {
     char *src = scan_file(file);
     
     if (src == NULL) {
         fatal_err(errno, "can't open: '%s' (%s)",
                   file, strerror(errno));
     }
+
+    if (setjmp(eval_err) != 0)
+        exit(1);
     
-    return run_src(src, file);
+    if (run_src(src, file) != 0)
+        exit(1);
 }
 
 int main(int argc, char **argv) {
-    
-    for (int i = 1; i < argc; i++) {
-        int err = run_file(argv[i]);
-        if (err) break;
-    }
+    for (int i = 1; i < argc; i++)
+        run_file(argv[i]);
     
     if (argc == 1)
         repl();
