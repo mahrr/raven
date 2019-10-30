@@ -88,42 +88,45 @@ void print_object(Rav_obj *object) {
     switch(object->type) {
     case BOOL_OBJ:
         printf("%s", object->b ? "true" : "false");
-        break;
+        return;
     case BLTIN_OBJ:
         printf("<built-in>");
-        break;
+        return;
     case CLOS_OBJ:
         printf("<closure>/%d", object->cl->arity);
-        break;
+        return;
+    case CONS_OBJ:
+        printf("<constructor:%s>/%d",
+               object->cn->name, object->cn->arity);
+        return;
     case FLOAT_OBJ:
         printf("%.16g", object->f);
-        break;
+        return;
     case HASH_OBJ:
         print_hash(object);
-        break;
+        return;
     case LIST_OBJ:
         print_list(object);
-        break;
+        return;
     case INT_OBJ:
         printf("%ld", object->i);
-        break;
+        return;
     case NIL_OBJ:
         printf("nil");
-        break;
+        return;
     case STR_OBJ:
         print_str(object);
-        break;
+        return;
     case VARI_OBJ:
         print_variant(object);
-        break;
+        return;
     case VOID_OBJ:
-        break;
-
-    default:
-        fprintf(stderr, "[INTERNAL] invalid object type (%d)\n",
-                object->type);
-        assert(0);
+        return;
     }
+
+    
+    fprintf(stderr, "[INTERNAL] invalid object type(%d)\n", object->type);
+    assert(0);
 }
 
 Rav_obj *new_object(Rav_type type, uint8_t mode) {
