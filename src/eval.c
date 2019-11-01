@@ -29,8 +29,6 @@
 
 /** Constants **/
 
-// TODO: use stack unwinding instead of status bits
-
 /* status bits for object mode */
 #define From_Return   0x01
 #define From_Break    0x02
@@ -352,16 +350,13 @@ static Rav_obj *arth_bin(Rav_obj *left, Rav_obj *right, TK_type op) {
         is_float = 0;
         l_ival = left->i;
         r_ival = right->i;
-    } else {
-        // TODO: runtime error handling
+    } else
         return rt_err("arithmetics to non-numerical operands (%s . %s)",
                       object_type(left), object_type(right));
-    }
 
     /* check for zero division */
     if ((op == TK_SLASH || op == TK_PERCENT) &&
         float_of(right) == 0.0) {
-        // TODO: runtime error handeling
         return rt_err("zero divisor");
     }
 
@@ -399,11 +394,9 @@ static Rav_obj *check_equality(Rav_obj *left, Rav_obj *right) {
 /* List Operations */
 
 static Rav_obj *list_cons(Rav_obj *left, Rav_obj *right) {
-    if (right->type != LIST_OBJ) {
-        // TODO: runtime error handling
+    if (right->type != LIST_OBJ)
         return rt_err("cons to an non list (%s)", object_type(right));
-    }
-
+    
     List *l = list_push(right->l, left);
     Rav_obj *list = new_object(LIST_OBJ, 0);
     list->l = l;
@@ -411,14 +404,30 @@ static Rav_obj *list_cons(Rav_obj *left, Rav_obj *right) {
     return list;
 }
 
+static Rav_obj *str_concat(Rav_obj *left, Rav_obj *right) {
+    size_t len = left->s->len + right->s->len;
+    char *str = malloc(len);
+    
+    memcpy(str, left->s->str, left->s->len);
+    memcpy(str + left->s->len, right->s->str, right->s->len);
+
+    Str_obj *s = malloc(sizeof (*s));
+    s->str = str;
+    s->len = len;
+    // TODO: escape the raw string
+    s->israw = left->s->israw || right->s->israw ? 1 : 0;
+
+    Rav_obj *res = malloc(sizeof (*res));
+    res->type = STR_OBJ;
+    res->s = s;
+
+    return res;
+}
+
 static void *shallow_copy(void *r) { return r; }
 
 static Rav_obj *list_concat(Rav_obj *left, Rav_obj *right) {
-    if (left->type != LIST_OBJ || right->type != LIST_OBJ) {
-        // TODO: runtime error handling
-        return rt_err("concat apply to non list objects (%s . %s)",
-                      object_type(left), object_type(right));
-    }
+    
     
     List *new_list = NULL;
     new_list = list_copy(left->l, shallow_copy);
@@ -427,6 +436,17 @@ static Rav_obj *list_concat(Rav_obj *left, Rav_obj *right) {
     Rav_obj *result = new_object(LIST_OBJ, 0);
     result->l = new_list;
     return result;
+}
+
+static Rav_obj *concat(Rav_obj *left, Rav_obj *right) {
+    if (left->type == STR_OBJ && right->type == STR_OBJ)
+        return str_concat(left, right);
+
+    if (left->type == LIST_OBJ && right->type == LIST_OBJ)
+        return list_concat(left, right);
+    
+    return rt_err("invalid operands to concat operator (%s . %s)",
+                  object_type(left), object_type(right));
 }
 
 /* Hash Operations */
@@ -627,20 +647,17 @@ static Rav_obj *eval_assign(Evaluator *e, AST_assign_expr expr) {
         
         if (table_lookup(e->global, name))
             table_put(e->global, name, value);
-        else {
-            //TODO: runtime error handling
+        else
             return rt_err("assign to a not defined name '%s'", name);
-        }
+        
         return value;
     }
     
     /* INDEX_EXPR */
     Rav_obj *obj = eval(e, expr->lvalue->index->object);
-    if (obj->type != HASH_OBJ) {
-        // TODO: runtime error handeling
+    if (obj->type != HASH_OBJ)
         return rt_err("index operation for non-hash type (%s)",
                       object_type(obj));
-    }
     
     hash_add(e, obj->h, expr->lvalue->index->index, value);
     return value;
@@ -665,7 +682,7 @@ static Rav_obj *eval_binary(Evaluator *e, AST_binary_expr expr) {
     case TK_AT:
         left = eval(e, expr->left);
         right = eval(e, expr->right);
-        return list_concat(left, right);
+        return concat(left, right);
 
     /* list cons */
     case TK_PIPE:
@@ -698,11 +715,9 @@ call_builtin(Evaluator *e, Rav_obj *fn, AST_call_expr call) {
     int args_num = call->count;
     int arity = fn->bl->arity;
 
-    if (arity != -1 && arity != args_num) {
-        //TODO: runtime error handeling
+    if (arity != -1 && arity != args_num)
         return rt_err("fucntion arity mismatch got=(%d) expected=(%d)",
                       args_num, arity);
-    }
 
     Rav_obj **args_objs = NULL;
 
@@ -732,19 +747,15 @@ static Rav_obj *call_fn(Evaluator *e, Rav_obj *fn, AST_call_expr call) {
     AST_patt *params = fn->cl->params;
     int arity = fn->cl->arity;
 
-    if (args_num != arity) {
-        //TODO: runtime error handeling
+    if (args_num != arity)
         return rt_err("fucntion arity mismatch got=(%d) expected=(%d)",
                       args_num, arity);
-    }
     
     Env *env_new = new_env(fn->cl->env);
     for (int i = 0; args[i]; i++) {
         Rav_obj *arg = eval(e, args[i]);
-        if (!match(e, params[i], arg, env_new)) {
-            // TODO: runtime error handling
+        if (!match(e, params[i], arg, env_new))
             return rt_err("argument #%d pattern mismatch", i+1);
-        }
     }
 
     Rav_obj *res = walk_piece(e, fn->cl->body, env_new);
@@ -761,11 +772,9 @@ call_cons(Evaluator *e, Rav_obj *cons, AST_call_expr call) {
     AST_expr *args = call->args;
     int args_num = call->count;
 
-    if (cons->cn->arity != args_num) {
-        //TODO: runtime error handeling
+    if (cons->cn->arity != args_num)
         return rt_err("constructor arity mismatch got=(%d) expected=(%d)",
                       args_num, cons->cn->arity);
-    }
 
     Rav_obj **elems = malloc(sizeof (*elems) * args_num);
     for (int i = 0; args[i]; i++) {
@@ -782,7 +791,6 @@ static Rav_obj *eval_call(Evaluator *e, AST_call_expr call) {
     
     if (callee->type != BLTIN_OBJ &&
         callee->type != CLOS_OBJ && callee->type != CONS_OBJ) {
-        //TODO: runtime error handeling
         return rt_err("call a non-callable object (%s)",
                       object_type(callee));
     }
@@ -948,7 +956,6 @@ static Rav_obj *eval_ident(Evaluator *e, AST_expr expr) {
     if (value != NULL)
         return value;
 
-    // TODO: runtime error handling
     return rt_err("undefined variable '%s'", expr->ident);
 }
 
@@ -977,10 +984,8 @@ static Rav_obj *eval_if(Evaluator *e, AST_if_expr if_expr) {
 
 static Rav_obj *eval_index(Evaluator *e, AST_index_expr expr) {
     Rav_obj *obj = eval(e, expr->object);
-    if (obj->type != HASH_OBJ) {
-        // TODO: runtime error handling
+    if (obj->type != HASH_OBJ)
         return rt_err("index a non-hash object (%s)", object_type(obj));
-    }
     
     Rav_obj *index = eval(e, expr->index);
     Rav_obj *value = hash_get(obj, index);
@@ -1051,16 +1056,14 @@ static Rav_obj *eval_unary(Evaluator *e, AST_unary_expr unary) {
     
     switch (unary->op) {
     case TK_MINUS:
-        if (operand->type == FLOAT_OBJ) {
+        if (operand->type == FLOAT_OBJ)
             return float_object(-operand->f);
-        } else if (operand->type == INT_OBJ) {
+        else if (operand->type == INT_OBJ)
             return int_object(-operand->i);
-        } else {
-            // TODO: runtime error handling
+        else
             return rt_err("apply negation to non-numeric object (%s)",
                           object_type(operand));
-        }
-        
+                
     case TK_NOT:
         return is_true(operand) ? RFalse : RTrue;
         
@@ -1105,7 +1108,6 @@ static void def_function(Evaluator *e, AST_fn_stmt fn_stmt) {
 static void match_let(Evaluator *e, AST_let_stmt let) {
     Rav_obj *value = eval(e, let->value);
     if (!match(e, let->patt, value, e->current))
-        // TODO: runtime handling
         rt_err("let pattern mismatch");
 }
 

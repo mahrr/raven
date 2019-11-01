@@ -517,7 +517,10 @@ char *scan_file(const char *file) {
     char *buff = malloc(size);
 
     fseek(f, 0, SEEK_SET);
-    fread(buff, 1, size, f);
+    if (fread(buff, 1, size, f) == 0)
+        if (ferror(f))
+            fatal_err(1, "Fatal: can't read '%s'", file);
+    
     fclose(f);
 
     return buff;

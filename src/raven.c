@@ -150,7 +150,7 @@ void run_file(const char *file) {
     char *src = scan_file(file);
     
     if (src == NULL) {
-        fatal_err(errno, "can't open: '%s' (%s)",
+        fatal_err(errno, "Fatal: can't open '%s' (%s)",
                   file, strerror(errno));
     }
 
