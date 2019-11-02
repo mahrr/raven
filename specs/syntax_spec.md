@@ -94,7 +94,8 @@ list_literal ::= "[" expr_list "]";
 
 hash_literal ::= "{" [hash_field {"," hash_field}] "}";
 
-hash_field ::= hash_key ":" expression; 
+hash_field ::= hash_key ":" expression
+             | name;
 
 pattern ::= const_pattern
           | ident_pattern
@@ -121,7 +122,8 @@ pair_pattern ::=  "(" pattern "|" pattern ")";
 
 hash_pattern ::= "{" [pattern_field {"," pattern_field}] "}";
 
-pattern_field ::= hash_key ":" pattern;
+pattern_field ::= hash_key ":" pattern
+                | name;
 
 hash_key ::= "[" expression "]" 
            | name;
