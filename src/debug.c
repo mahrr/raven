@@ -95,20 +95,6 @@ static void paren_block(char *op, AST_expr cond, AST_piece body) {
     print_piece(body);
 }
 
-/* print hash key */
-static void print_key(AST_key key) {
-    if (key->type == EXPR_KEY) {
-        putchar('[');
-        print_expr(key->expr);
-        printf("]:");  
-    } else if (key->type == SYMBOL_KEY) {
-        printf("%s:", key->symbol);
-    } else {
-        fprintf(stderr, "[INTERNAL] invalid key type (%d)\n", key->type);
-        assert(0);
-    }
-}
-
 static void print_lit_expr(AST_lit_expr e) {
     switch (e->type) {
 
@@ -124,10 +110,10 @@ static void print_lit_expr(AST_lit_expr e) {
         AST_hash_lit hash = e->hash;
         printf("(hash ");
         
-        AST_key *keys = hash->keys;
+        AST_expr *keys = hash->keys;
         AST_expr *values = hash->values;
         for (int i = 0; keys[i]; i++) {
-            print_key(keys[i]);
+            print_expr(keys[i]);
             print_expr(values[i]);
             putchar(' ');
         }
@@ -192,10 +178,10 @@ static void print_patt(AST_patt p) {
         AST_hash_patt hash = p->hash;
         printf("(:hash ");
         
-        AST_key *keys = hash->keys;
+        AST_expr *keys = hash->keys;
         AST_patt *patts = hash->patts;
         for (int i = 0; keys[i]; i++) {
-            print_key(keys[i]);
+            print_expr(keys[i]);
             print_patt(patts[i]);
             putchar(' ');
         }

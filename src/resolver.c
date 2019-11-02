@@ -171,10 +171,7 @@ static void resolve_lit(Resolver *r, AST_lit_expr lit) {
     case HASH_LIT: {
         AST_hash_lit hash = lit->hash;
         for (int i = 0; hash->keys[i]; i++) {
-            if (hash->keys[i]->type == EXPR_KEY) {
-                AST_key key = hash->keys[i];
-                resolve_expr(r, key->expr);
-            }
+            resolve_expr(r, hash->keys[i]);
             resolve_expr(r, hash->values[i]);
         }
         break;
@@ -237,10 +234,7 @@ static void resolve_patt(Resolver *r, AST_patt patt) {
     case HASH_PATT: {
         AST_hash_patt hash = patt->hash;
         for (int i = 0; hash->keys[i]; i++) {
-            if (hash->keys[i]->type == EXPR_KEY) {
-                AST_key key = hash->keys[i];
-                resolve_expr(r, key->expr);
-            }
+            resolve_expr(r, hash->keys[i]);
             resolve_patt(r, hash->patts[i]);
         }
         break;

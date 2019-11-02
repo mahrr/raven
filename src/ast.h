@@ -68,11 +68,6 @@ typedef enum {
 } Lit_Expr_VT;
 
 typedef enum {
-    SYMBOL_KEY,
-    EXPR_KEY,
-} Hash_Key_VT;
-
-typedef enum {
     EXPR_ARM,
     PIECE_ARM
 } Arm_VT;
@@ -314,16 +309,8 @@ struct AST_fn_lit {
     AST_piece body;
 };
 
-struct AST_key {
-    Hash_Key_VT type;
-    union {
-        char *symbol;
-        AST_expr expr;
-    };
-};
-
 struct AST_hash_lit {
-    AST_key *keys;      /* array */
+    AST_expr *keys;     /* array */
     AST_expr *values;   /* array */
 };
 
@@ -339,7 +326,7 @@ struct AST_cons_patt {
 };
 
 struct AST_hash_patt {
-    AST_key *keys;      /* array */
+    AST_expr *keys;     /* array */
     AST_patt *patts;    /* array */
 };
 

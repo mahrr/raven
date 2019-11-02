@@ -105,6 +105,7 @@ static void reg_error(Parser *p, const char *message) {
        use the previous token as the error place. */
     error.where = curr_token_is(p, TK_NL) ?
         *(p->prev) : *(p->curr);
+
     ARR_ADD(&p->errors, error);
     p->been_error = 1;
 }
@@ -252,13 +253,13 @@ static AST_patt const_patt(Parser *p) {
     return patt;
 }
 
-static AST_key hash_key(Parser *p);
+static AST_expr hash_key(Parser *p);
 
 static AST_patt hash_patt(Parser *p) {
     next_token(p);  /* consume '{' */
 
-    ARRAY(AST_key) keys;
-    ARR_INITC(&keys, AST_key, 4);
+    ARRAY(AST_expr) keys;
+    ARR_INITC(&keys, AST_expr, 4);
     
     ARRAY(AST_patt) patts;
     ARR_INITC(&patts, AST_patt, 4);
@@ -266,7 +267,7 @@ static AST_patt hash_patt(Parser *p) {
     if (!match_token(p, TK_RBRACE)) {
         do {
             skip_newlines(p);
-            AST_key key = hash_key(p);
+            AST_expr key = hash_key(p);
             if (key == NULL) goto fault;
         
             AST_patt patt = pattern(p);
@@ -846,7 +847,7 @@ static AST_expr fn_literal(Parser *p) {
     return expr;
 }
 
-static AST_key hash_key(Parser *p) {
+static AST_expr hash_key(Parser *p) {
     /* [<expression>]:<value> */
     if (match_token(p, TK_LBRACKET)) {
         AST_expr expr = expression(p, LOW_PREC);
@@ -855,36 +856,37 @@ static AST_key hash_key(Parser *p) {
         if (!expect_token(p, TK_RBRACKET, "']'"))
             return NULL;
 
-        if (!expect_token(p, TK_COLON, ":"))
+        if (!expect_token(p, TK_COLON, "':'"))
             return NULL;
         
-        AST_key key = malloc(sizeof (*key));
-        key->type = EXPR_KEY;
-        key->expr = expr;
-        return key;
+       return expr;
     }
 
     /* <name>:<value> */
-    Token *sym = expect_token(p, TK_IDENT, "symbol");
+    Token *sym = expect_token(p, TK_IDENT, "hash key");
     if (sym == NULL)
         return NULL;
     
-    char *symbol = ident_of_tok(sym);
-    
-    if (!expect_token(p, TK_COLON, "symbol"))
+    if (!expect_token(p, TK_COLON, "':'"))
         return NULL;
+
+    AST_lit_expr lit = malloc(sizeof (*lit));
+    lit->type = STR_LIT;
+    lit->s = ident_of_tok(sym);
     
-    AST_key key = malloc(sizeof (*key));
-    key->type = SYMBOL_KEY;
-    key->symbol = symbol;
-    return key;
+    AST_expr expr = malloc(sizeof (*expr));
+    expr->type = LIT_EXPR;
+    expr->where = sym;
+    expr->lit = lit;
+
+    return expr;
 }
 
 static AST_expr hash_literal(Parser *p) {
     next_token(p);  /* consume '{' token */
 
-    ARRAY(AST_key) keys;
-    ARR_INIT(&keys, AST_key);
+    ARRAY(AST_expr) keys;
+    ARR_INIT(&keys, AST_expr);
     
     ARRAY(AST_expr) values;
     ARR_INIT(&values, AST_expr);
@@ -893,7 +895,7 @@ static AST_expr hash_literal(Parser *p) {
     if (!match_token(p, TK_RBRACE)) {
         do {
             skip_newlines(p);
-            AST_key key = hash_key(p);
+            AST_expr key = hash_key(p);
             if (key == NULL) goto fault;
                         
             AST_expr value = expression(p, LOW_PREC);
@@ -1343,9 +1345,10 @@ static AST_expr expression(Parser *p, Prec prec) {
     }
 
     AST_expr expr = prefix(p);
-    if (expr != NULL)
-        expr->where = curr;  /* expression location (by token) */
-
+    if (expr == NULL)
+        return NULL;
+    
+    expr->where = curr;  /* expression location (by token) */
     while (!at_end(p) &&
            !curr_token_is(p, TK_NL) &&
            !curr_token_is(p, TK_SEMICOLON) &&
@@ -1361,6 +1364,7 @@ static AST_expr expression(Parser *p, Prec prec) {
         if (expr == NULL)
             return NULL;
     }
+    
     return expr;
 }
 
@@ -1476,7 +1480,6 @@ static AST_piece piece(Parser *p, int n, ...) {
     
     TK_type *ends = end_types.elems;
     va_end(ap);
-    
 
     /* piece statements */
     ARRAY(AST_stmt) stmts;

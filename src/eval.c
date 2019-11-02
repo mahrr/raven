@@ -165,93 +165,91 @@ variant_object(Rav_obj *cons, int8_t count, Rav_obj **elems) {
     return result;
 }
 
-static void hash_add_float(Hash_obj *hash, double k, Rav_obj *data) {
+
+/* The table size in the hash object */
+#define HTABLE_SIZE 191
+
+static void hash_add_float(Hash_obj *hash, double k, Rav_obj *v) {
     double *key = malloc(sizeof (double));
     *key = (double)k;
 
     if (hash->float_table == NULL) {
         hash->float_table = malloc(sizeof (Table));
-        init_table(hash->float_table, 191, hash_float, free, comp_float);
+        init_table(hash->float_table, HTABLE_SIZE,
+                   hash_float, free, comp_float);
     }
 
     /* if the table has already a value associated with that key,
        free the newly allocated key */
-    if (table_put(hash->float_table, key, data) != NULL)
+    if (table_put(hash->float_table, key, v) != NULL)
         free(key);
 }
 
-static void hash_add_int(Hash_obj *hash, int k, Rav_obj *data) {
+static void hash_add_int(Hash_obj *hash, int k, Rav_obj *v) {
     uint64_t *key = malloc(sizeof (uint64_t));
     *key = k;
     
     if (hash->int_table == NULL) {
         hash->int_table = malloc(sizeof (Table));
-        init_table(hash->int_table, 191, hash_int, free, comp_int);
+        init_table(hash->int_table, HTABLE_SIZE,
+                   hash_int, free, comp_int);
     }
 
     /* if the table has already a value associated with that key,
        free the newly allocated key */
-    if (table_put(hash->int_table, key, data) != NULL)
+    if (table_put(hash->int_table, key, v) != NULL)
         free(key);
 }
 
-static void hash_add_sym(Hash_obj *hash, char *k, Rav_obj *data) {
+static void hash_add_str(Hash_obj *hash, const char *k, Rav_obj *v) {
     if (hash->str_table == NULL) {
-        hash->str_table = malloc(sizeof (Table));
-        init_table(hash->str_table, 191, hash_str, free, comp_str);
+        hash->str_table = malloc(sizeof(Table));
+        init_table(hash->str_table, HTABLE_SIZE,
+                   hash_str, free, comp_str);
     }
-    table_put(hash->str_table, k, data);
+
+    table_put(hash->str_table, k, v);
 }
 
-static void hash_add_obj(Hash_obj *hash, Rav_obj *k, Rav_obj *data) {
+static void hash_add_obj(Hash_obj *hash, Rav_obj *k, Rav_obj *v) {
     if (hash->obj_table == NULL) {
         hash->obj_table = malloc(sizeof(Table));
-        init_table(hash->obj_table, 191, hash_ptr, free, comp_ptr);
+        init_table(hash->obj_table, HTABLE_SIZE,
+                   hash_ptr, free, comp_ptr);
     }
-    table_put(hash->obj_table, k, data);
+    
+    table_put(hash->obj_table, k, v);
 }
 
-/* evaluate a key expression and adds object 'data' to a hash
-   object using that key */
-static void
-hash_add(Evaluator *e, Hash_obj *hash, AST_expr key, Rav_obj *data) {
-    Rav_obj *key_obj = eval(e, key);
+static void hash_add(Hash_obj *hash, Rav_obj *key, Rav_obj *value) {
     
-    switch (key_obj->type) {
+    switch (key->type) {
     case STR_OBJ:
-        hash_add_sym(hash, key_obj->s->str, data);
+        hash_add_str(hash, key->s->str, value);
         break;
     case INT_OBJ:
-        hash_add_int(hash, key_obj->i, data);
+        hash_add_int(hash, key->i, value);
         break;
     case FLOAT_OBJ:
-        hash_add_float(hash, key_obj->f, data);
+        hash_add_float(hash, key->f, value);
         break;
         
         /* pointer hashing for bool literals, nil, lists and hashes */
     default:
-        hash_add_obj(hash, key_obj, data);
+        hash_add_obj(hash, key, value);
         break;
     }
 }
 
 static Rav_obj *hash_object(Evaluator *e, AST_hash_lit hash_lit) {
     Hash_obj *hash_obj = malloc(sizeof (Hash_obj));
-    AST_key *keys = hash_lit->keys;
-    AST_expr *exprs = hash_lit->values;
+    AST_expr *keys = hash_lit->keys;
+    AST_expr *values = hash_lit->values;
     
     for (int i = 0; keys[i]; i++) {
-        if (keys[i]->type == SYMBOL_KEY) {
-            Rav_obj *object = eval(e, exprs[i]);
-            hash_add_sym(hash_obj, keys[i]->symbol, object);
-        } else if (keys[i]->type == EXPR_KEY) {
-            Rav_obj *object = eval(e, exprs[i]);
-            hash_add(e, hash_obj, keys[i]->expr, object);
-        } else {
-            fprintf(stderr, "[INTERNAL] invalid key type (%d)\n",
-                    keys[i]->type);
-            assert(0);
-        }
+        Rav_obj *key_obj = eval(e, keys[i]);
+        Rav_obj *val_obj = eval(e, values[i]);
+        hash_add(hash_obj, key_obj, val_obj);
     }
     
     Rav_obj *result = new_object(HASH_OBJ, 0);
@@ -559,25 +557,16 @@ match_pair(Evaluator *e, AST_patt patt, Rav_obj *list_obj, Env *env) {
 static int
 match_hash(Evaluator *e, AST_patt patt, Rav_obj *hash, Env *env) {
     AST_patt *patts = patt->hash->patts;
-    AST_key *keys = patt->hash->keys;
+    AST_expr *keys = patt->hash->keys;
 
     for (int i = 0; keys[i]; i++) {
-        Rav_obj *obj;
-        if (keys[i]->type == EXPR_KEY) {
-            Rav_obj *index = eval(e, keys[i]->expr);
-            obj = hash_get(hash, index);
-        } else if (keys[i]->type == SYMBOL_KEY) {
-            obj = table_get(hash->h->str_table, keys[i]->symbol);
-        } else {
-            fprintf(stderr, "[INTERNAL] invalid key type (%d)\n",
-                    keys[i]->type);
-            assert(0);
-        }
-
+        Rav_obj *index = eval(e, keys[i]);
+        Rav_obj *value = hash_get(hash, index);
+        
         /* key not found in the hash */
-        if (obj == NULL) return 0;
+        if (value == NULL) return 0;
 
-        if (!match(e, patts[i], obj, env))
+        if (!match(e, patts[i], value, env))
             return 0;
     }
     
@@ -658,8 +647,10 @@ static Rav_obj *eval_assign(Evaluator *e, AST_assign_expr expr) {
     if (obj->type != HASH_OBJ)
         return rt_err("index operation for non-hash type (%s)",
                       object_type(obj));
+
+    Rav_obj *key = eval(e, expr->lvalue->index->index);
+    hash_add(obj->h, key, value);
     
-    hash_add(e, obj->h, expr->lvalue->index->index, value);
     return value;
 }
 
