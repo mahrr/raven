@@ -257,7 +257,7 @@ static AST_patt const_patt(Parser *p) {
     return patt;
 }
 
-static AST_expr hash_key(Parser *p);
+static AST_expr hash_key(Parser *p, Token **punning);
 
 static AST_patt hash_patt(Parser *p) {
     next_token(p);  /* consume '{' */
@@ -269,14 +269,25 @@ static AST_patt hash_patt(Parser *p) {
     ARR_INITC(&patts, AST_patt, 4);
 
     if (!match_token(p, TK_RBRACE)) {
+        AST_expr key;
+        AST_patt patt;
+        Token *punning;
+        
         do {
             skip_newlines(p);
-            AST_expr key = hash_key(p);
+            key = hash_key(p, &punning);
             if (key == NULL) goto fault;
-        
-            AST_patt patt = pattern(p);
-            if (patt == NULL) goto fault;
 
+            if (punning) {
+                patt = malloc(sizeof (*patt));
+                patt->type = IDENT_PATT;
+                patt->where = punning;
+                patt->ident = ident_of_tok(punning);
+            } else {
+                patt = pattern(p);
+                if (patt == NULL) goto fault;
+            }
+        
             ARR_ADD(&keys, key);
             ARR_ADD(&patts, patt);
         } while (match_token(p, TK_COMMA));
@@ -851,7 +862,9 @@ static AST_expr fn_literal(Parser *p) {
     return expr;
 }
 
-static AST_expr hash_key(Parser *p) {
+static AST_expr hash_key(Parser *p, Token **punning) {
+    *punning = NULL;
+    
     /* [<expression>]:<value> */
     if (match_token(p, TK_LBRACKET)) {
         AST_expr expr = expression(p, LOW_PREC);
@@ -870,14 +883,20 @@ static AST_expr hash_key(Parser *p) {
     Token *sym = expect_token(p, TK_IDENT, "hash key");
     if (sym == NULL)
         return NULL;
-    
-    if (!expect_token(p, TK_COLON, "':'"))
+
+    skip_newlines(p);
+
+    /* field punning */
+    if (curr_token_is(p, TK_COMMA) || curr_token_is(p, TK_RBRACE))
+        *punning = sym;
+    else if (!expect_token(p, TK_COLON, "':'"))
         return NULL;
 
+    
     AST_lit_expr lit = malloc(sizeof (*lit));
     lit->type = STR_LIT;
     lit->s = ident_of_tok(sym);
-    
+
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = LIT_EXPR;
     expr->where = sym;
@@ -897,14 +916,26 @@ static AST_expr hash_literal(Parser *p) {
 
     /* not an empty hash */
     if (!match_token(p, TK_RBRACE)) {
+        AST_expr key, value;
+        Token *punning;
+        
         do {
             skip_newlines(p);
-            AST_expr key = hash_key(p);
+            key = hash_key(p, &punning);
             if (key == NULL) goto fault;
-                        
-            AST_expr value = expression(p, LOW_PREC);
-            if (value == NULL) goto fault;
 
+            /* field punning */
+            if (punning) {
+                AST_expr expr = malloc(sizeof (*expr));
+                expr->type = IDENT_EXPR;
+                expr->where = punning;
+                expr->ident = ident_of_tok(punning);
+                value = expr;
+            } else {
+                value = expression(p, LOW_PREC);
+                if (value == NULL) goto fault;
+            }
+            
             ARR_ADD(&keys, key);
             ARR_ADD(&values, value);
         } while (match_token(p, TK_COMMA));
