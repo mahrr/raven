@@ -71,6 +71,12 @@ double float_of_tok(Token *tok);
 */
 char *str_of_tok(Token *tok);
 
+/*
+ * return a duplicate escaped string (you need to free it)
+ * value of TK_RSTR token.
+*/
+char *rstr_of_tok(Token *tok);
+
 /* 
  * return a duplicate string (you need to free it)
  * representation of TK_IDENT token.

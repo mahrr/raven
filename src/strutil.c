@@ -29,30 +29,53 @@ char *strndup(const char *s, size_t n) {
     return dup;
 }
 
+char *strescp(const char *s, size_t size) {
+    int count = 0; /* count for escaped characters */
+
+    /* calculate the number of '/' */
+    for (size_t i = 0; i < size; i++)
+        if (s[i] == '\\') count++;
+
+    size_t new_size = size + count + 1;
+    char *escaped = malloc(new_size);
+
+    size_t j = 0;
+    for (size_t i = 0; i < size; i++, j++) {
+        if (s[i] == '\\') {
+            escaped[j++] = '\\';
+            escaped[j] = '\\';
+        } else
+            escaped[j] = s[i];
+    }
+
+    escaped[j] = '\0';
+    return escaped;
+}
+
 int
-strescp(const char *unescaped, char *escaped, size_t size, char **end) {
-    unsigned i, j; /* string counters */
+strunescp(const char *s, char *unescaped, size_t size, char **end) {
+    size_t i, j; /* string counters */
     
     for (i = 0, j = 0; i < size; i++, j++) {
-        if (unescaped[i] != '\\') {
-            escaped[j] = unescaped[i];
+        if (s[i] != '\\' || size == 1) {
+            unescaped[j] = s[i];
             continue;
         }
         
         i++; /* consume '\' */
         
-        switch (unescaped[i]) {
+        switch (s[i]) {
             
-        case 'a': escaped[j] = '\a'; break;
-        case 'b': escaped[j] = '\b'; break;
-        case 'f': escaped[j] = '\f'; break;
-        case 'n': escaped[j] = '\n'; break;
-        case 'r': escaped[j] = '\r'; break;
-        case 't': escaped[j] = '\t'; break;
-        case 'v': escaped[j] = '\v'; break;
-        case '\\': escaped[j] = '\\'; break;
-        case '\'': escaped[j] = '\''; break;
-        case '\"': escaped[j] = '\"'; break;
+        case 'a': unescaped[j] = '\a'; break;
+        case 'b': unescaped[j] = '\b'; break;
+        case 'f': unescaped[j] = '\f'; break;
+        case 'n': unescaped[j] = '\n'; break;
+        case 'r': unescaped[j] = '\r'; break;
+        case 't': unescaped[j] = '\t'; break;
+        case 'v': unescaped[j] = '\v'; break;
+        case '\\': unescaped[j] = '\\'; break;
+        case '\'': unescaped[j] = '\''; break;
+        case '\"': unescaped[j] = '\"'; break;
 
             /* \xNN -> two hexadecimal format */
         case 'x': {
@@ -62,15 +85,15 @@ strescp(const char *unescaped, char *escaped, size_t size, char **end) {
             if (i+2 >= size+1) {
                 if (end) {
                     /* at the 'x' */
-                    *end =(char*)(unescaped+i-1);
+                    *end =(char*)(s+i-1);
                 }
                 return -1;
             }
                 
             /* the next two digits */
             char digits[2];
-            digits[0] = unescaped[i++];
-            digits[1] = unescaped[i];
+            digits[0] = s[i++];
+            digits[1] = s[i];
                 
             char *e;
             int conv = strtol(digits, &e, 16);
@@ -79,29 +102,29 @@ strescp(const char *unescaped, char *escaped, size_t size, char **end) {
             if (*e != '\0') {
                 if (end) {
                     /* at the 'x' */
-                    *end = (char*)(unescaped+i-1);
+                    *end = (char*)(s+i-1);
                 }
                 return -1;
             }
 
-            escaped[j] = (char)conv;
+            unescaped[j] = (char)conv;
             break;
         }
                 
         default: {
             /* \NNN -> three ocatal format */
-            if (isdigit(unescaped[i])) {
+            if (isdigit(s[i])) {
                 /* terminated before three digits */
                 if (i+3 >= size+1) {
                     if (end)
-                        *end = (char*)(unescaped+i);
+                        *end = (char*)(s+i);
                     return -1;
                 }
 
                 char digits[3];
-                digits[0] = unescaped[i++];
-                digits[1] = unescaped[i++];
-                digits[2] = unescaped[i];
+                digits[0] = s[i++];
+                digits[1] = s[i++];
+                digits[2] = s[i];
 
                 char *e;
                 int conv = strtol(digits, &e, 8);
@@ -110,7 +133,7 @@ strescp(const char *unescaped, char *escaped, size_t size, char **end) {
                 if (*e != '\0') {
                     if (end) {
                         /* at first digit */
-                        *end = (char*)(unescaped+i-2);
+                        *end = (char*)(s+i-2);
                     }
                     return -1;
                 }
@@ -119,17 +142,17 @@ strescp(const char *unescaped, char *escaped, size_t size, char **end) {
                 if (conv > 255) {
                     if (end) {
                         /* at first digit */
-                        *end = (char*)(unescaped+i-2);
+                        *end = (char*)(s+i-2);
                     }
                     return -1;
                 }
 
-                escaped[j] = (char)conv;
+                unescaped[j] = (char)conv;
                 break;
             }
             
             if (end)
-                *end = (char*)(unescaped+i);
+                *end = (char*)(s+i);
             return -1;
         }
         }
@@ -137,6 +160,6 @@ strescp(const char *unescaped, char *escaped, size_t size, char **end) {
 
     if (end)
         *end = NULL;
-    escaped[j] = '\0';
+    unescaped[j] = '\0';
     return j;
 }

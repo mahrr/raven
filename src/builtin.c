@@ -54,7 +54,6 @@ Rav_obj *Rav_typ(Rav_obj **objects) {
     Str_obj *s = malloc(sizeof (*s));
     s->str = object_type(objects[0]);
     s->len = strlen(s->str);
-    s->israw = 0;
 
     Rav_obj *result = new_object(STR_OBJ, 0);
     result->s = s;

@@ -133,7 +133,7 @@ void repl() {
 
     for (;;) {
         fputs(">> ", stdout);
-        if (!fgets(buf, MAX_LINE, stdin))
+        if (!fgets(buf, MAX_LINE, stdin) || feof(stdin))
             break;
 
         if (setjmp(eval_err) != 0)

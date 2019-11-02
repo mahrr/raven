@@ -226,6 +226,10 @@ static AST_patt const_patt(Parser *p) {
         break;
 
     case TK_RSTR:
+        patt->s = rstr_of_tok(tok);
+        patt->type = STR_CPATT;
+        break;
+        
     case TK_STR:
         patt->s = str_of_tok(tok);
         patt->type = STR_CPATT;
@@ -971,8 +975,8 @@ static AST_expr str_literal(Parser *p) {
     Token *tok = next_token(p);  /* str token */
 
     AST_lit_expr lit = malloc(sizeof (*lit));
-    lit->type = tok->lexeme[0] == '`' ? RSTR_LIT : STR_LIT;
-    lit->s = str_of_tok(tok);
+    lit->type = STR_LIT;
+    lit->s = tok->lexeme[0] == '`' ? rstr_of_tok(tok) : str_of_tok(tok);
 
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = LIT_EXPR;

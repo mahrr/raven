@@ -49,9 +49,15 @@ double float_of_tok(Token *tok) {
 }
 
 char *str_of_tok(Token *tok) {
-    assert(tok->type == TK_STR || tok->type == TK_RSTR);
-    
+    assert(tok->type == TK_STR);
+
     return strndup(tok->lexeme + 1, tok->length - 2);
+}
+
+char *rstr_of_tok(Token *tok) {
+    assert(tok->type == TK_RSTR);
+
+    return strescp(tok->lexeme + 1, tok->length - 2);
 }
 
 /* return a string representation of TK_IDENT token */

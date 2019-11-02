@@ -62,7 +62,6 @@ typedef enum {
     INT_LIT,
     LIST_LIT,
     NIL_LIT,
-    RSTR_LIT,
     STR_LIT,
     TRUE_LIT
 } Lit_Expr_VT;

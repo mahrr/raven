@@ -147,10 +147,6 @@ static void print_lit_expr(AST_lit_expr e) {
         printf("'%s'", e->s);
         break;
 
-    case RSTR_LIT:
-        printf("`%s`", e->s);
-        break;
-
     case TRUE_LIT:
         printf("true");
         break;

@@ -90,7 +90,6 @@ struct Cons_obj {
 struct Str_obj {
     char *str;        /* a pointer to the actual string */
     int len;          /* the length of the string (NULL excluded) */
-    int israw;        /* 0 -> to be escaped, 1 -> raw string */
 };
 
 /*

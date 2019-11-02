@@ -372,9 +372,9 @@ static Token *cons_str(Lexer *l) {
 
     
     /* check for escaping errors */
-    char *buf = malloc(size);  /* escape string buffer */
+    char *buf = malloc(size);  /* unescaped string buffer */
     char *end;
-    strescp(l->fixed, buf, size, &end);
+    strunescp(l->fixed, buf, size, &end);
     free(buf);
     
     /* escape error */

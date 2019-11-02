@@ -142,11 +142,10 @@ static Rav_obj *int_object(int64_t value) {
     return result;
 }
 
-static Rav_obj *str_object(char *value, int israw) {
+static Rav_obj *str_object(char *value) {
     Str_obj *s = malloc(sizeof (*s));
     s->str = value;
     s->len = strlen(value);
-    s->israw = israw;
     
     Rav_obj *result = new_object(STR_OBJ, 0);
     result->s = s;
@@ -412,8 +411,6 @@ static Rav_obj *str_concat(Rav_obj *left, Rav_obj *right) {
     Str_obj *s = malloc(sizeof (*s));
     s->str = str;
     s->len = len;
-    // TODO: escape the raw string
-    s->israw = left->s->israw || right->s->israw ? 1 : 0;
 
     Rav_obj *res = malloc(sizeof (*res));
     res->type = STR_OBJ;
@@ -826,7 +823,7 @@ static Rav_obj *key_object(Rav_type type, const void *key) {
         return key_obj;
     }
     case STR_OBJ: {
-        Rav_obj *key_obj = str_object((char *)key, 0);
+        Rav_obj *key_obj = str_object((char *)key);
         return key_obj;
     }
         /* the key itself is a raven object */
@@ -898,10 +895,13 @@ iter_list(Evaluator *e, Rav_obj *iter, AST_for_expr for_expr) {
 static void
 iter_str(Evaluator *e, Rav_obj *iter, AST_for_expr for_expr) {
     char *str = iter->s->str;
-    int israw = iter->s->israw;
+    char *buf = malloc(iter->s->len);
+
+    /* unescape it first */
+    strunescp(str, buf, iter->s->len, NULL);
     
-    for ( ; *str != '\0'; str++) {
-        Rav_obj *ch = str_object(strndup(str, 1), israw);
+    for ( ; *buf != '\0'; buf++) {
+        Rav_obj *ch = str_object(strndup(buf, 1));
         Env *env = new_env(e->current);
 
         if (match(e, for_expr->patt, ch, env))
@@ -998,8 +998,7 @@ static Rav_obj *eval_lit(Evaluator *e, AST_lit_expr lit) {
     case NIL_LIT:
         return RNil;
     case STR_LIT:
-    case RSTR_LIT:
-        return str_object(lit->s, lit->type == RSTR_LIT);
+        return str_object(lit->s);
     case LIST_LIT:
         return list_object(e, lit->list->values);
     case FN_LIT:

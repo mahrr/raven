@@ -33,19 +33,13 @@ static void print_list(Rav_obj *list) {
 }
 
 static void print_str(Rav_obj *str) {
-    if (str->s->israw) {
-        fwrite(str->s->str, 1, str->s->len, stdout);
-        return;
-    }
-
-    /* escaped string */
     size_t slen = str->s->len;
-    char *escaped = malloc(slen);
+    char *unescaped = malloc(slen);
 
-    int elen = strescp(str->s->str, escaped, slen, NULL);
-    fwrite(escaped, 1, elen, stdout);
+    slen = strunescp(str->s->str, unescaped, slen, NULL);
+    fwrite(unescaped, 1, slen, stdout);
     
-    free(escaped);
+    free(unescaped);
 }
 
 static void print_variant(Rav_obj *variant) {
