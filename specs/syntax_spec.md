@@ -101,7 +101,8 @@ pattern ::= const_pattern
           | cons_pattern
           | pair_pattern
           | list_pattern
-          | hash_pattern;
+          | hash_pattern
+          | "(" pattern ")";
 
 const_pattern ::= INTEGER
                 | FLOAT

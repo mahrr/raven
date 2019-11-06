@@ -1312,6 +1312,13 @@ static AST_patt pattern(Parser *p) {
         patt = const_patt(p);
         break;
 
+    case TK_LPAREN:
+        next_token(p);
+        patt = pattern(p);
+        if (!expect_token(p, TK_RPAREN, "')'"))
+            return NULL;
+        break;
+
     default:
         reg_error(p, "unexpected symbol");
         return NULL;
