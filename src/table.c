@@ -139,8 +139,9 @@ void *table_remove(Table *table, const void *key) {
 
 void free_table(Table *table) {
     /* deallocating the table elements */
-    for (int i = 0; i < table->size; i++) {
-        Entry *entry = table->entries[i];
+    for (int i = 0; i < table->indexes.len; i++) {
+        int index = table->indexes.elems[i];
+        Entry *entry = table->entries[index];
         Entry *next;
         Elem *elem;
         for ( ; entry; entry = next) {

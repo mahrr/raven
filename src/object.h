@@ -66,7 +66,7 @@ typedef enum {
 
 struct Builtin_obj {
     Builtin fn;    /* a pointer to the acutal function */
-    int8_t arity;  /* -1 if variadic */
+    int arity;     /* -1 if variadic */
 };
 
 /* closure object */
@@ -75,7 +75,7 @@ struct Closure_obj {
     Env *env;
     /* list of parameters (AST_patt) */
     AST_patt *params;
-    int8_t arity;
+    int arity;
     AST_piece body;
 };
 
@@ -83,7 +83,7 @@ struct Closure_obj {
 struct Cons_obj {
     char *type;       /* the constructor data type name */
     char *name;       /* constructor name */
-    int8_t arity;     /* number of constructor parameters */
+    int arity;        /* number of constructor parameters */
 };
 
 /* string object */
@@ -110,14 +110,14 @@ struct Hash_obj {
 struct Variant_obj {
     Rav_obj *cons;    /* the variant constructor */
     Rav_obj **elems;  /* array of elements */
-    int8_t count;     /* number of data elements */
+    int count;        /* number of data elements */
 };
 
 struct Rav_obj {
     Rav_type type;
     uint8_t mode;   /* status bits used internally by the evaluator */
     union {
-        int8_t b;        /* boolean */
+        int b;           /* boolean */
         double f;        /* float */
         int64_t i;       /* integer */
         Str_obj *s;      /* string */

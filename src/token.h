@@ -20,16 +20,16 @@ typedef enum {
     TK_FN, TK_RETURN, TK_LET, TK_TYPE,
     TK_DO, TK_END, TK_IF, TK_ELIF, TK_ELSE,
     TK_FOR, TK_WHILE, TK_CONTINUE,
-    TK_BREAK, TK_COND, TK_MATCH, TK_CASE,
+    TK_BREAK, TK_COND, TK_MATCH,
 
     /* Identefier */
     TK_IDENT,
     
     /* Operators */
     TK_AND, TK_OR, TK_NOT,
-    TK_DOT, TK_AT, TK_PIPE,
+    TK_DOT, TK_AT, TK_COL_COL,
 
-    /* Arthimetik Operators */
+    /* Arithmetic Operators */
     TK_PLUS, TK_MINUS, TK_ASTERISK,
     TK_SLASH, TK_PERCENT,
 
@@ -44,7 +44,7 @@ typedef enum {
     TK_LBRACKET, TK_RBRACKET,
     TK_COMMA, TK_DASH_GT,
     TK_COLON, TK_SEMICOLON,
-    TK_EQ, TK_IN,
+    TK_EQ, TK_IN, TK_PIPE,
     TK_NL, 
 
     /* Error and end of file */

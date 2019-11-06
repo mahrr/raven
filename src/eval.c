@@ -107,7 +107,7 @@ static Rav_obj *clos_object(Evaluator *e, AST_fn_lit expr) {
     return result;
 }
 
-static Rav_obj *cons_object(char *type, char *name, int8_t arity) {
+static Rav_obj *cons_object(char *type, char *name, int arity) {
     Cons_obj *cons = malloc(sizeof (*cons));
     cons->type = type;
     cons->name = name;
@@ -153,7 +153,7 @@ static Rav_obj *str_object(char *value) {
 }
 
 static Rav_obj*
-variant_object(Rav_obj *cons, int8_t count, Rav_obj **elems) {
+variant_object(Rav_obj *cons, int count, Rav_obj **elems) {
     Variant_obj *variant = malloc(sizeof (*variant));
     variant->cons = cons;
     variant->count = count;
@@ -673,7 +673,7 @@ static Rav_obj *eval_binary(Evaluator *e, AST_binary_expr expr) {
         return concat(left, right);
 
     /* list cons */
-    case TK_PIPE:
+    case TK_COL_COL:
         left = eval(e, expr->left);
         right = eval(e, expr->right);
         return list_cons(left, right);
@@ -1184,7 +1184,7 @@ static void define_builtins(Evaluator *e) {
 void init_eval(Evaluator *e, int vars) {
     e->global = malloc(sizeof(Table));
     e->vars = malloc(sizeof(Table));
-    init_table(e->global, 191, hash_str, free, comp_str);
+    init_table(e->global, 191, hash_str, NULL, comp_str);
     init_table(e->vars, vars, hash_ptr, free, comp_ptr);
 
     define_builtins(e);

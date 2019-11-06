@@ -149,7 +149,7 @@ static Prec prec_of(Token *tok) {
     case TK_AT:
         return CONC_PREC;
 
-    case TK_PIPE:
+    case TK_COL_COL:
         return CONS_PREC;
 
     case TK_GT:
@@ -343,20 +343,9 @@ static AST_patt list_patt(Parser *p) {
     return patt;
 }
 
-static AST_patt pair_patt(Parser *p) {
-    next_token(p);  /* consume '(' token */
-
-    AST_patt hd = pattern(p);
-    if (hd == NULL) return NULL;
-
-    if (!expect_token(p, TK_PIPE, "'|'"))
-        return NULL;
-
+static AST_patt pair_patt(Parser *p, AST_patt hd) {
     AST_patt tl = pattern(p);
     if (tl == NULL) return NULL;
-
-    if (!expect_token(p, TK_RPAREN, "')'"))
-        return NULL;
 
     AST_pair_patt pair = malloc(sizeof (*pair));
     pair->hd = hd;
@@ -513,7 +502,7 @@ static AST_expr cond_expr(Parser *p) {
     ARRAY(AST_arm) arms;
     ARR_INITC(&arms, AST_arm, 4);
     
-    while (match_token(p, TK_CASE)) {
+    while (match_token(p, TK_PIPE)) {
         AST_expr expr = expression(p, LOW_PREC);
         if (expr == NULL) goto fault;
         
@@ -547,7 +536,7 @@ static AST_expr cond_expr(Parser *p) {
 }
 
 static AST_expr cons_expr(Parser *p, AST_expr head) {
-    next_token(p); /* consume '|' token */
+    next_token(p); /* consume '::' token */
 
     /* LCONS_PREC is the precedence below CONS_PREC which allow
        multiple cons operators to nest to the right. */
@@ -557,7 +546,7 @@ static AST_expr cons_expr(Parser *p, AST_expr head) {
     AST_binary_expr binary = malloc(sizeof (*binary));
     binary->left = head;
     binary->right = tail;
-    binary->op = TK_PIPE;
+    binary->op = TK_COL_COL;
 
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = BINARY_EXPR;
@@ -727,7 +716,7 @@ static AST_expr match_expr(Parser *p) {
     ARRAY(AST_arm) arms;
     ARR_INITC(&arms, AST_arm, 4);
     
-    while (match_token(p, TK_CASE)) {
+    while (match_token(p, TK_PIPE)) {
         AST_patt patt = pattern(p);
         if (patt == NULL) goto fault;
         
@@ -1092,9 +1081,9 @@ static Infix_F infix_of(Token *tok) {
     case TK_AT:
         return binary_expr;
 
-        /* '|' and '=' are right associative, so they have
+        /* '::' and '=' are right associative, so they have
            their own function instead of binary_expr */
-    case TK_PIPE:
+    case TK_COL_COL:
         return cons_expr;
     case TK_EQ:
         return assign_expr;
@@ -1306,10 +1295,6 @@ static AST_patt pattern(Parser *p) {
         patt = list_patt(p);
         break;
 
-    case TK_LPAREN:
-        patt = pair_patt(p);
-        break;
-
     case TK_IDENT:
         if (peek_token_is(p, TK_LPAREN))
             patt = cons_patt(p);
@@ -1332,9 +1317,14 @@ static AST_patt pattern(Parser *p) {
         return NULL;
     }
 
-    if (patt != NULL)
+    if (patt != NULL) {
         patt->where = curr; /* pattern location (by token) */
-
+        
+        /* <patt> :: <patt> */
+        if (match_token(p, TK_COL_COL))
+            patt = pair_patt(p, patt);
+    }
+    
     return patt;
 }
 

@@ -183,9 +183,7 @@ static Token *cons_ident(Lexer *l) {
         break;
         
     case 'c':
-        if (match_keyword(l, "ase"))
-            return add_token(l, TK_CASE);
-        else if (match_keyword(l, "ond"))
+        if (match_keyword(l, "ond"))
             return add_token(l, TK_COND);
         else if (match_keyword(l, "ontinue"))
             return add_token(l, TK_CONTINUE);
@@ -451,12 +449,15 @@ static Token *consume(Lexer *l) {
         return add_token(l, TK_COMMA);
     case '.':
         return add_token(l, TK_DOT);
-    case ':':
-        return add_token(l, TK_COLON);
     case ';':
         return add_token(l, TK_SEMICOLON);
         
     /* possible two character tokens */
+    case ':':
+        if (match_char(l, ':'))
+            return add_token(l, TK_COL_COL);
+        return add_token(l, TK_COLON);
+        
     case '<':
         if (match_char(l, '='))
             return add_token(l, TK_LT_EQ);

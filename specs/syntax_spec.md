@@ -78,11 +78,10 @@ for_expression ::= "for" pattern "in" expression "do"
 
 while_expression ::= "while" expression "do" piece "end";
 
-cond_expression ::= cond {"case" expression arm_branch}
-    "end";
+cond_expression ::= cond {"|" expression arm_branch} "end";
 
 match_expression ::= "match" expression "do" 
-    {"case" pattern arm_branch } "end";
+    {"|" pattern arm_branch } "end";
 
 arm_branch ::= "->" (expression | "do" piece "end");
 
@@ -118,7 +117,7 @@ cons_pattern ::= name ["(" pattern {"," pattern} ")"];
 
 list_pattern ::= "[" [pattern {"," pattern}] "]";
 
-pair_pattern ::=  "(" pattern "|" pattern ")";
+pair_pattern ::= pattern "::" pattern;
 
 hash_pattern ::= "{" [pattern_field {"," pattern_field}] "}";
 
@@ -131,7 +130,7 @@ hash_key ::= "[" expression "]"
 prefix_op ::= "-" | "not";
 
 infix_op ::= "." | "+" | "-" | "*" | "/" | "%" | "@" | "="
-           | "|" | "<" | ">" | "<=" | ">=" | "==" | "!=" 
+           | "<" | ">" | "<=" | ">=" | "==" | "!=" | "::"
            | "and" | "or";
 
 name ::= IDENTIFIER;

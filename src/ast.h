@@ -8,7 +8,7 @@
 #ifndef ast_h
 #define ast_h
 
-#include <stdint.h>  /* int64_t */
+#include <stdint.h>
 
 #include "token.h"
 
@@ -179,7 +179,7 @@ struct AST_patt {
         int64_t i;         /* literal int pattern */
         double f;          /* literal float pattern */
         char *s;           /* literal string pattern */
-        int8_t b;          /* literal boolean value */
+        int b;             /* literal boolean value */
     };
 };
 
@@ -191,7 +191,7 @@ struct AST_expr_stmt {
 struct AST_fn_stmt {
     char *name;
     AST_patt *params;  /* array */
-    int8_t count;      /* number of parameters */
+    int count;         /* number of parameters */
     AST_piece body;
 };
 
@@ -207,7 +207,7 @@ struct AST_ret_stmt {
 struct AST_variant {
     char *name;     /* the variant name */
     char **params;  /* array */
-    int8_t count;   /* number of parameters */
+    int count;      /* number of parameters */
 };
 
 struct AST_type_stmt {
@@ -230,7 +230,7 @@ struct AST_binary_expr {
 struct AST_call_expr {
     AST_expr func;
     AST_expr *args;  /* array */
-    int8_t count;    /* number of arguments */
+    int count;       /* number of arguments */
 };
 
 struct AST_cond_expr {
@@ -321,7 +321,7 @@ struct AST_list_lit {
 struct AST_cons_patt {
     AST_expr tag;       /* always ident_expr */
     AST_patt *patts;    /* array */
-    int8_t count;       /* number of variants */
+    int count;          /* number of variants */
 };
 
 struct AST_hash_patt {
@@ -331,7 +331,7 @@ struct AST_hash_patt {
 
 struct AST_list_patt {
     AST_patt *patts;    /* array */
-    int8_t count;       /* number of patterns */
+    int count;          /* number of patterns */
 };
 
 struct AST_pair_patt {

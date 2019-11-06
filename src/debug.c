@@ -24,14 +24,14 @@ char *tok_types_str[] = {
     "FN", "RETURN", "LET", "TYPE",
     "DO", "END", "IF", "ELIF", "ELSE",
     "FOR", "WHILE", "CONTINUE",
-    "BREAK", "COND", "MATCH", "CASE",
+    "BREAK", "COND", "MATCH",
     
     /* Identefier */
     "IDENT",
     
     /* Operators */
     "AND", "OR", "NOT",
-    ".", "@", "|",
+    ".", "@", "::",
     
     /* Arthimetik Operators */
     "+", "-", "*", "/", "%",
@@ -46,7 +46,8 @@ char *tok_types_str[] = {
     "LBRACKET", "RBRACKET",
     "COMMA", "DASH_GT",
     "COLON", "SEMICOLON",
-    "EQ", "IN", "NL",
+    "EQ", "IN", "PIPE",
+    "NL",
     
     /* Errors and end of file */
     "ERR", "EOF",
@@ -104,7 +105,7 @@ static void print_lit_expr(AST_lit_expr e) {
         printf("]\n");
         print_piece(e->fn->body);
         printf(")");
-        break;
+        return;
 
     case HASH_LIT: {
         AST_hash_lit hash = e->hash;
@@ -118,38 +119,38 @@ static void print_lit_expr(AST_lit_expr e) {
             putchar(' ');
         }
         printf(")");
-        break;
+        return;
     }
 
     case LIST_LIT:
         printf("(list");
         print_exprs(e->list->values);
         printf(")");
-        break;
+        return;
 
     case FALSE_LIT:
         printf("false");
-        break;
+        return;
         
     case FLOAT_LIT:
         printf("%f", e->f);
-        break;
+        return;
         
     case INT_LIT:
         printf("%ld", e->i);
-        break;
+        return;
 
     case NIL_LIT:
         printf("nil");
-        break;
+        return;
 
     case STR_LIT:
         printf("'%s'", e->s);
-        break;
+        return;
 
     case TRUE_LIT:
         printf("true");
-        break;
+        return;
     }
 
     fprintf(stderr, "[INTERNAL] invalid literal type (%d)", e->type);
@@ -161,14 +162,14 @@ static void print_patt(AST_patt p) {
         
     case BOOL_CPATT:
         printf(p->b ? "true" : "false");
-        break;
+        return;
         
     case CONS_PATT:
         printf("(:cons ");
         print_expr(p->cons->tag);
         print_patts(p->cons->patts);
         putchar(')');
-        break;
+        return;
 
     case HASH_PATT: {
         AST_hash_patt hash = p->hash;
@@ -183,14 +184,14 @@ static void print_patt(AST_patt p) {
         }
         
         printf(")");
-        break;
+        return;
     }
 
     case LIST_PATT:
         printf("(:list ");
         print_patts(p->list->patts);
         printf(")");
-        break;
+        return;
 
     case PAIR_PATT:
         printf("(:pair ");
@@ -198,27 +199,27 @@ static void print_patt(AST_patt p) {
         printf(" | ");
         print_patt(p->pair->tl);
         printf(")");
-        break;
+        return;
     
     case FLOAT_CPATT:
         printf("%f", p->f);
-        break;
+        return;
 
     case IDENT_PATT:
         printf("%s", p->ident);
-        break;
+        return;
 
     case INT_CPATT:
         printf("%ld", p->i);
-        break;
+        return;
 
     case NIL_CPATT:
         printf("nil");
-        break;
+        return;
 
     case STR_CPATT:
         printf("'%s'", p->s);
-        break;
+        return;
     }
 
     fprintf(stderr, "[INTERNAL] invalid pattern type (%d)\n", p->type);
@@ -238,14 +239,14 @@ static void print_expr(AST_expr e) {
     case ASSIGN_EXPR: {
         AST_assign_expr assign = e->assign;
         paren_op("=", 2, assign->lvalue, assign->value);
-        break;
+        return;
     }
 
     case BINARY_EXPR: {
         AST_binary_expr bin = e->binary;
         paren_op(tok_types_str[bin->op],
                      2, bin->left, bin->right);
-        break;
+        return;
     }
 
     case CALL_EXPR:
@@ -253,7 +254,7 @@ static void print_expr(AST_expr e) {
         print_expr(e->call->func);
         print_exprs(e->call->args);
         putchar(')');
-        break;
+        return;
 
     case COND_EXPR: {
         printf("|cond| ");
@@ -278,7 +279,7 @@ static void print_expr(AST_expr e) {
            
             indent_level--;
         }
-        break;
+        return;
     }
 
     case FOR_EXPR:
@@ -288,11 +289,11 @@ static void print_expr(AST_expr e) {
         print_expr(e->for_expr->iter);
         putchar('\n');
         print_piece(e->for_expr->body);
-        break;
+        return;
 
     case GROUP_EXPR:
         paren_op("GR", 1, e->group->expr);
-        break;
+        return;
 
     case IF_EXPR: {
         AST_if_expr if_expr = e->if_expr;
@@ -304,20 +305,20 @@ static void print_expr(AST_expr e) {
         
         if (if_expr->alter != NULL)
             paren_block("else", NULL, if_expr->alter);
-        break;
+        return;
     }
 
     case IDENT_EXPR:
         printf("%s", e->ident);
-        break;
+        return;
 
     case INDEX_EXPR:
         paren_op("[]", 2, e->index->object, e->index->index);
-        break;
+        return;
 
     case LIT_EXPR:
         print_lit_expr(e->lit);
-        break;
+        return;
 
     case MATCH_EXPR: {
         AST_match_expr match = e->match;
@@ -344,18 +345,18 @@ static void print_expr(AST_expr e) {
             indent_level--;
         }
                 
-        break;
+        return;
     }
 
     case UNARY_EXPR:
         paren_op(tok_types_str[e->unary->op],
                      1, e->unary->operand);
-        break;
+        return;
 
     case WHILE_EXPR: {
         AST_while_expr wh = e->while_expr;
         paren_block("|while|", wh->cond, wh->body);
-        break;
+        return;
     }
         
     }
@@ -388,7 +389,7 @@ static void print_stmt(AST_stmt s) {
         printf("{");
         print_expr(s->expr->expr);
         printf("}\n");
-        break;
+        return;
         
     case FN_STMT:
         printf("{fn (%s) [", s->fn->name);
@@ -396,7 +397,7 @@ static void print_stmt(AST_stmt s) {
         printf("]\n");
         print_piece(s->fn->body);
         printf("}\n");
-        break;
+        return;
 
     case LET_STMT:
         printf("{let ");
@@ -404,23 +405,23 @@ static void print_stmt(AST_stmt s) {
         putchar(' ');
         print_expr(s->let->value);
         printf("}\n");
-        break;
+        return;
 
     case RET_STMT:
         printf("{ret ");
         print_expr(s->ret->value);
         printf("}\n");
-        break;
+        return;
 
     case TYPE_STMT:
         printf("{type %s\n", s->type_stmt->name);
         print_variants(s->type_stmt->variants);
         printf("}\n");
-        break;
+        return;
 
     case FIXED_STMT:
         printf("{%s}\n", tok_types_str[s->fixed]);
-        break;
+        return;
     }
 
     fprintf(stderr, "[INTERNAL] invalid statement type (%d)\n", s->type);
@@ -487,52 +488,52 @@ void inspect(Rav_obj *obj) {
     switch (obj->type) {
     case BOOL_OBJ:
         printf("value: %d, type: Boolean\n", obj->b);
-        break;
+        return;
 
     case BLTIN_OBJ:
         printf("value:<fn>(-%d-), type: Builtin\n", obj->bl->arity);
-        break;
+        return;
 
     case CLOS_OBJ:
         printf("value:<fn>(-%d-), type: CLosure\n", obj->cl->arity);
-        break;
+        return;
 
     case CONS_OBJ:
         printf("value: %s(-%d-), type: Constructor of %s\n",
                obj->cn->name, obj->cn->arity, obj->cn->type);
-        break;
+        return;
 
     case FLOAT_OBJ:
         printf("value: %f, type: Float\n", obj->f);
-        break;
+        return;
         
     case HASH_OBJ:
         inspect_hash(obj->h);
-        break;
+        return;
 
     case LIST_OBJ:
         inspect_list(obj->l);
-        break;
+        return;
 
     case INT_OBJ:
         printf("value: %ld, type: Int\n", obj->i);
-        break;
+        return;
 
     case NIL_OBJ:
         printf("value: nil, type: Nil\n");
-        break;
+        return;
 
     case STR_OBJ:
         printf("value: '%s', type: String\n", obj->s->str);
-        break;
+        return;
 
     case VARI_OBJ:
         inspect_variant(obj->vr);
-        break;
+        return;
 
     case VOID_OBJ:
         printf("value: (), type: Void\n");
-        break;
+        return;
     }
     
     fprintf(stderr, "[INTERNAL] invalid Rav_Type (%d)", obj->type);

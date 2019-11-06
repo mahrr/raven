@@ -142,7 +142,7 @@ not -     | Not, Negate             | right
 \* / %    | Multply, Divide, Module | left
 \+ -      | Add, Subtract           | left
 @         | Concatenation           | left
-\|        | list Cons               | right
+::        | list Cons               | right
 < > <= >= | Comparsion              | left
 == !=     | Equality                | left
 and       | Logical AND             | left
@@ -154,7 +154,7 @@ or        | Logical OR              | left
 ## Delimiters
 
 ```
-do end = -> ( ) [ ] { } ; , NL
+do end | = -> ( ) [ ] { } ; , NL
 ```
 
 Usually newlines could be used as statements delimiters, but you can also use semicolons to separate statements on the same line.
