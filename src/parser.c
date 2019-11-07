@@ -192,14 +192,17 @@ static AST_patt cons_patt(Parser *p) {
     AST_patt *patts = patterns(p, TK_COMMA, TK_RPAREN, "')'", &count);
     if (patts == NULL) return NULL;
 
-    AST_expr ident = malloc(sizeof (*tag));
-    ident->type = IDENT_EXPR;
-    ident->where = tag;
-    ident->ident = ident_of_tok(tag);
-    p->ident_num++;
+    AST_ident_expr ident = malloc(sizeof (*ident));
+    ident->name = ident_of_tok(tag);
+    ident->index = -1;
+    
+    AST_expr expr = malloc(sizeof (*expr));
+    expr->type = IDENT_EXPR;
+    expr->where = tag;
+    expr->ident = ident;
     
     AST_cons_patt cons = malloc(sizeof (*cons));
-    cons->tag = ident;
+    cons->tag = expr;
     cons->patts = patts;
     cons->count = count;
 
@@ -604,13 +607,16 @@ static AST_expr group_expr(Parser *p) {
 }
 
 static AST_expr identifier(Parser *p) {
-    Token *ident = next_token(p);  /* the IDENT token */
-        
+    Token *name = next_token(p);  /* the IDENT token */
+
+    AST_ident_expr ident = malloc(sizeof (*ident));
+    ident->name = ident_of_tok(name);
+    ident->index = -1;
+    
     AST_expr expr = malloc(sizeof (*expr));
     expr->type = IDENT_EXPR;
-    expr->ident = ident_of_tok(ident);
+    expr->ident = ident;
 
-    p->ident_num++;
     return expr;
 }
 
@@ -915,10 +921,14 @@ static AST_expr hash_literal(Parser *p) {
 
             /* field punning */
             if (punning) {
+                AST_ident_expr ident = malloc(sizeof (*ident));
+                ident->name = ident_of_tok(punning);
+                ident->index = -1;
+                
                 AST_expr expr = malloc(sizeof (*expr));
                 expr->type = IDENT_EXPR;
                 expr->where = punning;
-                expr->ident = ident_of_tok(punning);
+                expr->ident = ident;
                 value = expr;
             } else {
                 value = expression(p, LOW_PREC);
@@ -1567,7 +1577,6 @@ void init_parser(Parser *parser, Token *tokens) {
     parser->peek = &tokens[1];
     parser->prev = NULL;
     
-    parser->ident_num = 0;
     parser->been_error = 0;
     ARR_INIT(&parser->errors, Err);
 }
@@ -1578,7 +1587,6 @@ void free_parser(Parser *parser) {
     parser->peek = NULL;
     parser->prev = NULL;
     
-    parser->ident_num = 0;
     parser->been_error = 0;
     ARR_FREE(&parser->errors);
 }

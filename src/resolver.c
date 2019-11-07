@@ -107,7 +107,7 @@ static void define(Resolver *r, Token *where, const char *name) {
    or register an error for not defined variable usage */
 static void resolve_local(Resolver *r, AST_expr expr) {
     int inner = r->scopes.len -1;
-    char *name = expr->ident;
+    char *name = expr->ident->name;
     
     for (int i = inner; i >= 0; i--) {
         /* current outer most scope */
@@ -116,23 +116,21 @@ static void resolve_local(Resolver *r, AST_expr expr) {
 
         /* check if the scope contains the variable */
         if (var) {
-            /* the evaluator variables lookup table */
-            Table *eval_vars = r->evaluator->vars;
-
-            /* the index of the variable in the 
-               scope where it's defined */
+            
+            /* 
+             * the index of the variable in the 
+             * scope where it's defined.
+            */
             int slot = var->slot;
 
-            /* array of two ints, contains the current used 
-               variable index and the distance from the current 
-               scope to the scope in which it's defined */
-            int *loc = malloc(sizeof(int) * 2);
-            loc[0] = slot;
-            loc[1] = inner - i;
-
-            /* put the location array in the evaluator
-               variable lookup table */
-            table_put(eval_vars, expr, loc);
+            /* 
+             * register the variable index and the distance 
+             * from the current scope to the scope in which 
+             * it's defined.
+            */
+            expr->ident->index = slot;
+            expr->ident->depth = inner - i;
+            
             return;
         }
     }
@@ -422,8 +420,7 @@ static void resolve_piece(Resolver *r, AST_piece piece) {
 
 /** INTEFACE **/
 
-void init_resolver(Resolver *r, Evaluator *e) {
-    r->evaluator = e;
+void init_resolver(Resolver *r) {
     r->been_error = 0;
     r->state = 0;
     

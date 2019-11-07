@@ -17,7 +17,6 @@
 
 typedef struct Parser {
     Token *tokens;      /* array of generated tokens */
-    int ident_num;      /* number of AST ident nodes int the src */
     int been_error;     /* error flag */
     ARRAY(Err) errors;  /* parse error */
 
@@ -48,12 +47,6 @@ AST_expr parse_expr(Parser *parser);
 
 /* parse AST_patt node */
 AST_patt parse_patt(Parser *parser);
-
-/* 
- * number of AST identifier nodes. used by the evaluator
- * to initiate the variable lookup tables.
-*/
-#define parser_idnum(parser) ((parser)->ident_num)
 
 /* 1 if there is a parsing error, 0 otherwise. */
 #define parser_error(parser) ((parser)->been_error)

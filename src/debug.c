@@ -309,7 +309,7 @@ static void print_expr(AST_expr e) {
     }
 
     case IDENT_EXPR:
-        printf("%s", e->ident);
+        printf("%s", e->ident->name);
         return;
 
     case INDEX_EXPR:

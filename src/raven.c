@@ -94,11 +94,8 @@ int run_src(const char *src, const char *file) {
 
     Resolver r;
     Evaluator e;
-
-    int ident_num = parser_idnum(&p);
-    /* use prime number for the table size. */
-    init_eval(&e, next_prime(ident_num));
-    init_resolver(&r, &e);
+    init_eval(&e);
+    init_resolver(&r);
 
     if (resolve(&r, piece)) {
         Err *errors = resolver_errors(&r);
@@ -128,8 +125,8 @@ void repl() {
     /* resolver and evaluator are persist in the
        entire repl session, as all input lines
        share the same global environment. */
-    init_resolver(&r, &e);
-    init_eval(&e, 191);
+    init_resolver(&r);
+    init_eval(&e);
 
     for (;;) {
         fputs(">> ", stdout);

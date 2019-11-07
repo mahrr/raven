@@ -17,7 +17,6 @@
 #include "eval.h"
 
 typedef struct Resolver {
-    Evaluator *evaluator;
     int been_error;          /* error flag */
     unsigned state;          /* the current state of the resolver */
     ARRAY(Table*) scopes;    /* stack of scopes */
@@ -25,10 +24,9 @@ typedef struct Resolver {
 } Resolver;
 
 /*
- * initialize a resolver with evaluator 'e',
- * and initialize a the internal arrays
+ * initialize a resolver: initialize a the internal arrays.
 */
-void init_resolver(Resolver *r, Evaluator *e);
+void init_resolver(Resolver *r);
 
 /*
  * dispose any resources allocated by the resolver.

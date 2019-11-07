@@ -620,16 +620,16 @@ static Rav_obj *eval_assign(Evaluator *e, AST_assign_expr expr) {
     Rav_obj *value = eval(e, expr->value);
         
     if (expr->lvalue->type == IDENT_EXPR) {
-        /* check the locals environments first */
-        int *loc = table_get(e->vars, expr->lvalue);
+        int index = expr->lvalue->ident->index;
+        int depth = expr->lvalue->ident->depth;
         
-        if (loc != NULL) {
-            env_set(e->current, value, loc[1], loc[0]);
+        if (index > -1) {
+            env_set(e->current, value, depth, index);
             return value;
         }
         
         /* check the global environment */
-        char *name = expr->lvalue->ident;
+        char *name = expr->lvalue->ident->name;
         
         if (table_lookup(e->global, name))
             table_put(e->global, name, value);
@@ -938,16 +938,17 @@ static Rav_obj *eval_for(Evaluator *e, AST_for_expr for_expr) {
 
 static Rav_obj *eval_ident(Evaluator *e, AST_expr expr) {
     /* check if it's a local first */
-    int *loc = table_get(e->vars, expr);
-    if (loc != NULL)
-        return env_get(e->current, loc[1], loc[0]);
+    int index = expr->ident->index;
+    int depth = expr->ident->depth;
+    if (index > -1)
+        return env_get(e->current, depth, index);
 
     /* check if it's a global */
-    Rav_obj *value = table_get(e->global, expr->ident);
+    Rav_obj *value = table_get(e->global, expr->ident->name);
     if (value != NULL)
         return value;
 
-    return rt_err("undefined variable '%s'", expr->ident);
+    return rt_err("undefined variable '%s'", expr->ident->name);
 }
 
 static Rav_obj *eval_if(Evaluator *e, AST_if_expr if_expr) {
@@ -1181,19 +1182,16 @@ static void define_builtins(Evaluator *e) {
 
 /*** INTERFACE ***/
 
-void init_eval(Evaluator *e, int vars) {
+void init_eval(Evaluator *e) {
     e->global = malloc(sizeof(Table));
-    e->vars = malloc(sizeof(Table));
     init_table(e->global, 191, hash_str, NULL, comp_str);
-    init_table(e->vars, vars, hash_ptr, free, comp_ptr);
-
+    
     define_builtins(e);
     e->current = NULL;
 }
 
 void free_eval(Evaluator *e) {
     free_table(e->global);
-    free_table(e->vars);
 }
 
 Rav_obj *eval(Evaluator *e, AST_expr expr) {

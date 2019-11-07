@@ -15,18 +15,16 @@
 typedef struct Evaluator {
     Table *global;   /* <string: object> global environment  */
     Env *current;    /* current local environment */
-    Table *vars;     /* variable lookup table */
 } Evaluator;
 
 
 /*
  * Initialize an evaluator state, allocate a space for
- * global environment and variable table, and it set 
- * the current environment to the global.
- *
- * vars: number of expected elements in the variables lookup table.
+ * global environment,and it set  the current environment
+ * to the global.
+ * 
 */
-void init_eval(Evaluator *e, int vars);
+void init_eval(Evaluator *e);
 
 /*
  * dispose the evaluator internal allocated space.

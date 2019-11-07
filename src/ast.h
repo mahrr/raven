@@ -97,6 +97,7 @@ typedef struct AST_call_expr   *AST_call_expr;
 typedef struct AST_cond_expr   *AST_cond_expr;
 typedef struct AST_for_expr    *AST_for_expr;
 typedef struct AST_group_expr  *AST_group_expr;
+typedef struct AST_ident_expr  *AST_ident_expr;
 typedef struct AST_if_expr     *AST_if_expr;
 typedef struct AST_index_expr  *AST_index_expr;
 typedef struct AST_lit_expr    *AST_lit_expr;
@@ -157,13 +158,13 @@ struct AST_expr {
         AST_cond_expr cond;
         AST_for_expr for_expr;
         AST_group_expr group;
+        AST_ident_expr ident;
         AST_if_expr if_expr;
         AST_index_expr index;
         AST_lit_expr lit;
         AST_match_expr match;
         AST_unary_expr unary;
         AST_while_expr while_expr;
-        char *ident;  /* identifier expression */
     };
 };
 
@@ -246,6 +247,22 @@ struct AST_for_expr {
 
 struct AST_group_expr {
     AST_expr expr;
+};
+
+struct AST_ident_expr {
+    char *name;
+    
+    /* 
+     * index of the variable in the environment array.
+     * -1 is an indication of a global variable.
+    */
+    int index;
+    
+    /* 
+     * number of scopes (distance) from the current scope 
+     * to the scope in which the variable is defined.
+    */
+    int depth;
 };
 
 struct AST_elif {
