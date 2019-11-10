@@ -54,5 +54,11 @@ Rav_obj *execute(Evaluator *e, AST_stmt stmt);
 */
 Rav_obj *eval(Evaluator *e, AST_expr expr);
 
+/* 
+ * construct an error message, report the error to
+ * the stderr, then longjump (unwinding the stack)
+ * to eval_err jmp_buf.
+ */
+Rav_obj *rt_err(const char *msg, ...);
 
 #endif

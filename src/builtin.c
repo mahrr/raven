@@ -9,11 +9,12 @@
 #include <string.h>
 
 #include "builtin.h"
+#include "eval.h"
 #include "object.h"
 #include "strutil.h"
 
 /* return the number of all elements in each table of a hash object */
-static int hash_elems(Hash_obj *hash) {
+static int hash_elems(Rav_obj *hash) {
     int elems = 0;
     elems += hash->float_table ? table_elems(hash->float_table) : 0;
     elems += hash->int_table ? table_elems(hash->int_table) : 0;
@@ -28,7 +29,7 @@ Rav_obj *Rav_len(Rav_obj **objects) {
     switch (objects[0]->type) {
     case STR_OBJ: 
         result = new_object(INT_OBJ, 0);
-        result->i = objects[0]->s->len;
+        result->i = objects[0]->len;
         break;
 
     case LIST_OBJ:
@@ -38,25 +39,20 @@ Rav_obj *Rav_len(Rav_obj **objects) {
 
     case HASH_OBJ:
         result = new_object(INT_OBJ, 0);
-        result->i = hash_elems(objects[0]->h);
+        result->i = hash_elems(objects[0]);
         break;
 
     default:
-        // TODO: runtime error handling
-        fprintf(stderr, "Error: len applied to a non-collection.\n");
-        return RVoid;
+        return rt_err("'len': applied to a non-collection");
     }
 
     return result;
 }
 
 Rav_obj *Rav_typ(Rav_obj **objects) {
-    Str_obj *s = malloc(sizeof (*s));
-    s->str = object_type(objects[0]);
-    s->len = strlen(s->str);
-
     Rav_obj *result = new_object(STR_OBJ, 0);
-    result->s = s;
+    result->str = object_type(objects[0]);
+    result->len = strlen(result->str);
     
     return result;
 }
@@ -87,17 +83,11 @@ Rav_obj *Rav_println(Rav_obj **objects) {
 
 Rav_obj *Rav_hd(Rav_obj **objects) {
     if (objects[0]->type != LIST_OBJ) {
-        //TODO: Error Handling
-        fprintf(stderr,
-                "Type Error: hd: bad argument type, list is expected\n");
-        return RVoid;
+        return rt_err("'hd': bad argument type, list is expected");
     }
 
     if (!objects[0]->l) {
-        //TODO: Error Handling
-        fprintf(stderr,
-                "Error: passed empty list to 'hd'\n");
-        return RVoid;
+        return rt_err("passed empty list to 'hd'");
     }
     
     return objects[0]->l->head;
@@ -105,17 +95,11 @@ Rav_obj *Rav_hd(Rav_obj **objects) {
 
 Rav_obj *Rav_tl(Rav_obj **objects) {
     if (objects[0]->type != LIST_OBJ) {
-        //TODO: Error Handling
-        fprintf(stderr,
-                "Type Error: tl: bad argument type, list is expected\n");
-        return RVoid;
+        return rt_err("tl: bad argument type, list is expected");
     }
 
     if (!objects[0]->l) {
-        //TODO: Error Handling
-        fprintf(stderr,
-                "Error: passed empty list to 'tl'\n");
-        return RVoid;
+        return rt_err("passed empty list to 'tl'");
     }
     
     Rav_obj *tail = new_object(LIST_OBJ, 0);

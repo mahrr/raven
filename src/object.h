@@ -21,12 +21,6 @@
 typedef struct Env Env;
 
 typedef struct Rav_obj Rav_obj;
-typedef struct Builtin_obj Builtin_obj;
-typedef struct Closure_obj Closure_obj;
-typedef struct Cons_obj Cons_obj;
-typedef struct Hash_obj Hash_obj;
-typedef struct Str_obj Str_obj;
-typedef struct Variant_obj Variant_obj;
 
 /* 
  * built_in functions type, takes a NULL terminated array
@@ -48,7 +42,6 @@ typedef Rav_obj *(*Builtin)(Rav_obj **objects);
  * the console doesn't consider it for printting
  * unlike nil objects which are printed normally.
 */
-
 typedef enum {
     BOOL_OBJ,
     BLTIN_OBJ,
@@ -64,69 +57,68 @@ typedef enum {
     VOID_OBJ
 } Rav_type;
 
-struct Builtin_obj {
-    Builtin fn;    /* a pointer to the acutal function */
-    int arity;     /* -1 if variadic */
-};
-
-/* closure object */
-struct Closure_obj {
-    /* the environemt in which the function was defined */
-    Env *env;
-    /* list of parameters (AST_patt) */
-    AST_patt *params;
-    int arity;
-    AST_piece body;
-};
-
-/* constructor object, which are declared with type statements */
-struct Cons_obj {
-    char *type;       /* the constructor data type name */
-    char *name;       /* constructor name */
-    int arity;        /* number of constructor parameters */
-};
-
-/* string object */
-struct Str_obj {
-    char *str;        /* a pointer to the actual string */
-    int len;          /* the length of the string (NULL excluded) */
-};
-
-/*
- * Hash in raven allows any kind of object to be a key.
- * Because every type of object has its own hash fucntion,
- * the hash object maintains a table for each kind of key,
- * ints, floats, strings and ref objects (e.g. lists and hashes).
- * 
-*/
-struct Hash_obj {
-    Table *float_table;
-    Table *int_table;
-    Table *str_table;
-    Table *obj_table;
-};
-
-/* variant object, the result of calling a constructor object */
-struct Variant_obj {
-    Rav_obj *cons;    /* the variant constructor */
-    Rav_obj **elems;  /* array of elements */
-    int count;        /* number of data elements */
-};
-
 struct Rav_obj {
     Rav_type type;
     uint8_t mode;   /* status bits used internally by the evaluator */
     union {
+        /* primitives */
         int b;           /* boolean */
         double f;        /* float */
         int64_t i;       /* integer */
-        Str_obj *s;      /* string */
-        Builtin_obj *bl; /* builtin function */
-        Closure_obj *cl; /* closure */
-        Cons_obj *cn;    /* constructor */
-        Hash_obj *h;     /* hash */
         List *l;         /* list */
-        Variant_obj *vr; /* variant */
+
+        /* Builtin functions */
+        struct {
+            Builtin fn;    /* a pointer to the acutal function */
+            int bl_arity;  /* number of paramters,-1 if variadic */
+        };
+
+        /* Closure object */
+        struct {
+            /* the environemt in which the function was defined */
+            Env *env;
+            AST_patt *params; /* list of parameters (AST_patt) */
+            AST_piece body;
+            int cl_arity;
+        };
+
+        /* Constructor object, which are declared with type statements */
+        struct {
+            char *dtype;   /* the constructor data type name */
+            char *name;    /* constructor name */
+            int cs_arity;  /* number of constructor parameters */
+        };
+        
+        /* String object */
+        struct {
+            char *str;  /* a pointer to the actual string */
+            int len;    /* the length of the string (NULL excluded) */
+        };
+
+        
+        /* Variant object, the result of calling a constructor object */
+        struct {
+            Rav_obj *cons;    /* the variant constructor */
+            Rav_obj **elems;  /* array of elements */
+            int count;        /* number of data elements */
+        };
+
+        
+        /*
+         * Hash object:
+         * Hash in raven allows any kind of object to be a key.
+         * Because every type of object has its own hash fucntion,
+         * the hash object maintains a table for each kind of key,
+         * ints, floats, strings and ref objects (e.g. lists and hashes).
+         * 
+        */
+        struct {
+            Table *float_table;
+            Table *int_table;
+            Table *str_table;
+            Table *obj_table;
+        };
+        
     };
 };
 

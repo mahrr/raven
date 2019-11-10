@@ -46,29 +46,6 @@ static AST_expr curr_expr;
 /* buffer used for constructing error messages */
 static char err_msg_buf[256];
 
-/* 
- * construct an error message, report the error to
- * the stderr, then longjump (unwinding the stack)
- * to eval_err jmp_buf.
- */
-static Rav_obj *rt_err(const char *msg, ...) {
-    va_list ap;
-    va_start(ap, msg);
-    vsprintf(err_msg_buf, msg, ap);
-    va_end(ap);
-    
-    Err error = {
-        RUNTIME_ERR,
-        *(curr_expr->where),
-        err_msg_buf
-    };
-    log_err(&error, stderr);
-    longjmp(eval_err, 1);
-
-    /* unreachable, but for warnings */
-    return RNil;
-}
-
 /* Object predicate for truthness */
 static int is_true(Rav_obj *o) {
     switch (o->type) {
@@ -96,25 +73,19 @@ static void define(Evaluator *e, char *name, Rav_obj *object, Env *env) {
 /** Constructors Functions **/
 
 static Rav_obj *clos_object(Evaluator *e, AST_fn_lit expr) {
-    Closure_obj *clos = malloc(sizeof (*clos));
-    clos->body = expr->body;
-    clos->env = e->current;
-    clos->params = expr->params;
-    clos->arity = expr->count;
-    
     Rav_obj *result = new_object(CLOS_OBJ, 0);
-    result->cl = clos;
+    result->body = expr->body;
+    result->env = e->current;
+    result->params = expr->params;
+    result->cl_arity = expr->count;
     return result;
 }
 
-static Rav_obj *cons_object(char *type, char *name, int arity) {
-    Cons_obj *cons = malloc(sizeof (*cons));
-    cons->type = type;
-    cons->name = name;
-    cons->arity = arity;
-    
+static Rav_obj *cons_object(char *dtype, char *name, int arity) {
     Rav_obj *result = new_object(CONS_OBJ, 0);
-    result->cn = cons;
+    result->dtype = dtype;
+    result->name = name;
+    result->cs_arity = arity;
     return result;
 }
 
@@ -142,25 +113,19 @@ static Rav_obj *int_object(int64_t value) {
     return result;
 }
 
-static Rav_obj *str_object(char *value) {
-    Str_obj *s = malloc(sizeof (*s));
-    s->str = value;
-    s->len = strlen(value);
-    
+static Rav_obj *str_object(char *value) {    
     Rav_obj *result = new_object(STR_OBJ, 0);
-    result->s = s;
+    result->str = value;
+    result->len = strlen(value);
     return result;
 }
 
 static Rav_obj*
 variant_object(Rav_obj *cons, int count, Rav_obj **elems) {
-    Variant_obj *variant = malloc(sizeof (*variant));
-    variant->cons = cons;
-    variant->count = count;
-    variant->elems = elems;
-
     Rav_obj *result = new_object(VARI_OBJ, 0);
-    result->vr = variant;
+    result->cons = cons;
+    result->count = count;
+    result->elems = elems;
     return result;
 }
 
@@ -168,7 +133,7 @@ variant_object(Rav_obj *cons, int count, Rav_obj **elems) {
 /* The table size in the hash object */
 #define HTABLE_SIZE 191
 
-static void hash_add_float(Hash_obj *hash, double k, Rav_obj *v) {
+static void hash_add_float(Rav_obj *hash, double k, Rav_obj *v) {
     double *key = malloc(sizeof (double));
     *key = (double)k;
 
@@ -184,7 +149,7 @@ static void hash_add_float(Hash_obj *hash, double k, Rav_obj *v) {
         free(key);
 }
 
-static void hash_add_int(Hash_obj *hash, int k, Rav_obj *v) {
+static void hash_add_int(Rav_obj *hash, int k, Rav_obj *v) {
     uint64_t *key = malloc(sizeof (uint64_t));
     *key = k;
     
@@ -200,7 +165,7 @@ static void hash_add_int(Hash_obj *hash, int k, Rav_obj *v) {
         free(key);
 }
 
-static void hash_add_str(Hash_obj *hash, const char *k, Rav_obj *v) {
+static void hash_add_str(Rav_obj *hash, const char *k, Rav_obj *v) {
     if (hash->str_table == NULL) {
         hash->str_table = malloc(sizeof(Table));
         init_table(hash->str_table, HTABLE_SIZE,
@@ -210,7 +175,7 @@ static void hash_add_str(Hash_obj *hash, const char *k, Rav_obj *v) {
     table_put(hash->str_table, k, v);
 }
 
-static void hash_add_obj(Hash_obj *hash, Rav_obj *k, Rav_obj *v) {
+static void hash_add_obj(Rav_obj *hash, Rav_obj *k, Rav_obj *v) {
     if (hash->obj_table == NULL) {
         hash->obj_table = malloc(sizeof(Table));
         init_table(hash->obj_table, HTABLE_SIZE,
@@ -220,11 +185,10 @@ static void hash_add_obj(Hash_obj *hash, Rav_obj *k, Rav_obj *v) {
     table_put(hash->obj_table, k, v);
 }
 
-static void hash_add(Hash_obj *hash, Rav_obj *key, Rav_obj *value) {
-    
+static void hash_add(Rav_obj *hash, Rav_obj *key, Rav_obj *value) {
     switch (key->type) {
     case STR_OBJ:
-        hash_add_str(hash, key->s->str, value);
+        hash_add_str(hash, key->str, value);
         break;
     case INT_OBJ:
         hash_add_int(hash, key->i, value);
@@ -241,19 +205,22 @@ static void hash_add(Hash_obj *hash, Rav_obj *key, Rav_obj *value) {
 }
 
 static Rav_obj *hash_object(Evaluator *e, AST_hash_lit hash_lit) {
-    Hash_obj *hash_obj = malloc(sizeof (Hash_obj));
+    Rav_obj *hash = new_object(HASH_OBJ, 0);
+    hash->float_table = NULL;
+    hash->int_table = NULL;
+    hash->str_table = NULL;
+    hash->obj_table = NULL;
+    
     AST_expr *keys = hash_lit->keys;
     AST_expr *values = hash_lit->values;
     
     for (int i = 0; keys[i]; i++) {
         Rav_obj *key_obj = eval(e, keys[i]);
         Rav_obj *val_obj = eval(e, values[i]);
-        hash_add(hash_obj, key_obj, val_obj);
+        hash_add(hash, key_obj, val_obj);
     }
     
-    Rav_obj *result = new_object(HASH_OBJ, 0);
-    result->h = hash_obj;
-    return result;
+    return hash;
 }
 
 
@@ -293,8 +260,8 @@ static Rav_obj* calc_bin_float(double l, double r, TK_type op) {
     case TK_PERCENT:
         return float_object(fmod(l, r));
     default:
-        /* ERROR */
-        return float_object(0);
+        fprintf(stderr, "[INTERNAL] invalid binary for floats (%d)", op);
+        exit(0);
     }
 }
 
@@ -325,8 +292,8 @@ static Rav_obj *calc_bin_int(int64_t l, int64_t r, TK_type op) {
     case TK_PERCENT:
         return int_object(l % r);
     default:
-        /*ERROR */
-        return int_object(0);
+        fprintf(stderr, "[INTERNAL] invalid binary for ints (%d)", op);
+        exit(0);
     }
 }
 
@@ -373,7 +340,7 @@ static Rav_obj *check_equality(Rav_obj *left, Rav_obj *right) {
     case INT_OBJ:
         return left->i == right->i ? RTrue : RFalse;
     case STR_OBJ:
-        return !strcmp(left->s->str, right->s->str) ? RTrue : RFalse;
+        return !strcmp(left->str, right->str) ? RTrue : RFalse;
     
     /* any other object are compared by their addresses,
        so it needs to be the same object to pass the
@@ -402,19 +369,19 @@ static Rav_obj *list_cons(Rav_obj *left, Rav_obj *right) {
 }
 
 static Rav_obj *str_concat(Rav_obj *left, Rav_obj *right) {
-    size_t len = left->s->len + right->s->len;
+    size_t len = left->len + right->len;
     char *str = malloc(len);
     
-    memcpy(str, left->s->str, left->s->len);
-    memcpy(str + left->s->len, right->s->str, right->s->len);
+    memcpy(str, left->str, left->len);
+    memcpy(str + left->len, right->str, right->len);
 
-    Str_obj *s = malloc(sizeof (*s));
-    s->str = str;
-    s->len = len;
-
+    /* Not using str_object constructor, since the length
+       is already calculated. str_object uses strlen which
+       is not neccessary in this case. */
     Rav_obj *res = malloc(sizeof (*res));
     res->type = STR_OBJ;
-    res->s = s;
+    res->str = str;
+    res->len = len;
 
     return res;
 }
@@ -451,20 +418,20 @@ Rav_obj *hash_get(Rav_obj *hash, Rav_obj *index) {
     
     switch (index->type) {
     case FLOAT_OBJ:
-        if (hash->h->float_table)
-            result = table_get(hash->h->float_table, &(index->f));
+        if (hash->float_table)
+            result = table_get(hash->float_table, &(index->f));
         break;
     case INT_OBJ:
-        if (hash->h->int_table)
-            result = table_get(hash->h->int_table, &(index->i));
+        if (hash->int_table)
+            result = table_get(hash->int_table, &(index->i));
         break;
     case STR_OBJ:
-        if (hash->h->str_table)
-            result = table_get(hash->h->str_table, index->s->str);
+        if (hash->str_table)
+            result = table_get(hash->str_table, index->str);
         break;
     default:
-        if (hash->h->obj_table)
-            result = table_get(hash->h->obj_table, index);
+        if (hash->obj_table)
+            result = table_get(hash->obj_table, index);
         break;
     }
 
@@ -494,15 +461,15 @@ match(Evaluator *e, AST_patt patt, Rav_obj *object, Env *env);
 static int
 match_cons(Evaluator *e, AST_patt patt, Rav_obj *variant, Env *env) {
     AST_patt *patts = patt->cons->patts;
-    Rav_obj **elems = variant->vr->elems;
+    Rav_obj **elems = variant->elems;
 
     Rav_obj *cons = eval(e, patt->cons->tag);
     /* check if it's the same constructor */
-    if (variant->vr->cons != cons)
+    if (variant->cons != cons)
         return 0;
 
     /* check for correct number of parameter patterns */
-    if (patt->cons->count != variant->vr->count)
+    if (patt->cons->count != variant->count)
         return 0;
 
     for (int i = 0; patts[i]; i++) {
@@ -584,7 +551,7 @@ match(Evaluator *e, AST_patt patt, Rav_obj *object, Env *env) {
     case INT_CPATT:
         return patt->i == object->i;
     case STR_CPATT:
-        return !strcmp(patt->s, object->s->str);
+        return !strcmp(patt->s, object->str);
     case NIL_CPATT:
         return 1;
 
@@ -646,7 +613,7 @@ static Rav_obj *eval_assign(Evaluator *e, AST_assign_expr expr) {
                       object_type(obj));
 
     Rav_obj *key = eval(e, expr->lvalue->index->index);
-    hash_add(obj->h, key, value);
+    hash_add(obj, key, value);
     
     return value;
 }
@@ -701,7 +668,7 @@ static Rav_obj*
 call_builtin(Evaluator *e, Rav_obj *fn, AST_call_expr call) {
     AST_expr *args = call->args;
     int args_num = call->count;
-    int arity = fn->bl->arity;
+    int arity = fn->bl_arity;
 
     if (arity != -1 && arity != args_num)
         return rt_err("fucntion arity mismatch got=(%d) expected=(%d)",
@@ -722,7 +689,7 @@ call_builtin(Evaluator *e, Rav_obj *fn, AST_call_expr call) {
     if (args_objs)
         args_objs[args_num] = NULL;
 
-    Rav_obj *result = fn->bl->fn(args_objs);
+    Rav_obj *result = fn->fn(args_objs);
     free(args_objs);
 
     return result;
@@ -732,21 +699,21 @@ static Rav_obj *call_fn(Evaluator *e, Rav_obj *fn, AST_call_expr call) {
     AST_expr *args = call->args;
     int args_num = call->count;
     
-    AST_patt *params = fn->cl->params;
-    int arity = fn->cl->arity;
+    AST_patt *params = fn->params;
+    int arity = fn->cl_arity;
 
     if (args_num != arity)
         return rt_err("fucntion arity mismatch got=(%d) expected=(%d)",
                       args_num, arity);
     
-    Env *env_new = new_env(fn->cl->env);
+    Env *env_new = new_env(fn->env);
     for (int i = 0; args[i]; i++) {
         Rav_obj *arg = eval(e, args[i]);
         if (!match(e, params[i], arg, env_new))
             return rt_err("argument #%d pattern mismatch", i+1);
     }
 
-    Rav_obj *res = walk_piece(e, fn->cl->body, env_new);
+    Rav_obj *res = walk_piece(e, fn->body, env_new);
     if (res->mode & From_Return) {
         res->mode &= ~From_Return;
         return res;
@@ -760,9 +727,9 @@ call_cons(Evaluator *e, Rav_obj *cons, AST_call_expr call) {
     AST_expr *args = call->args;
     int args_num = call->count;
 
-    if (cons->cn->arity != args_num)
+    if (cons->cs_arity != args_num)
         return rt_err("constructor arity mismatch got=(%d) expected=(%d)",
-                      args_num, cons->cn->arity);
+                      args_num, cons->cs_arity);
 
     Rav_obj **elems = malloc(sizeof (*elems) * args_num);
     for (int i = 0; args[i]; i++) {
@@ -868,9 +835,7 @@ iter_table(Evaluator *e, Table *table, Rav_type key_type,
 }
 
 static void
-iter_hash(Evaluator *e, Rav_obj *iter, AST_for_expr for_expr) {
-    Hash_obj *hash = iter->h;
-
+iter_hash(Evaluator *e, Rav_obj *hash, AST_for_expr for_expr) {
     iter_table(e, hash->float_table, FLOAT_OBJ, for_expr);
     iter_table(e, hash->int_table, INT_OBJ, for_expr);
     iter_table(e, hash->str_table, STR_OBJ, for_expr);
@@ -894,11 +859,11 @@ iter_list(Evaluator *e, Rav_obj *iter, AST_for_expr for_expr) {
 
 static void
 iter_str(Evaluator *e, Rav_obj *iter, AST_for_expr for_expr) {
-    char *str = iter->s->str;
-    char *buf = malloc(iter->s->len);
+    char *str = iter->str;
+    char *buf = malloc(iter->len);
 
     /* unescape it first */
-    strunescp(str, buf, iter->s->len, NULL);
+    strunescp(str, buf, iter->len, NULL);
     
     for ( ; *buf != '\0'; buf++) {
         Rav_obj *ch = str_object(strndup(buf, 1));
@@ -908,7 +873,6 @@ iter_str(Evaluator *e, Rav_obj *iter, AST_for_expr for_expr) {
             walk_piece(e, for_expr->body, env);
         else {
             free_env(env);
-            free(ch->s);
             free(ch);
             continue;
         }
@@ -1085,14 +1049,12 @@ static Rav_obj *eval_while(Evaluator *e, AST_while_expr expr) {
 /** Executing Statements Nodes **/
 
 static void def_function(Evaluator *e, AST_fn_stmt fn_stmt) {
-    Closure_obj *clos = malloc(sizeof (*clos));
-    clos->body = fn_stmt->body;
-    clos->params = fn_stmt->params;
-    clos->arity = fn_stmt->count;
-    clos->env = e->current;
-
     Rav_obj *object = new_object(CLOS_OBJ, 0);
-    object->cl = clos;
+    object->body = fn_stmt->body;
+    object->params = fn_stmt->params;
+    object->cl_arity = fn_stmt->count;
+    object->env = e->current;
+    
     define(e, fn_stmt->name, object, e->current);
 }
 
@@ -1156,12 +1118,9 @@ static Rav_obj *walk_piece(Evaluator *e, AST_piece piece, Env *env_new) {
 
 static void
 define_builtin(Evaluator *e, char *name, Builtin fn, int arity) {
-    Builtin_obj *builtin = malloc(sizeof (*builtin));
-    builtin->fn = fn;
-    builtin->arity = arity;
-
     Rav_obj *object = new_object(BLTIN_OBJ, 0);
-    object->bl = builtin;
+    object->fn = fn;
+    object->bl_arity = arity;
     
     define(e, name, object, NULL);
 }
@@ -1259,4 +1218,22 @@ Rav_obj *execute(Evaluator *e, AST_stmt stmt) {
 
 Rav_obj *walk(Evaluator *e, AST_piece piece) {
     return walk_piece(e, piece, e->current);
+}
+
+Rav_obj *rt_err(const char *msg, ...) {
+    va_list ap;
+    va_start(ap, msg);
+    vsprintf(err_msg_buf, msg, ap);
+    va_end(ap);
+    
+    Err error = {
+        RUNTIME_ERR,
+        *(curr_expr->where),
+        err_msg_buf
+    };
+    log_err(&error, stderr);
+    longjmp(eval_err, 1);
+
+    /* unreachable, but for warnings */
+    return RNil;
 }

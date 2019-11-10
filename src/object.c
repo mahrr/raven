@@ -33,19 +33,19 @@ static void print_list(Rav_obj *list) {
 }
 
 static void print_str(Rav_obj *str) {
-    size_t slen = str->s->len;
+    size_t slen = str->len;
     char *unescaped = malloc(slen);
 
-    slen = strunescp(str->s->str, unescaped, slen, NULL);
+    slen = strunescp(str->str, unescaped, slen, NULL);
     fwrite(unescaped, 1, slen, stdout);
     
     free(unescaped);
 }
 
 static void print_variant(Rav_obj *variant) {
-    printf("%s(", variant->vr->cons->cn->name);
+    printf("%s(", variant->cons->name);
     
-    Rav_obj **objects = variant->vr->elems;
+    Rav_obj **objects = variant->elems;
     for (int i = 0; objects[i]; i++) {
         echo_object(objects[i]);
         
@@ -72,7 +72,7 @@ char *object_type(Rav_obj *object) {
 void echo_object(Rav_obj *object) {
     if (object->type == STR_OBJ) {
         putchar('\'');
-        fwrite(object->s->str, 1, object->s->len, stdout);
+        fwrite(object->str, 1, object->len, stdout);
         putchar('\'');
     } else
         print_object(object);
@@ -87,11 +87,10 @@ void print_object(Rav_obj *object) {
         printf("<built-in>");
         return;
     case CLOS_OBJ:
-        printf("<closure>/%d", object->cl->arity);
+        printf("<closure>/%d", object->cl_arity);
         return;
     case CONS_OBJ:
-        printf("<constructor:%s>/%d",
-               object->cn->name, object->cn->arity);
+        printf("<constructor:%s>/%d", object->name, object->cs_arity);
         return;
     case FLOAT_OBJ:
         printf("%.16g", object->f);
