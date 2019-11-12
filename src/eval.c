@@ -120,6 +120,13 @@ static Rav_obj *str_object(char *value) {
     return result;
 }
 
+static Rav_obj *strl_object(char *value, size_t len) {
+    Rav_obj *result = new_object(STR_OBJ, 0);
+    result->str = value;
+    result->len = len;
+    return result;
+}
+
 static Rav_obj*
 variant_object(Rav_obj *cons, int count, Rav_obj **elems) {
     Rav_obj *result = new_object(VARI_OBJ, 0);
@@ -340,6 +347,8 @@ static Rav_obj *check_equality(Rav_obj *left, Rav_obj *right) {
     case INT_OBJ:
         return left->i == right->i ? RTrue : RFalse;
     case STR_OBJ:
+        if (left->len != right->len)
+            return RFalse;
         return !strcmp(left->str, right->str) ? RTrue : RFalse;
     
     /* any other object are compared by their addresses,
@@ -375,14 +384,7 @@ static Rav_obj *str_concat(Rav_obj *left, Rav_obj *right) {
     memcpy(str, left->str, left->len);
     memcpy(str + left->len, right->str, right->len);
 
-    /* Not using str_object constructor, since the length
-       is already calculated. str_object uses strlen which
-       is not neccessary in this case. */
-    Rav_obj *res = malloc(sizeof (*res));
-    res->type = STR_OBJ;
-    res->str = str;
-    res->len = len;
-
+    Rav_obj *res = strl_object(str, len);
     return res;
 }
 
@@ -866,7 +868,7 @@ iter_str(Evaluator *e, Rav_obj *iter, AST_for_expr for_expr) {
     strunescp(str, buf, iter->len, NULL);
     
     for ( ; *buf != '\0'; buf++) {
-        Rav_obj *ch = str_object(strndup(buf, 1));
+        Rav_obj *ch = strl_object(buf, 1);
         Env *env = new_env(e->current);
 
         if (match(e, for_expr->patt, ch, env))

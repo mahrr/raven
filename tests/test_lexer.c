@@ -102,7 +102,7 @@ void test_literals() {
 void test_keywords() {
     char input[] = "fn return let do end if "
         "elif else for while continue break "
-        "type cond match case";
+        "type cond match";
 
     Token expected[] = {
         TOKEN(TK_FN, "fn"),
@@ -120,7 +120,6 @@ void test_keywords() {
         TOKEN(TK_TYPE, "type"),
         TOKEN(TK_COND, "cond"),
         TOKEN(TK_MATCH, "match"),
-        TOKEN(TK_CASE, "case")
     };
 
     int toknum = (sizeof expected) / (sizeof (Token));
@@ -147,7 +146,7 @@ void test_identifiers() {
 
 void test_operators() {
     char input[] = "and or not . @"
-        "+ - * / % |"
+        "+ - * / %"
         "< > == != <= >=";
 
     Token expected[] = {
@@ -161,7 +160,6 @@ void test_operators() {
         TOKEN(TK_ASTERISK, "*"),
         TOKEN(TK_SLASH, "/"),
         TOKEN(TK_PERCENT, "%"),
-        TOKEN(TK_PIPE, "|"),
         TOKEN(TK_LT, "<"),
         TOKEN(TK_GT, ">"),
         TOKEN(TK_EQ_EQ, "=="),
@@ -178,7 +176,7 @@ void test_operators() {
 }
 
 void test_delimiters() {
-    char input[] = "() {} [] , -> : ; = in \n";
+    char input[] = "() {} [] , -> : ; = in | \n";
 
     Token expected[] = {
         TOKEN(TK_LPAREN, "("),
@@ -193,6 +191,7 @@ void test_delimiters() {
         TOKEN(TK_SEMICOLON, ";"),
         TOKEN(TK_EQ, "="),
         TOKEN(TK_IN, "in"),
+        TOKEN(TK_PIPE, "|"),
         TOKEN(TK_NL, "")
     };
     
