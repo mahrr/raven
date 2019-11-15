@@ -93,7 +93,7 @@ static int is_prime(int n) {
     if (n % 2 == 0 || n % 3 == 0) return 0;
 
     int x = 2, y = 5;
-    while ((x * x) < n) {
+    while ((x * x) <= n) {
         if (n % x == 0) return 0;
         x += y;
         y = 6 - y;
@@ -107,11 +107,12 @@ static int is_prime(int n) {
  * (en.wikipedia.org/wiki/Bertrand's_postulate).
 */
 uint32_t next_prime(uint32_t n) {
-    if (n <= 3)
+    if (n < 3)
         return 3;
+
+    int i = n + 1;
+    for ( ; i < 2 * (int)n; i++)
+        if (is_prime(i)) break;
     
-    for (int i = n; i < 2 * (int)n; i++)
-        if (is_prime(i)) return i;
-    
-    assert(0);
+    return i;
 }
