@@ -117,6 +117,7 @@ static Rav_obj *str_object(char *value) {
     Rav_obj *result = new_object(STR_OBJ, 0);
     result->str = value;
     result->len = strlen(value);
+    result->size = strunescp_len(value, result->len);
     return result;
 }
 
@@ -124,6 +125,7 @@ static Rav_obj *strl_object(char *value, size_t len) {
     Rav_obj *result = new_object(STR_OBJ, 0);
     result->str = value;
     result->len = len;
+    result->size = strunescp_len(value, len);
     return result;
 }
 

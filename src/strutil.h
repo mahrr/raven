@@ -43,8 +43,15 @@ char *strescp(const char *s, size_t size);
  * NULL, the function stores a pointer to the beginning
  * of the invalid escape sequence in the location refrenced
  * by 'end'.
- *
 */
-int strunescp(const char *s, char *unescaped, size_t size, char **end);
+size_t strunescp(const char *s, char *unescaped, size_t size, char **end);
+
+/*
+ * Like strunescp, but only calculate the size of the string 
+ * after unescaping, and returns it. It doesn't check for any
+ * escaping errors, so passing a malformed string will result
+ * in an incorrect size.
+*/
+size_t strunescp_len(const char *s, size_t size);
 
 #endif

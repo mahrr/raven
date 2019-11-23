@@ -91,8 +91,9 @@ struct Rav_obj {
         
         /* String object */
         struct {
-            char *str;  /* a pointer to the actual string */
-            int len;    /* the length of the string (NULL excluded) */
+            char *str;    /* a pointer to the actual string */
+            size_t len;   /* the length of the string (NULL excluded) */
+            size_t size;  /* the actual size after without escaping */
         };
 
         

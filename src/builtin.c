@@ -29,7 +29,7 @@ Rav_obj *Rav_len(Rav_obj **objects) {
     switch (objects[0]->type) {
     case STR_OBJ: 
         result = new_object(INT_OBJ, 0);
-        result->i = objects[0]->len;
+        result->i = objects[0]->size;
         break;
 
     case LIST_OBJ:

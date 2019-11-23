@@ -52,7 +52,7 @@ char *strescp(const char *s, size_t size) {
     return escaped;
 }
 
-int
+size_t
 strunescp(const char *s, char *unescaped, size_t size, char **end) {
     size_t i, j; /* string counters */
     
@@ -162,4 +162,38 @@ strunescp(const char *s, char *unescaped, size_t size, char **end) {
         *end = NULL;
     unescaped[j] = '\0';
     return j;
+}
+
+
+size_t strunescp_len(const char *s, size_t size) {
+    size_t count = 0;
+    
+    for (size_t i = 0; i < size; i++, count++) {
+        if (s[i] != '\\' || size == 1)
+            continue;
+        
+        i++; /* consume '\' */
+        
+        switch (s[i]) {
+            
+        case 'a': case 'b': case 'f': case 'n':
+        case 'r': case 't': case 'v': case '\\':
+        case '\'': case '\"':
+            break;
+
+            /* \xNN -> two hexadecimal format */
+        case 'x':
+            i += 2; /* consumes 'xD' */
+            break;
+            
+        default:
+            /* \NNN -> three ocatal format */
+            if (isdigit(s[i])) {
+                i += 2; /* consumes 'DD' */
+                break;
+            }
+        }
+    }
+
+    return count;
 }
