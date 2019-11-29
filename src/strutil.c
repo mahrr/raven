@@ -174,24 +174,12 @@ size_t strunescp_len(const char *s, size_t size) {
         
         i++; /* consume '\' */
         
-        switch (s[i]) {
-            
-        case 'a': case 'b': case 'f': case 'n':
-        case 'r': case 't': case 'v': case '\\':
-        case '\'': case '\"':
-            break;
-
-            /* \xNN -> two hexadecimal format */
-        case 'x':
-            i += 2; /* consumes 'xD' */
-            break;
-            
-        default:
-            /* \NNN -> three ocatal format */
-            if (isdigit(s[i])) {
-                i += 2; /* consumes 'DD' */
-                break;
-            }
+        if (s[i] == 'x') {
+            /* \xNN two hexadecimal format, consumes 'xD' */
+            i += 2;
+        } else if (isdigit(s[i])) {
+            /* \NNN three ocatal format, consumes 'DD' */
+            i += 2;
         }
     }
 

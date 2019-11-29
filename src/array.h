@@ -5,22 +5,22 @@
  * type declaration and array operations.
  * 
  * Dynamic arrays are used mostly in the interpreter
- * internals, and as the underlying data structure
- * for the hash ints array.
+ * internals.
  *
- */
+*/
 
 #ifndef array_h
 #define array_h
 
 #include <stdlib.h>
 
-/* array type on the fly
+/* 
+ *array type on the fly
  * cap: the actual length of the array.
  * len: the logical length of the array.
  * size: the size of each element in the array.
  * elems: pointer to the acutal internal array.
- */
+*/
 #define ARRAY(type)                             \
     struct {                                    \
         int cap;                                \
@@ -31,10 +31,12 @@
 
 /* initialize an array with custom capacity 'n' */
 #define ARR_INITC(arr, type, n)                 \
-    (arr)->len = 0;                             \
-    (arr)->cap = n;                             \
-    (arr)->size = sizeof(type);                 \
-    (arr)->elems = malloc(n * (arr)->size)
+    do {                                        \
+        (arr)->len = 0;                         \
+        (arr)->cap = n;                         \
+        (arr)->size = sizeof(type);             \
+        (arr)->elems = malloc(n * (arr)->size); \
+    } while (0)
 
 /* initialize an array with default capacity value 8 */
 #define ARR_INIT(arr, type)                     \
@@ -42,13 +44,16 @@
 
 /* add an element 'obj' */
 #define ARR_ADD(arr, obj)                                               \
-    if ((arr)->len < (arr)->cap)                                        \
-        (arr)->elems[(arr)->len++] = obj;                               \
-    else {                                                              \
-        (arr)->cap *= 2;                                                \
-        (arr)->elems = realloc((arr)->elems, (arr)->cap*(arr)->size);   \
-        (arr)->elems[(arr)->len++] = obj;                               \
-    }
+    do {                                                                \
+        if ((arr)->len < (arr)->cap)                                    \
+            (arr)->elems[(arr)->len++] = obj;                           \
+        else {                                                          \
+            (arr)->cap *= 2;                                            \
+            (arr)->elems =                                              \
+                realloc((arr)->elems, (arr)->cap*(arr)->size);          \
+            (arr)->elems[(arr)->len++] = obj;                           \
+        }                                                               \
+    } while (0)
 
 /* dispose the array elements */
 #define ARR_FREE(arr)                           \

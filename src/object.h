@@ -93,7 +93,7 @@ struct Rav_obj {
         struct {
             char *str;    /* a pointer to the actual string */
             size_t len;   /* the length of the string (NULL excluded) */
-            size_t size;  /* the actual size after without escaping */
+            size_t size;  /* the actual size without escaping */
         };
 
         
