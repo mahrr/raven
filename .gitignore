@@ -3,3 +3,4 @@ dummy/
 misc/
 log
 *~
+*.o

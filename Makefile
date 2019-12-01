@@ -1,58 +1,51 @@
 CC = gcc
-CFLAGS = -std=c11 -g -Wall -Wextra -pedantic -o
-PFLAGS = -std=c11 -g -Wall -Wextra -pedantic -pg -O3 -o 
-OFLAGS = -std=c11 -march=native -g -Wall -Wextra -pedantic -O3 -o
-SRCDIR = ./src
-OUTDIR = ./bin
-TARGET = raven
-CLIBS = -lm
+CFLAGS = -std=c11 -Wall -Wextra -Werror -pedantic
+DEBUG_FLAGS = -ggdb -DDEBUG -O0
+RELEASE_FLAGS = -march=native -O2
+PROFILE_FLAGS = $(RELEASE_FLAGS) -pg
+LDLIBS = -lm
 
-# debug
-default:
-	@$(CC) $(CFLAGS) $(OUTDIR)/$(TARGET) $(SRCDIR)/*.c $(CLIBS)
+RM = rm -f
+MKDIR = mkdir -p
 
-# profiling
-profile:
-	@$(CC) $(PFLAGS) $(OUTDIR)/$(TARGET) $(SRCDIR)/*.c $(CLIBS)
+debug: bin/raven
 
-# release
-opt:
-	@$(CC) $(OFLAGS) $(OUTDIR)/$(TARGET) $(SRCDIR)/*.c $(CLIBS)
+test: bin/test_lexer begin_test
 
+release profile: clean bin/raven
+
+OBJS = raven.o eval.o builtin.o object.o   	\
+       env.o resolver.o parser.o lexer.o	\
+       error.o token.o table.o hashing.o	\
+       list.o strutil.o debug.o
+
+bin/raven: $(OBJS:%.o=src/%.o)
+	@$(MKDIR) bin/
+	$(CC) -o $@ $^ $(LDLIBS)
+
+OBJS = lexer.o error.o token.o debug.o strutil.o
+
+bin/test_lexer: tests/test_lexer.o $(OBJS:%.o=src/%.o)
+	@$(MKDIR) bin/
+	$(CC) -o $@ $^
+
+%.o: %.c
+	$(CC) $(CFLAGS) -o $@ -c $<
+
+debug test: CFLAGS += $(DEBUG_FLAGS)
+test: CFLAGS += -I./src
+release: CFLAGS += $(RELEASE_FLAGS)
+profile: CFLAGS += $(PROFILE_FLAGS)
+
+.PHONY: run begin_test clean
 
 run:
-	@$(OUTDIR)/$(TARGET)
+	@./bin/raven
+
+begin_test:
+	@./bin/test_lexer
 
 clean:
-	$(RM) $(OUTDIR)/*
-
-
-# lexer tests
-LEX_TEST = tests/test_lexer.c
-LEX_TEST_TARGET = lex_test
-LEX_TEST_RELATED = src/lexer.c  \
-				   src/error.c  \
-				   src/list.c   \
-				   src/debug.c  \
-				   src/strutil.c
-
-LEX_INCLUDE = -I./src
-LEX_PRINT = -DPRINT_TOKENS
-
-# compile the lexer test and run it
-lextest:
-	@$(CC) $(CFLAGS) $(OUTDIR)/$(LEX_TEST_TARGET) \
-	 $(LEX_TEST_RELATED) $(LEX_TEST) $(LEX_INCLUDE) $(CLIBS)
-	@$(OUTDIR)/$(LEX_TEST_TARGET)
-
-# compile the lexer test with PRINT_TOKENS macro defined and run it
-plextest:
-	@$(CC) $(CFLAGS) $(OUTDIR)/$(LEX_TEST_TARGET) \
-	 $(LEX_PRINT) $(LEX_TEST_RELATED) $(LEX_TEST) \
-	 $(LEX_INCLUDE) $(CLIBS)
-	@$(OUTDIR)/$(LEX_TEST_TARGET)
-
-# compile the lexer test only
-clextest:
-	@$(CC) $(CFLAGS) $(OUTDIR)/$(LEX_TEST_TARGET) \
-	 $(LEX_TEST_RELATED) $(LEX_TEST) $(LEX_INCLUDE) $(CLIBS)
+	$(RM) src/*.o
+	$(RM) bin/test_lexer
+	$(RM) bin/raven

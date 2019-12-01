@@ -12,8 +12,8 @@
 #include "lexer.h"
 #include "error.h"
 #include "debug.h"
-#include "list.h"
 #include "token.h"
+#include "strutil.h"
 
 /* assert the equality of two tokens */
 void assert_token(Token *t1, Token *t2) {
