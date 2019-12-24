@@ -129,6 +129,16 @@ static Rav_obj *strl_object(char *value, size_t len) {
     return result;
 }
 
+static Rav_obj *char_object(char c) {
+    Rav_obj *result = new_object(STR_OBJ, 0);
+    result->str = malloc(1);
+    result->len = 1;
+    result->size = 1;
+    *result->str = c;
+    
+    return result;
+}
+
 static Rav_obj*
 variant_object(Rav_obj *cons, int count, Rav_obj **elems) {
     Rav_obj *result = new_object(VARI_OBJ, 0);
@@ -554,10 +564,18 @@ match(Evaluator *e, AST_patt patt, Rav_obj *object, Env *env) {
         return patt->f == object->f;
     case INT_CPATT:
         return patt->i == object->i;
-    case STR_CPATT:
-        return !strcmp(patt->s, object->str);
     case NIL_CPATT:
         return 1;
+        
+    case STR_CPATT: {
+        size_t len = strlen(patt->s);
+        char *buf = malloc(len);
+        strunescp(patt->s, buf, len, NULL);
+        
+        int result = !strncmp(buf, object->str, object->len);
+        free(buf);
+        return result;
+    }
 
     /* identifier pattern matches against any value.
        it then adds the value to the environment. */
@@ -869,8 +887,8 @@ iter_str(Evaluator *e, Rav_obj *iter, AST_for_expr for_expr) {
     /* unescape it first */
     strunescp(str, buf, iter->len, NULL);
     
-    for ( ; *buf != '\0'; buf++) {
-        Rav_obj *ch = strl_object(buf, 1);
+    for (char *p = buf; *p; p++) {
+        Rav_obj *ch = char_object(*p);
         Env *env = new_env(e->current);
 
         if (match(e, for_expr->patt, ch, env))
@@ -881,6 +899,8 @@ iter_str(Evaluator *e, Rav_obj *iter, AST_for_expr for_expr) {
             continue;
         }
     }
+
+    free(buf);
 }
 
 static Rav_obj *eval_for(Evaluator *e, AST_for_expr for_expr) {

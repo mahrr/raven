@@ -5,12 +5,10 @@
 
 #include <assert.h>
 #include <stdint.h>
-#include <stdint.h>  /* int64_t */
 #include <string.h>
 #include <math.h>    /* fabs */
 
 #include "hashing.h"
-
 
 uint64_t hash_float(const void *key) {
     double f = *(double*)key;
