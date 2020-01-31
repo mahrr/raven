@@ -252,7 +252,7 @@ static double float_of(Rav_obj *obj) {
     return (double)obj->i;
 }
 
-static Rav_obj* calc_bin_float(double l, double r, TK_type op) {
+static Rav_obj *calc_bin_float(double l, double r, TK_type op) {
     switch (op) {
         /* logic operations */
     case TK_GT:

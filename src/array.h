@@ -7,11 +7,12 @@
  * Dynamic arrays are used mostly in the interpreter
  * internals.
  *
-*/
+ */
 
 #ifndef array_h
 #define array_h
 
+#include <assert.h>
 #include <stdlib.h>
 
 /* 
@@ -20,7 +21,7 @@
  * len: the logical length of the array.
  * size: the size of each element in the array.
  * elems: pointer to the acutal internal array.
-*/
+ */
 #define ARRAY(type)                             \
     struct {                                    \
         int cap;                                \
@@ -32,6 +33,7 @@
 /* initialize an array with custom capacity 'n' */
 #define ARR_INITC(arr, type, n)                 \
     do {                                        \
+        assert(n > 0);                          \
         (arr)->len = 0;                         \
         (arr)->cap = n;                         \
         (arr)->size = sizeof(type);             \
@@ -43,17 +45,15 @@
     ARR_INITC(arr, type, 8)
 
 /* add an element 'obj' */
-#define ARR_ADD(arr, obj)                                               \
-    do {                                                                \
-        if ((arr)->len < (arr)->cap)                                    \
-            (arr)->elems[(arr)->len++] = obj;                           \
-        else {                                                          \
-            (arr)->cap *= 2;                                            \
-            (arr)->elems =                                              \
-                realloc((arr)->elems, (arr)->cap*(arr)->size);          \
-            (arr)->elems[(arr)->len++] = obj;                           \
-        }                                                               \
-    } while (0)
+#define ARR_ADD(arr, obj)                                   \
+    if ((arr)->len < (arr)->cap)                            \
+        (arr)->elems[(arr)->len++] = obj;                   \
+    else {                                                  \
+        (arr)->cap *= 2;                                    \
+        (arr)->elems =                                      \
+            realloc((arr)->elems, (arr)->cap*(arr)->size);  \
+        (arr)->elems[(arr)->len++] = obj;                   \
+    }                                                       \
 
 /* dispose the array elements */
 #define ARR_FREE(arr)                           \

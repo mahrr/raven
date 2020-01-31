@@ -29,7 +29,7 @@ bin/test_lexer: tests/test_lexer.o $(OBJS:%.o=src/%.o)
 	@$(MKDIR) bin/
 	$(CC) -o $@ $^
 
-%.o: %.c
+%.o: %.c %.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 debug test: CFLAGS += $(DEBUG_FLAGS)

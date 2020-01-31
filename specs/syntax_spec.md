@@ -23,7 +23,7 @@ type_statement ::= "type" name "=" data_variants "end";
 
 data_variants ::= cons_declaration {cons_declaration};
 
-cons_declaration ::= {"|" name ["(" name {"," name} ")"]};
+cons_declaration ::= "|" name ["(" name {"," name} ")"];
 
 let_statement ::= "let" pattern "=" expression delimiter;
 
