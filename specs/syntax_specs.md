@@ -132,6 +132,8 @@ infix_operator ::= "." | "+" | "-" | "*" | "/" | "%" | "@" | "="
 
 name ::= IDENTIFIER;
 
+delimiter ::= ";" | NEW_LINE;
+
 ```
 
 ## Operators and Precedence

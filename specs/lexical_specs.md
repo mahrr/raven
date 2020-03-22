@@ -18,7 +18,6 @@ keyword ::= "break"
           | "fn"
           | "for"
           | "if"
-          | "in"
           | "let"
           | "match"
           | "nil"
@@ -36,20 +35,21 @@ integer ::= decimal_digit+
           
 float ::= decimal_digit+ "." decimal_digit+;
 
-string ::= "'" <any ASCII character expect single quote> "'";
+string ::= "'" <ASCII character expect single quote, extends until the end of line> "'";
  
-operator ::= "()" | "[]" | "."
-           | "not"| "*"  | "/"
-           | "%"  | "+"  | "-"
-           | "@"  | "::" | "<"
-           | ">"  | "<=" | ">="
-           | "==" | "!=" | "and"
-           | "or" | "=";
+operator ::= "and" | "not" | "or"
+           | "()"  | "[]"  | "."
+           | "*"   | "/"   | "%" 
+           | "+"   | "-"   | "@" 
+           | "::"  | "<"   | ">"
+           | "<="  | ">="  | "=="
+           | "!="  | "=";
             
-delimiter ::= "do" | "end" | "|"
+delimiter ::= "do" | "end" | "in"
             | "="  | "->"  | "("
             | ")"  | "["   | "]"
-            | ";"  | ":"   | ",";
+            | ";"  | ":"   | "|"
+            | ",";
 
 comment ::= "#" <extends until the end of the line>;
 
