@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -std=c99 -Wall -Wextra -Werror -pedantic
+CFLAGS = -std=gnu99 -Wall -Wextra -Werror -pedantic
 DEBUG_FLAGS = -ggdb -O0
 RELEASE_FLAGS = -march=native -O2
 PROFILE_FLAGS = $(RELEASE_FLAGS) -pg
@@ -8,7 +8,7 @@ LDLIBS =
 RM = rm -f
 MKDIR = mkdir -p
 
-OBJS = raven.o lexer.o
+OBJS = raven.o chunk.o value.o lexer.o mem.o
 
 debug: bin/raven
 release: clean bin/raven
