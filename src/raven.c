@@ -1,29 +1,22 @@
-
-#include <stdio.h>
-
-#include "lexer.h"
-
-static void print_tokens(Lexer *lexer) {
-    for (;;) {
-        Token token = next_token(lexer);
-
-        if (token.type == TOKEN_EOF) break;
-
-        printf("%.*s\t", token.length, token.lexeme);
-        printf("(%d)\n", token.type);
-    }
-}
+#include "chunk.h"
+#include "debug.h"
 
 int main(void) {
-    char buf[128];
-    Lexer lexer;
+    Chunk chunk;
 
-    for (;;) {
-        fputs(">> ", stdout);
-        if (!fgets(buf, 128, stdin) || feof(stdin))
-            break;
+    init_chunk(&chunk);
+    write_byte(&chunk, OP_ADD, 1);
+    write_byte(&chunk, OP_SUB, 1);
+    write_byte(&chunk, OP_MUL, 1);
+    write_byte(&chunk, OP_DIV, 2);
+    write_byte(&chunk, OP_MOD, 2);
+    write_byte(&chunk, OP_NIL, 3);
+    write_byte(&chunk, OP_TRUE, 3);
+    write_byte(&chunk, OP_FALSE, 3);
+    write_byte(&chunk, OP_RETURN, 4);
 
-        init_lexer(&lexer, buf);
-        print_tokens(&lexer);
-    }
+    disassemble_chunk(&chunk, "top-level");
+    free_chunk(&chunk);
+
+    return 0;
 }

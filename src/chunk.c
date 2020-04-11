@@ -1,6 +1,7 @@
 #include "chunk.h"
 #include "common.h"
 #include "mem.h"
+#include "value.h"
 
 void init_chunk(Chunk *chunk) {
     chunk->count = 0;
@@ -10,6 +11,8 @@ void init_chunk(Chunk *chunk) {
     chunk->lines_count = 0;
     chunk->lines_capacity = 0;
     chunk->lines = NULL;
+
+    init_values(&chunk->constants);
 }
 
 void free_chunk(Chunk *chunk) {
@@ -54,7 +57,7 @@ int decode_line(Chunk *chunk, int offset) {
         Line *line = &chunk->lines[mid];
         
         if (offset < line->offset) {
-            mid = end - 1;
+            end = mid - 1;
         }  else if (mid == chunk->lines_count - 1 ||
                     offset < chunk->lines[mid + 1].offset) {
             return line->line;

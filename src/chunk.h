@@ -2,8 +2,17 @@
 #define raven_chunk_h
 
 #include "common.h"
+#include "value.h"
 
 typedef enum {
+    OP_TRUE,
+    OP_FALSE,
+    OP_NIL,
+    OP_ADD,
+    OP_SUB,
+    OP_MUL,
+    OP_DIV,
+    OP_MOD,
     OP_RETURN,
 } Opcode;
 
@@ -25,6 +34,8 @@ typedef struct {
     int lines_count;
     int lines_capacity;
     Line *lines;
+
+    ValueArray constants;
 } Chunk;
 
 // Initialize the chunk state.

@@ -39,16 +39,16 @@ typedef struct {
     int count;
     int capacity;
     Value *values;
-} ValueBuffer;
+} ValueArray;
 
-// Initialize the values buffer state.
-void init_values(ValueBuffer *buffer);
+// Initialize the values array state.
+void init_values(ValueArray *array);
 
-// Free the memory used by values buffer.
-void free_values(ValueBuffer *buffer);
+// Free the memory used by values array.
+void free_values(ValueArray *array);
 
-// Add a value element to the values buffer.
-void push_value(ValueBuffer *buffer, Value value);
+// Add a value element to the values array.
+void push_value(ValueArray *array, Value value);
 
 // Check if two values are equal.
 bool values_equal(Value x, Value y);

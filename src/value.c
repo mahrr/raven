@@ -5,27 +5,26 @@
 #include "mem.h"
 #include "value.h"
 
-void init_values(ValueBuffer *buffer) {
-    buffer->count = 0;
-    buffer->capacity = 0;
-    buffer->values = NULL;
+void init_values(ValueArray *array) {
+    array->count = 0;
+    array->capacity = 0;
+    array->values = NULL;
 }
 
-void free_values(ValueBuffer *buffer) {
-    FREE_ARRAY(buffer->values, Value, buffer->capacity);
-    init_values(buffer);
+void free_values(ValueArray *array) {
+    FREE_ARRAY(array->values, Value, array->capacity);
+    init_values(array);
 }
 
-void push_value(ValueBuffer *buffer, Value value) {
-    if (buffer->count == buffer->capacity) {
-        int old_capacity = buffer->capacity;
-        buffer->capacity = GROW_CAPACITY(old_capacity);
-        buffer->values = GROW_ARRAY(buffer->values, Value,
-                                    old_capacity,
-                                    buffer->capacity);
+void push_value(ValueArray *array, Value value) {
+    if (array->count == array->capacity) {
+        int old_capacity = array->capacity;
+        array->capacity = GROW_CAPACITY(old_capacity);
+        array->values = GROW_ARRAY(array->values, Value,
+                                    old_capacity, array->capacity);
     }
 
-    buffer->values[buffer->count++] = value;
+    array->values[array->count++] = value;
 }
 
 bool values_equal(Value x, Value y) {
