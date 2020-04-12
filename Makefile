@@ -8,13 +8,13 @@ LDLIBS =
 RM = rm -f
 MKDIR = mkdir -p
 
-OBJS = raven.o chunk.o value.o lexer.o debug.o mem.o
+OBJS = raven.o vm.o chunk.o value.o lexer.o debug.o mem.o
 
-debug: bin/raven
+dev: bin/raven
 release: clean bin/raven
 profile: clean bin/raven
 
-debug: CFLAGS += $(DEBUG_FLAGS)
+dev: CFLAGS += $(DEBUG_FLAGS)
 release: CFLAGS += $(RELEASE_FLAGS)
 profile: CFLAGS += $(PROFILE_FLAGS)
 

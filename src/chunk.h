@@ -4,15 +4,20 @@
 #include "common.h"
 #include "value.h"
 
-typedef enum {
+typedef enum {      // Immediate Arguments
+    // Loading
     OP_TRUE,
     OP_FALSE,
     OP_NIL,
+    OP_LOAD_CONST,  // index
+    
+    // Arithmetics
     OP_ADD,
     OP_SUB,
     OP_MUL,
     OP_DIV,
     OP_MOD,
+    
     OP_RETURN,
 } Opcode;
 
