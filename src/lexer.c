@@ -162,7 +162,7 @@ static Token number(Lexer *lexer) {
             while (isxdigit(peek(lexer))) {
                 advance(lexer);
             }
-            return new_token(lexer, TOKEN_INTEGER);
+            return new_token(lexer, TOKEN_NUMBER);
 
         case 'o':
         case 'O':
@@ -170,7 +170,7 @@ static Token number(Lexer *lexer) {
             while (isdigit(peek(lexer)) && peek(lexer) < '8') {
                 advance(lexer);
             }
-            return new_token(lexer, TOKEN_INTEGER);
+            return new_token(lexer, TOKEN_NUMBER);
             
         case 'b':
         case 'B':
@@ -178,7 +178,7 @@ static Token number(Lexer *lexer) {
             while (peek(lexer) == '0' || peek(lexer) == '1') {
                 advance(lexer);
             }
-            return new_token(lexer, TOKEN_INTEGER);
+            return new_token(lexer, TOKEN_NUMBER);
         }
     }
 
@@ -187,11 +187,9 @@ static Token number(Lexer *lexer) {
     if (peek(lexer) == '.' && isdigit(peek_next(lexer))) {
         advance(lexer); // consume dot
         while (isdigit(peek(lexer))) advance(lexer);
-        
-        return new_token(lexer, TOKEN_FLOAT);
     }
 
-    return new_token(lexer, TOKEN_INTEGER);
+    return new_token(lexer, TOKEN_NUMBER);
 }
 
 static void skip_whitespace(Lexer *lexer) {
