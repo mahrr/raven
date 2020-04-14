@@ -218,11 +218,12 @@ static void skip_whitespace(Lexer *lexer) {
 
 Token next_token(Lexer *lexer) {
     skip_whitespace(lexer);
-
+    
     lexer->start = lexer->current;
 
-    char c = advance(lexer);
+    if (at_end(lexer)) return new_token(lexer, TOKEN_EOF);
 
+    char c = advance(lexer);
     switch (c) {
         // One-Character Tokens
     case '+': return new_token(lexer, TOKEN_PLUS);
@@ -266,8 +267,7 @@ Token next_token(Lexer *lexer) {
         if (match(lexer, '=')) return new_token(lexer, TOKEN_BANG_EQUAL);
         break;
 
-        // Identifiers, Literals and EOF
-    case '\0': return new_token(lexer, TOKEN_EOF);
+        // Identifiers, Literals
     case '\'': return string(lexer);
 
     default:

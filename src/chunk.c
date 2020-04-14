@@ -18,6 +18,7 @@ void init_chunk(Chunk *chunk) {
 void free_chunk(Chunk *chunk) {
     FREE_ARRAY(chunk->opcodes, uint8_t, chunk->capacity);
     FREE_ARRAY(chunk->lines, Line, chunk->lines_capacity);
+    free_values(&chunk->constants);
 }
 
 static void write_line(Chunk *chunk, int line) {
@@ -25,10 +26,10 @@ static void write_line(Chunk *chunk, int line) {
         chunk->lines[chunk->lines_count - 1].line == line) return;
 
     if (chunk->lines_count == chunk->lines_capacity) {
-        int old_capacity = chunk->capacity;
-        chunk->capacity = GROW_CAPACITY(old_capacity);
+        int old_capacity = chunk->lines_capacity;
+        chunk->lines_capacity = GROW_CAPACITY(old_capacity);
         chunk->lines = GROW_ARRAY(chunk->lines, Line,
-                                  old_capacity, chunk->capacity);
+                                  old_capacity, chunk->lines_capacity);
     }
 
     Line *line_encoding = &chunk->lines[chunk->lines_count++];
@@ -46,6 +47,11 @@ void write_byte(Chunk *chunk, uint8_t byte, int line) {
 
     chunk->opcodes[chunk->count++] = byte;
     write_line(chunk, line);
+}
+
+int write_constant(Chunk *chunk, Value value) {
+    push_value(&chunk->constants, value);
+    return chunk->constants.count - 1;
 }
 
 int decode_line(Chunk *chunk, int offset) {

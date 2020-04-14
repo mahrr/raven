@@ -6,10 +6,10 @@
 
 typedef enum {      // Immediate Arguments
     // Loading
-    OP_TRUE,
-    OP_FALSE,
-    OP_NIL,
-    OP_LOAD_CONST,  // index
+    OP_LOAD_TRUE,
+    OP_LOAD_FALSE,
+    OP_LOAD_NIL,
+    OP_LOAD_CONST,  // constant index
     
     // Arithmetics
     OP_ADD,
@@ -17,6 +17,10 @@ typedef enum {      // Immediate Arguments
     OP_MUL,
     OP_DIV,
     OP_MOD,
+    OP_NEG,
+
+    // Logic
+    OP_NOT,
     
     OP_RETURN,
 } Opcode;
@@ -51,6 +55,9 @@ void free_chunk(Chunk *chunk);
 
 // Add a byte to the chuck, and register it with the provided line.
 void write_byte(Chunk *chunk, uint8_t byte, int line);
+
+// Add a constant to the constants table, and return its index.
+int write_constant(Chunk *chunk, Value value);
 
 // Decode a line corresponing to a given instruction offset
 int decode_line(Chunk *chunk, int offset);

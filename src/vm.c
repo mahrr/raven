@@ -2,6 +2,7 @@
 #include <stdarg.h>
 
 #include "common.h"
+#include "compiler.h"
 #include "chunk.h"
 #include "value.h"
 #include "vm.h"
@@ -40,6 +41,18 @@ static void runtime_error(VM *vm, const char *format, ...) {
     reset_stack(vm);
 }
 
+static inline Value pop(VM *vm) {
+    return *--vm->stack_top;
+}
+
+static inline Value peek(VM *vm, int distance) {
+    return vm->stack_top[-1 - distance];
+}
+
+static inline void push(VM *vm, Value value) {
+    *vm->stack_top++ = value;
+}
+
 // The VM main loop.
 static InterpretResult run_vm(VM *vm) {
     // Reading Operations
@@ -47,9 +60,9 @@ static InterpretResult run_vm(VM *vm) {
 #define READ_CONSTANT() (vm->chunk->constants.values[READ_BYTE()])
 
     // Stack Operations
-#define POP()          (*--vm->stack_top)
-#define PUSH(value)    (*vm->stack_top++ = (value))
-#define PEEK(distance) (vm->stack_top[-1 - (distance)])
+#define POP()          (pop(vm))
+#define PUSH(value)    (push(vm, value))
+#define PEEK(distance) (peek(vm, distance))
 
     // Arithmetics Binary
 #define BINARY_OP(op)                                        \
@@ -59,8 +72,8 @@ static InterpretResult run_vm(VM *vm) {
             return INTERPRET_RUNTIME_ERROR;                  \
         }                                                    \
                                                              \
-        double x = AS_NUM(POP());                            \
         double y = AS_NUM(POP());                            \
+        double x = AS_NUM(POP());                            \
                                                              \
         PUSH(NUM_VALUE(x op y));                             \
     } while (false)
@@ -69,31 +82,38 @@ static InterpretResult run_vm(VM *vm) {
 #ifdef DEBUG_TRACE_EXECUTION
         printf("          ");
         for (Value *value = vm->stack; value < vm->stack_top; value++) {
-            printf("| ");
+            printf("[ ");
             print_value(*value);
-            printf(" |");
+            printf(" ]");
         }
+        putchar('\n');
         
         int offset = (int) (vm->ip - vm->chunk->opcodes);
         disassemble_instruction(vm->chunk, offset);
 #endif
         uint8_t instruction;
         switch (instruction = READ_BYTE()) {
-        case OP_TRUE:  PUSH(BOOL_VALUE(true)); break;
-        case OP_FALSE: PUSH(BOOL_VALUE(false)); break;
-        case OP_NIL:   PUSH(NIL_VALUE); break;
+        case OP_LOAD_TRUE:  PUSH(BOOL_VALUE(true));  break;
+        case OP_LOAD_FALSE: PUSH(BOOL_VALUE(false)); break;
+        case OP_LOAD_NIL:   PUSH(NIL_VALUE);         break;
+        case OP_LOAD_CONST: PUSH(READ_CONSTANT());   break;
 
-        case OP_LOAD_CONST: {
-            Value constant = READ_CONSTANT();
-            PUSH(constant);
-            break;
-        }
             
         case OP_ADD: BINARY_OP(+); break;
         case OP_SUB: BINARY_OP(-); break;
         case OP_MUL: BINARY_OP(*); break;
         case OP_DIV: BINARY_OP(/); break;
         case OP_MOD: /* TODO */ break;
+        case OP_NEG: {
+            if (!IS_NUM(PEEK(0))) {
+                runtime_error(vm, "Negation operand must be a number");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+
+            PUSH(NUM_VALUE(-AS_NUM(POP())));
+            break;
+        }
+            
 
         case OP_RETURN:
             print_value(POP());
@@ -105,21 +125,23 @@ static InterpretResult run_vm(VM *vm) {
         }
     }
 
-#undef PUSH
+#undef PEEK
 #undef POP
+#undef PUSH
 #undef READ_CONSTANT
 #undef READ_BYTE
 }
 
 InterpretResult interpret(VM *vm, const char *source) {
-    (void) source; // Temporary for warnings
-    
     Chunk chunk;
     init_chunk(&chunk);
-    
     vm->chunk = &chunk;
-    vm->ip = chunk.opcodes;
 
+    if (!compile(vm, source)) {
+        return INTERPRET_COMPILE_ERROR;
+    }
+    
+    vm->ip = chunk.opcodes;
     InterpretResult result = run_vm(vm);
 
     free_chunk(&chunk);

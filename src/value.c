@@ -33,17 +33,17 @@ bool values_equal(Value x, Value y) {
     case VALUE_NUM:  return AS_NUM(x) == AS_NUM(y);
     case VALUE_BOOL: return AS_BOOL(x) == AS_BOOL(y);
     case VALUE_NIL:  return true;
+    default:
+        assert(0);
     }
-
-    assert(0);
 }
 
 void print_value(Value value) {
     switch (value.type) {
-    case VALUE_NUM:  printf("%f", AS_NUM(value)); break;
+    case VALUE_NUM:  printf("%g", AS_NUM(value)); break;
     case VALUE_BOOL: printf(AS_BOOL(value) ? "true" : "false"); break;
     case VALUE_NIL:  printf("nil"); break;
+    default:
+        assert(0);
     }
-
-    assert(0);
 }

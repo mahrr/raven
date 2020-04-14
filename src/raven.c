@@ -1,22 +1,19 @@
-#include "chunk.h"
-#include "debug.h"
+#include <stdio.h>
+
+#include "common.h"
+#include "compiler.h"
+#include "vm.h"
 
 int main(void) {
-    Chunk chunk;
+    VM vm;
+    char buff[128];
+    
+    init_vm(&vm);
+    for (;;) {
+        if (!fgets(buff, 128, stdin) || feof(stdin)) break;
+        interpret(&vm, buff);
+    }
 
-    init_chunk(&chunk);
-    write_byte(&chunk, OP_ADD, 1);
-    write_byte(&chunk, OP_SUB, 1);
-    write_byte(&chunk, OP_MUL, 1);
-    write_byte(&chunk, OP_DIV, 2);
-    write_byte(&chunk, OP_MOD, 2);
-    write_byte(&chunk, OP_NIL, 3);
-    write_byte(&chunk, OP_TRUE, 3);
-    write_byte(&chunk, OP_FALSE, 3);
-    write_byte(&chunk, OP_RETURN, 4);
-
-    disassemble_chunk(&chunk, "top-level");
-    free_chunk(&chunk);
-
+    free_vm(&vm);
     return 0;
 }
