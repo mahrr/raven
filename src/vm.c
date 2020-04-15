@@ -53,6 +53,22 @@ static inline void push(VM *vm, Value value) {
     *vm->stack_top++ = value;
 }
 
+static inline bool is_falsy(Value value) {
+    return IS_NIL(value) || (IS_BOOL(value) && !AS_BOOL(value));
+}
+
+static bool equal_values(Value x, Value y) {
+    if (x.type != y.type) return false;
+
+    switch (x.type) {
+    case VALUE_NUM:  return AS_NUM(x) == AS_NUM(y);
+    case VALUE_BOOL: return AS_BOOL(x) == AS_BOOL(y);
+    case VALUE_NIL:  return true;
+    default:
+        assert(0);
+    }
+}
+
 // The VM main loop.
 static InterpretResult run_vm(VM *vm) {
     // Reading Operations
@@ -65,9 +81,9 @@ static InterpretResult run_vm(VM *vm) {
 #define PEEK(distance) (peek(vm, distance))
 
     // Arithmetics Binary
-#define BINARY_OP(op)                                        \
+#define BINARY_OP(value_type, op)                            \
     do {                                                     \
-        if (!IS_NUM(PEEK(0)) && !IS_NUM(PEEK(1))) {          \
+        if (!IS_NUM(PEEK(0)) || !IS_NUM(PEEK(1))) {          \
             runtime_error(vm, "Operands must be numbers");   \
             return INTERPRET_RUNTIME_ERROR;                  \
         }                                                    \
@@ -75,7 +91,7 @@ static InterpretResult run_vm(VM *vm) {
         double y = AS_NUM(POP());                            \
         double x = AS_NUM(POP());                            \
                                                              \
-        PUSH(NUM_VALUE(x op y));                             \
+        PUSH(value_type(x op y));                            \
     } while (false)
 
     for (;;) {
@@ -92,17 +108,16 @@ static InterpretResult run_vm(VM *vm) {
         disassemble_instruction(vm->chunk, offset);
 #endif
         uint8_t instruction;
-        switch (instruction = READ_BYTE()) {
+        switch (instruction = READ_BYTE()) {            
         case OP_LOAD_TRUE:  PUSH(BOOL_VALUE(true));  break;
         case OP_LOAD_FALSE: PUSH(BOOL_VALUE(false)); break;
         case OP_LOAD_NIL:   PUSH(NIL_VALUE);         break;
         case OP_LOAD_CONST: PUSH(READ_CONSTANT());   break;
-
             
-        case OP_ADD: BINARY_OP(+); break;
-        case OP_SUB: BINARY_OP(-); break;
-        case OP_MUL: BINARY_OP(*); break;
-        case OP_DIV: BINARY_OP(/); break;
+        case OP_ADD: BINARY_OP(NUM_VALUE, +); break;
+        case OP_SUB: BINARY_OP(NUM_VALUE, -); break;
+        case OP_MUL: BINARY_OP(NUM_VALUE, *); break;
+        case OP_DIV: BINARY_OP(NUM_VALUE, /); break;
         case OP_MOD: /* TODO */ break;
         case OP_NEG: {
             if (!IS_NUM(PEEK(0))) {
@@ -113,7 +128,27 @@ static InterpretResult run_vm(VM *vm) {
             PUSH(NUM_VALUE(-AS_NUM(POP())));
             break;
         }
-            
+
+        case OP_EQ: {
+            Value y = POP();
+            Value x = POP();
+
+            PUSH(BOOL_VALUE(equal_values(x, y)));
+            break;
+        }
+        case OP_NEQ: {
+            Value y = POP();
+            Value x = POP();
+
+            PUSH(BOOL_VALUE(!equal_values(x, y)));
+            break;
+        }
+        case OP_LT:  BINARY_OP(BOOL_VALUE, <);  break;
+        case OP_LTQ: BINARY_OP(BOOL_VALUE, <=); break;
+        case OP_GT:  BINARY_OP(BOOL_VALUE, >);  break;
+        case OP_GTQ: BINARY_OP(BOOL_VALUE, >=); break;
+
+        case OP_NOT: PUSH(BOOL_VALUE(is_falsy(POP()))); break;
 
         case OP_RETURN:
             print_value(POP());

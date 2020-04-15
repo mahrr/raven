@@ -19,6 +19,14 @@ typedef enum {      // Immediate Arguments
     OP_MOD,
     OP_NEG,
 
+    // Comparison
+    OP_EQ,
+    OP_NEQ,
+    OP_LT,
+    OP_LTQ,
+    OP_GT,
+    OP_GTQ,
+
     // Logic
     OP_NOT,
     

@@ -256,12 +256,12 @@ Token next_token(Lexer *lexer) {
         return new_token(lexer, TOKEN_EQUAL);
 
     case '<':
-        if (match(lexer, '=')) return new_token(lexer, TOKEN_LT_EQUAL);
-        return new_token(lexer, TOKEN_LT);
+        if (match(lexer, '=')) return new_token(lexer, TOKEN_LESS_EQUAL);
+        return new_token(lexer, TOKEN_LESS);
 
     case '>':
-        if (match(lexer, '=')) return new_token(lexer, TOKEN_GT_EQUAL);
-        return new_token(lexer, TOKEN_GT);
+        if (match(lexer, '=')) return new_token(lexer, TOKEN_GREATER_EQUAL);
+        return new_token(lexer, TOKEN_GREATER);
         
     case ':':
         if (match(lexer, ':')) return new_token(lexer, TOKEN_COLON_COLON);

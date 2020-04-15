@@ -137,11 +137,17 @@ static void binary(Parser *parser) {
     parse(parser, (Precedence)(rule->precedence + 1));
 
     switch (operator) {
-    case TOKEN_PLUS:    emit_byte(parser, OP_ADD); break;
-    case TOKEN_MINUS:   emit_byte(parser, OP_SUB); break;
-    case TOKEN_STAR:    emit_byte(parser, OP_MUL); break;
-    case TOKEN_SLASH:   emit_byte(parser, OP_DIV); break;
-    case TOKEN_PERCENT: emit_byte(parser, OP_MOD); break;
+    case TOKEN_PLUS:          emit_byte(parser, OP_ADD); break;
+    case TOKEN_MINUS:         emit_byte(parser, OP_SUB); break;
+    case TOKEN_STAR:          emit_byte(parser, OP_MUL); break;
+    case TOKEN_SLASH:         emit_byte(parser, OP_DIV); break;
+    case TOKEN_PERCENT:       emit_byte(parser, OP_MOD); break;
+    case TOKEN_LESS:          emit_byte(parser, OP_LT);  break;
+    case TOKEN_LESS_EQUAL:    emit_byte(parser, OP_LTQ); break;
+    case TOKEN_GREATER:       emit_byte(parser, OP_GT);  break;
+    case TOKEN_GREATER_EQUAL: emit_byte(parser, OP_GTQ); break;
+    case TOKEN_EQUAL_EQUAL:   emit_byte(parser, OP_EQ);  break;
+    case TOKEN_BANG_EQUAL:    emit_byte(parser, OP_NEQ); break;
     default:
         assert(0);
     }
@@ -158,6 +164,15 @@ static void number(Parser *parser) {
     emit_constant(parser, value);
 }
 
+static void boolean(Parser *parser) {
+    TokenType type = parser->previous.type;
+    emit_byte(parser, type == TOKEN_TRUE ? OP_LOAD_TRUE : OP_LOAD_FALSE);
+}
+
+static void nil(Parser *parser) {
+    emit_byte(parser, OP_LOAD_NIL);
+}
+
 static void unary(Parser *parser) {
     TokenType operator = parser->previous.type;
     parse(parser, PREC_UNARY);
@@ -172,57 +187,57 @@ static void unary(Parser *parser) {
 
 // Parsing rule table
 static ParseRule rules[] = {
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_BREAK
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_COND
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_ELSE
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_FALSE
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_FN
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_FOR
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_IF
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_IN
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_LET
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_MATCH
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_NIL
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_RETURN
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_WHILE
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_TRUE
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_TYPE
-    { NULL,     binary, PREC_TERM },      // TOKEN_PLUS
-    { unary,    binary, PREC_TERM },      // TOKEN_MINUS
-    { NULL,     binary, PREC_FACTOR },    // TOKEN_STAR
-    { NULL,     binary, PREC_FACTOR },    // TOKEN_SLASH
-    { NULL,     binary, PREC_FACTOR },    // TOKEN_PERCENT
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_DOT
-    { unary,    NULL,   PREC_NONE },      // TOKEN_NOT
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_AND
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_OR
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_AT
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_COLON_COLON
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_LT
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_LT_EQUAL
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_GT
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_GT_EQUAL
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_EQUAL
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_EQUAL_EQUAL
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_BANG_EQUAL
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_DO
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_END
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_PIPE
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_HYPHEN_LT
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_COMMA
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_SEMICOLON
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_COLON
-    { grouping, NULL,   PREC_NONE },      // TOKEN_LEFT_PAREN
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_RIGHT_PAREN
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_LEFT_BRACE
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_RIGHT_BRACE
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_LEFT_BRACKET
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_RIGHT_BRACKET
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_IDENTIFIER
-    { number,   NULL,   PREC_NONE },      // TOKEN_NUMBER
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_STRING
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_ERROR
-    { NULL,     NULL,   PREC_NONE },      // TOKEN_EOF
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_BREAK
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_COND
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_ELSE
+    { boolean,  NULL,   PREC_NONE },         // TOKEN_FALSE
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_FN
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_FOR
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_IF
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_IN
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_LET
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_MATCH
+    { nil,      NULL,   PREC_NONE },         // TOKEN_NIL
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_RETURN
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_WHILE
+    { boolean,  NULL,   PREC_NONE },         // TOKEN_TRUE
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_TYPE
+    { NULL,     binary, PREC_TERM },         // TOKEN_PLUS
+    { unary,    binary, PREC_TERM },         // TOKEN_MINUS
+    { NULL,     binary, PREC_FACTOR },       // TOKEN_STAR
+    { NULL,     binary, PREC_FACTOR },       // TOKEN_SLASH
+    { NULL,     binary, PREC_FACTOR },       // TOKEN_PERCENT
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_DOT
+    { unary,    NULL,   PREC_NONE },         // TOKEN_NOT
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_AND
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_OR
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_AT
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_COLON_COLON
+    { NULL,     binary, PREC_COMPARISON },   // TOKEN_LT
+    { NULL,     binary, PREC_COMPARISON },   // TOKEN_LT_EQUAL
+    { NULL,     binary, PREC_COMPARISON },   // TOKEN_GT
+    { NULL,     binary, PREC_COMPARISON },   // TOKEN_GT_EQUAL
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_EQUAL
+    { NULL,     binary, PREC_EQUALITY },     // TOKEN_EQUAL_EQUAL
+    { NULL,     binary, PREC_EQUALITY },     // TOKEN_BANG_EQUAL
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_DO
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_END
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_PIPE
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_HYPHEN_LT
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_COMMA
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_SEMICOLON
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_COLON
+    { grouping, NULL,   PREC_NONE },         // TOKEN_LEFT_PAREN
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_RIGHT_PAREN
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_LEFT_BRACE
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_RIGHT_BRACE
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_LEFT_BRACKET
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_RIGHT_BRACKET
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_IDENTIFIER
+    { number,   NULL,   PREC_NONE },         // TOKEN_NUMBER
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_STRING
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_ERROR
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_EOF
 };
 
 // Return the parsing rule of a given token type.

@@ -58,6 +58,27 @@ int disassemble_instruction(Chunk *chunk, int offset) {
 
     case OP_NEG:
         return basic_instruction("NEG", offset);
+
+    case OP_EQ:
+        return basic_instruction("EQ", offset);
+
+    case OP_NEQ:
+        return basic_instruction("NEQ", offset);
+
+    case OP_LT:
+        return basic_instruction("LT", offset);
+
+    case OP_LTQ:
+        return basic_instruction("LTQ", offset);
+
+    case OP_GT:
+        return basic_instruction("GT", offset);
+
+    case OP_GTQ:
+        return basic_instruction("GTQ", offset);
+
+    case OP_NOT:
+        return basic_instruction("NOT", offset);
         
     case OP_RETURN:
         return basic_instruction("RETURN", offset);
