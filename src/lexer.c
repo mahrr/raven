@@ -221,54 +221,56 @@ static void skip_whitespace(Lexer *lexer) {
 }
 
 Token next_token(Lexer *lexer) {
+#define New_Token(type) (new_token(lexer, type))
+    
     skip_whitespace(lexer);
     
     lexer->start = lexer->current;
 
-    if (at_end(lexer)) return new_token(lexer, TOKEN_EOF);
+    if (at_end(lexer)) return New_Token(TOKEN_EOF);
 
     char c = advance(lexer);
     switch (c) {
         // One-Character Tokens
-    case '+': return new_token(lexer, TOKEN_PLUS);
-    case '*': return new_token(lexer, TOKEN_STAR);
-    case '/': return new_token(lexer, TOKEN_SLASH);
-    case '%': return new_token(lexer, TOKEN_PERCENT);
-    case '.': return new_token(lexer, TOKEN_DOT);
-    case '@': return new_token(lexer, TOKEN_AT);
-    case '|': return new_token(lexer, TOKEN_PIPE);
-    case ',': return new_token(lexer, TOKEN_COMMA);
-    case '(': return new_token(lexer, TOKEN_LEFT_PAREN);
-    case ')': return new_token(lexer, TOKEN_RIGHT_PAREN);
-    case '[': return new_token(lexer, TOKEN_LEFT_BRACKET);
-    case ']': return new_token(lexer, TOKEN_RIGHT_BRACKET);
-    case '{': return new_token(lexer, TOKEN_LEFT_BRACE);
-    case '}': return new_token(lexer, TOKEN_RIGHT_BRACE);
-    case ';': return new_token(lexer, TOKEN_SEMICOLON);
+    case '+': return New_Token(TOKEN_PLUS);
+    case '*': return New_Token(TOKEN_STAR);
+    case '/': return New_Token(TOKEN_SLASH);
+    case '%': return New_Token(TOKEN_PERCENT);
+    case '.': return New_Token(TOKEN_DOT);
+    case '@': return New_Token(TOKEN_AT);
+    case '|': return New_Token(TOKEN_PIPE);
+    case ',': return New_Token(TOKEN_COMMA);
+    case '(': return New_Token(TOKEN_LEFT_PAREN);
+    case ')': return New_Token(TOKEN_RIGHT_PAREN);
+    case '[': return New_Token(TOKEN_LEFT_BRACKET);
+    case ']': return New_Token(TOKEN_RIGHT_BRACKET);
+    case '{': return New_Token(TOKEN_LEFT_BRACE);
+    case '}': return New_Token(TOKEN_RIGHT_BRACE);
+    case ';': return New_Token(TOKEN_SEMICOLON);
 
         // Possible Two-Charachter Tokens
     case '-':
-        if (match(lexer, '>')) return new_token(lexer, TOKEN_HYPHEN_LT);
-        return new_token(lexer, TOKEN_MINUS);
+        if (match(lexer, '>')) return New_Token(TOKEN_HYPHEN_LESS);
+        return New_Token(TOKEN_MINUS);
         
     case '=':
-        if (match(lexer, '=')) return new_token(lexer, TOKEN_EQUAL_EQUAL);
-        return new_token(lexer, TOKEN_EQUAL);
+        if (match(lexer, '=')) return New_Token(TOKEN_EQUAL_EQUAL);
+        return New_Token(TOKEN_EQUAL);
 
     case '<':
-        if (match(lexer, '=')) return new_token(lexer, TOKEN_LESS_EQUAL);
-        return new_token(lexer, TOKEN_LESS);
+        if (match(lexer, '=')) return New_Token(TOKEN_LESS_EQUAL);
+        return New_Token(TOKEN_LESS);
 
     case '>':
-        if (match(lexer, '=')) return new_token(lexer, TOKEN_GREATER_EQUAL);
-        return new_token(lexer, TOKEN_GREATER);
+        if (match(lexer, '=')) return New_Token(TOKEN_GREATER_EQUAL);
+        return New_Token(TOKEN_GREATER);
         
     case ':':
-        if (match(lexer, ':')) return new_token(lexer, TOKEN_COLON_COLON);
-        return new_token(lexer, TOKEN_COLON);
+        if (match(lexer, ':')) return New_Token(TOKEN_COLON_COLON);
+        return New_Token(TOKEN_COLON);
 
     case '!':
-        if (match(lexer, '=')) return new_token(lexer, TOKEN_BANG_EQUAL);
+        if (match(lexer, '=')) return New_Token(TOKEN_BANG_EQUAL);
         break;
 
         // Identifiers, Literals
@@ -280,4 +282,5 @@ Token next_token(Lexer *lexer) {
     }
 
     return error_token(lexer, "Unexpected symbol");
+#undef New_Token    
 }

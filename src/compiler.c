@@ -160,7 +160,7 @@ static void grouping(Parser *parser) {
 }
 
 static void number(Parser *parser) {
-    Value value = NUM_VALUE(strtod(parser->previous.lexeme, NULL));
+    Value value = Num_Value(strtod(parser->previous.lexeme, NULL));
     emit_constant(parser, value);
 }
 

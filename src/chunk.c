@@ -12,13 +12,13 @@ void init_chunk(Chunk *chunk) {
     chunk->lines_capacity = 0;
     chunk->lines = NULL;
 
-    init_values(&chunk->constants);
+    init_value_array(&chunk->constants);
 }
 
 void free_chunk(Chunk *chunk) {
-    FREE_ARRAY(chunk->opcodes, uint8_t, chunk->capacity);
-    FREE_ARRAY(chunk->lines, Line, chunk->lines_capacity);
-    free_values(&chunk->constants);
+    Free_Array(chunk->opcodes, uint8_t, chunk->capacity);
+    Free_Array(chunk->lines, Line, chunk->lines_capacity);
+    free_value_array(&chunk->constants);
 }
 
 static void write_line(Chunk *chunk, int line) {
@@ -27,8 +27,8 @@ static void write_line(Chunk *chunk, int line) {
 
     if (chunk->lines_count == chunk->lines_capacity) {
         int old_capacity = chunk->lines_capacity;
-        chunk->lines_capacity = GROW_CAPACITY(old_capacity);
-        chunk->lines = GROW_ARRAY(chunk->lines, Line,
+        chunk->lines_capacity = Grow_Capacity(old_capacity);
+        chunk->lines = Grow_Array(chunk->lines, Line,
                                   old_capacity, chunk->lines_capacity);
     }
 
@@ -40,8 +40,8 @@ static void write_line(Chunk *chunk, int line) {
 void write_byte(Chunk *chunk, uint8_t byte, int line) {
     if (chunk->count == chunk->capacity) {
         int old_capacity = chunk->capacity;
-        chunk->capacity = GROW_CAPACITY(old_capacity);
-        chunk->opcodes = GROW_ARRAY(chunk->opcodes, uint8_t,
+        chunk->capacity = Grow_Capacity(old_capacity);
+        chunk->opcodes = Grow_Array(chunk->opcodes, uint8_t,
                                     old_capacity, chunk->capacity);
     }
 

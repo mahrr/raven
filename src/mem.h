@@ -1,22 +1,22 @@
 #ifndef raven_mem_h
 #define raven_mem_h
 
-#define ALLOC(type, size)                               \
+#define Alloc(type, size)                               \
     (type *)allocate(NULL, 0, (size) * sizeof (type))
 
-#define FREE(type, pointer)                     \
+#define Free(type, pointer)                     \
     (void)allocate((pointer), sizeof (type), 0)
 
-#define GROW_CAPACITY(capacity)                 \
+#define Grow_Capacity(capacity)                 \
     ((capacity) < 8 ? 8 : (capacity) * 2)
 
-#define GROW_ARRAY(array, type, old_size, new_size)     \
+#define Grow_Array(array, type, old_size, new_size)     \
     (type *)allocate((array),                           \
                      sizeof(type) * (old_size),         \
                      sizeof(type) * (new_size))
 
 
-#define FREE_ARRAY(array, type, size)                   \
+#define Free_Array(array, type, size)                   \
     (void)allocate((array), sizeof(type) * (size), 0)
 
 //

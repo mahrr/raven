@@ -19,16 +19,16 @@ typedef struct {
     } as;
 } Value;
 
-#define IS_NUM(value) ((value).type == VALUE_NUM)
-#define IS_BOOL(value) ((value).type == VALUE_BOOL)
-#define IS_NIL(value)  ((value).type == VALUE_NIL)
+#define Is_Num(value)  ((value).type == VALUE_NUM)
+#define Is_Bool(value) ((value).type == VALUE_BOOL)
+#define Is_Nil(value)  ((value).type == VALUE_NIL)
 
-#define AS_NUM(value)  ((value).as.number)
-#define AS_BOOL(value) ((value).as.boolean)
+#define As_Num(value)  ((value).as.number)
+#define As_Bool(value) ((value).as.boolean)
 
-#define NUM_VALUE(value)  ((Value){ VALUE_NUM, { .number = value }})
-#define BOOL_VALUE(value) ((Value){ VALUE_BOOL, { .boolean = value }})
-#define NIL_VALUE         ((Value){ VALUE_NIL, { .number = 0 }})
+#define Num_Value(value)  ((Value){ VALUE_NUM, { .number = value }})
+#define Bool_Value(value) ((Value){ VALUE_BOOL, { .boolean = value }})
+#define Nil_Value         ((Value){ VALUE_NIL, { .number = 0 }})
 
 typedef struct {
     int count;
@@ -37,16 +37,13 @@ typedef struct {
 } ValueArray;
 
 // Initialize the values array state.
-void init_values(ValueArray *array);
+void init_value_array(ValueArray *array);
 
 // Free the memory used by values array.
-void free_values(ValueArray *array);
+void free_value_array(ValueArray *array);
 
 // Add a value element to the values array.
 void push_value(ValueArray *array, Value value);
-
-// Check if two values are equal.
-bool values_equal(Value x, Value y);
 
 void print_value(Value value);
 
