@@ -58,7 +58,7 @@ static void error(Parser *parser, Token *where, const char *message) {
     if (parser->panic_mode) return;
     parser->panic_mode = true;
 
-    fprintf(stderr, "[line %d] Error", where->line);
+    fprintf(stderr, "[line %d] SyntaxError", where->line);
 
     if (where->type == TOKEN_EOF) {
         fprintf(stderr, " at end");
@@ -87,7 +87,6 @@ static void advance(Parser *parser) {
         parser->current = next_token(parser->lexer);
 
         if (parser->current.type != TOKEN_ERROR) break;
-        error_current(parser, parser->current.lexeme);
     }
 }
 

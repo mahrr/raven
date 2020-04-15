@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 
@@ -47,11 +48,14 @@ static Token new_token(Lexer *lexer, TokenType type) {
 }
 
 static Token error_token(Lexer *lexer, const char *message) {
+    fprintf(stderr, "[line %d] SyntaxError at '%.1s': %s\n",
+            lexer->line, lexer->start, message);
+    
     Token token;
     token.type = TOKEN_ERROR;
     token.line = lexer->line;
-    token.lexeme = message;
-    token.length = (int)strlen(message);
+    token.lexeme = NULL;
+    token.length = 0;
 
     return token;
 }
@@ -275,5 +279,5 @@ Token next_token(Lexer *lexer) {
         if (isdigit(c)) return number(lexer);
     }
 
-    return error_token(lexer, "Unexpected token");
+    return error_token(lexer, "Unexpected symbol");
 }
