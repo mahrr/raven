@@ -7,6 +7,11 @@
 #include "lexer.h"
 #include "vm.h"
 
+#if defined(DEBUG_DUMP_CODE) || defined(DEBUG_TRACE_PARSING)
+#include <stdarg.h>
+#include "debug.h"
+#endif
+
 /*
  * A Pratt parser is used for expression parsing. A parsing rule
  * is defined with a ParseRule struct. The parser uses a parsing
@@ -24,6 +29,10 @@ typedef struct {
     
     bool had_error;   // Error flag to stop bytecode execution later
     bool panic_mode;  // If set, any parsing error will be ignored
+
+#ifdef DEBUG_TRACE_PARSING
+    int level;        // Parser nesting level, for debugging
+#endif
 } Parser;
 
 // Expressions precedence, from low to high
@@ -51,6 +60,40 @@ typedef struct {
     ParseFn infix;
     Precedence precedence;
 } ParseRule;
+
+/** Parser Tracing **/
+
+#ifdef DEBUG_TRACE_PARSING
+
+static char *strings_precedences[] = {
+    "None",
+    "Assignment",
+    "Or",
+    "And",
+    "Equality",
+    "Comparison",
+    "Cons",
+    "Concat",
+    "Term",
+    "Factor",
+    "Unary",
+    "Call",
+    "Highest",
+};
+
+static void debug_log(Parser *parser, const char *fmt, ...) {
+    va_list arguments;
+    va_start(arguments, fmt);
+
+    for (int i = 0; i < parser->level; i++) printf("| ");
+    vprintf(fmt, arguments);
+    putchar('\n');
+
+    va_end(arguments);
+    parser->level += 1;
+}
+
+#endif
 
 /** Error Reporting **/
 
@@ -131,6 +174,10 @@ static void parse(Parser *, Precedence);
 static ParseRule *token_rule(TokenType);
 
 static void binary(Parser *parser) {
+#ifdef DEBUG_TRACE_PARSING
+    debug_log(parser, "binary");
+#endif
+    
     TokenType operator = parser->previous.type;
 
     ParseRule *rule = token_rule(operator);
@@ -151,29 +198,69 @@ static void binary(Parser *parser) {
     default:
         assert(0);
     }
+
+#ifdef DEBUG_TRACE_PARSING
+    parser->level -= 1;
+#endif
 }
 
 static void grouping(Parser *parser) {
+#ifdef DEBUG_TRACE_PARSING
+    debug_log(parser, "grouping");
+#endif
+    
     expression(parser);
     consume(parser, TOKEN_RIGHT_PAREN,
             "Expect closing ')' after group expression");
+
+#ifdef DEBUG_TRACE_PARSING
+    parser->level -= 1;
+#endif
 }
 
 static void number(Parser *parser) {
+#ifdef DEBUG_TRACE_PARSING
+    debug_log(parser, "number");
+#endif
+    
     Value value = Num_Value(strtod(parser->previous.lexeme, NULL));
     emit_constant(parser, value);
+    
+#ifdef DEBUG_TRACE_PARSING
+    parser->level -= 1;
+#endif
 }
 
 static void boolean(Parser *parser) {
+#ifdef DEBUG_TRACE_PARSING
+    debug_log(parser, "boolean");
+#endif
+    
     TokenType type = parser->previous.type;
     emit_byte(parser, type == TOKEN_TRUE ? OP_LOAD_TRUE : OP_LOAD_FALSE);
+
+#ifdef DEBUG_TRACE_PARSING
+    parser->level -= 1;
+#endif
 }
 
 static void nil(Parser *parser) {
+#ifdef DEBUG_TRACE_PARSING
+    debug_log(parser, "nil");
+#endif
+    
     emit_byte(parser, OP_LOAD_NIL);
+
+#ifdef DEBUG_TRACE_PARSING
+    parser->level -= 1;
+#endif
 }
 
 static void unary(Parser *parser) {
+#ifdef DEBUG_TRACE_PARSING
+    debug_log(parser, "unary");
+#endif
+    
     TokenType operator = parser->previous.type;
     parse(parser, PREC_UNARY);
 
@@ -183,6 +270,10 @@ static void unary(Parser *parser) {
     default:
         assert(0);
     }
+
+#ifdef DEBUG_TRACE_PARSING
+    parser->level -= 1;
+#endif
 }
 
 // Parsing rule table
@@ -246,6 +337,10 @@ static inline ParseRule *token_rule(TokenType type) {
 }
 
 static void parse(Parser *parser, Precedence precedence) {
+#ifdef DEBUG_TRACE_PARSING
+    debug_log(parser, "parse(%s)", strings_precedences[precedence]);
+#endif
+    
     advance(parser);
 
     ParseFn prefix = token_rule(parser->previous.type)->prefix;
@@ -260,10 +355,22 @@ static void parse(Parser *parser, Precedence precedence) {
         ParseFn infix = token_rule(parser->previous.type)->infix;
         infix(parser);
     }
+
+#ifdef DEBUG_TRACE_EXECUTION
+    parser->level -=1
+#endif
 }
 
 static inline void expression(Parser *parser) {
+#ifdef DEBUG_TRACE_PARSING
+    debug_log(parser, "expression");
+#endif
+    
     parse(parser, PREC_ASSIGNMENT);
+
+#ifdef DEBUG_TRACE_EXECUTION
+    parser->level -=1
+#endif
 }
 
 bool compile(VM *vm, const char *source) {
@@ -275,11 +382,20 @@ bool compile(VM *vm, const char *source) {
     parser.vm = vm;
     parser.had_error = false;
     parser.panic_mode = false;
+    
+#ifdef DEBUG_TRACE_PARSING
+    parser.level = 0;
+#endif
 
     advance(&parser);
     expression(&parser);
     consume(&parser, TOKEN_EOF, "Expect end of expression");
 
     emit_byte(&parser, OP_RETURN);
+
+#ifdef DEBUG_DUMP_CODE
+    disassemble_chunk(vm->chunk, "top-level");
+#endif
+    
     return !parser.had_error;
 }

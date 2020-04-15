@@ -7,7 +7,6 @@
 #include "value.h"
 #include "vm.h"
 
-
 #ifdef DEBUG_TRACE_EXECUTION
 #include "debug.h"
 #endif
