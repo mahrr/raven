@@ -16,6 +16,15 @@ static int const_instruction(const char *tag, Chunk *chunk, int offset) {
     return offset + 2;
 }
 
+static int jump_instruction(const char *tag, Chunk *chunk, int sign,
+                            int offset) {
+    uint16_t jump = (uint16_t)(chunk->opcodes[offset + 1] << 8 |
+                               chunk->opcodes[offset + 2]);
+
+    printf("%-16s %4d -> %d\n", tag, offset, offset + 3 + sign * jump);
+    return offset + 3;
+}
+
 int disassemble_instruction(Chunk *chunk, int offset) {
     printf("%04d", offset);
 
@@ -77,8 +86,18 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     case OP_GTQ:
         return basic_instruction("GTQ", offset);
 
+    case OP_JMP:
+        return jump_instruction("JMP", chunk, 1, offset);
+
+    case OP_JMP_FALSE:
+        return jump_instruction("JMP_FALSE", chunk, 1, offset);
+
+    case OP_POP:
+        return basic_instruction("POP", offset);
+
     case OP_NOT:
         return basic_instruction("NOT", offset);
+
         
     case OP_RETURN:
         return basic_instruction("RETURN", offset);

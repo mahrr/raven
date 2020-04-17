@@ -73,6 +73,8 @@ static InterpretResult run_vm(VM *vm) {
     // Reading Operations
 #define Read_Byte()     (*vm->ip++)
 #define Read_Constant() (vm->chunk->constants.values[Read_Byte()])
+#define Read_Offset()                                       \
+    (vm->ip += 2, (uint16_t)(vm->ip[-2] << 8 | vm->ip[-1]))
 
     // Stack Operations
 #define Pop()          (pop(vm))
@@ -147,6 +149,19 @@ static InterpretResult run_vm(VM *vm) {
         case OP_GT:  Binary_OP(Bool_Value, >);  break;
         case OP_GTQ: Binary_OP(Bool_Value, >=); break;
 
+        case OP_JMP: {
+            uint16_t offset = Read_Offset();
+            vm->ip += offset;
+            break;
+        }
+
+        case OP_JMP_FALSE: {
+            uint16_t offset = Read_Offset();
+            if (is_falsy(Peek(0))) vm->ip += offset;
+            break;
+        }
+
+        case OP_POP: Pop(); break;
         case OP_NOT: Push(Bool_Value(is_falsy(Pop()))); break;
 
         case OP_RETURN:
@@ -162,6 +177,7 @@ static InterpretResult run_vm(VM *vm) {
 #undef Peek
 #undef Pop
 #undef Push
+#undef Read_Offset
 #undef Read_Constant
 #undef Read_Byte
 }

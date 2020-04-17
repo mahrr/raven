@@ -152,6 +152,24 @@ static inline void emit_bytes(Parser *parser, uint8_t x, uint8_t y) {
     emit_byte(parser, y);
 }
 
+static inline int emit_jump(Parser *parser, uint8_t instruction) {
+    emit_byte(parser, instruction);
+    emit_bytes(parser, 0xff, 0xff);
+    return parser->vm->chunk->count - 2;
+}
+
+static inline void patch_jump(Parser *parser, int from) {
+    // -2 because of the jmp instruction 2-bytes immediate argument
+    int offset = parser->vm->chunk->count - from - 2;
+
+    if (offset > UINT16_MAX) {
+        error_current(parser, "Jump offset exceeds the allowed limit");
+    }
+
+    parser->vm->chunk->opcodes[from] = (offset >> 8) & 0xff;
+    parser->vm->chunk->opcodes[from + 1] = offset & 0xff;
+}
+
 static uint8_t make_constant(Parser *parser, Value value) {
     int constant_index = write_constant(parser->vm->chunk, value);
 
@@ -198,6 +216,46 @@ static void binary(Parser *parser) {
     default:
         assert(0);
     }
+
+#ifdef DEBUG_TRACE_PARSING
+    parser->level -= 1;
+#endif
+}
+
+static void and_(Parser *parser) {
+#ifdef DEBUG_TRACE_PARSING
+    debug_log(parser, "and");
+#endif
+
+    int jump = emit_jump(parser, OP_JMP_FALSE);
+
+    emit_byte(parser, OP_POP);
+    parse(parser, PREC_AND + 1);
+
+    patch_jump(parser, jump);
+
+#ifdef DEBUG_TRACE_PARSING
+    parser->level -= 1;
+#endif
+}
+
+static void or_(Parser *parser) {
+#ifdef DEBUG_TRACE_PARSING
+    debug_log(parser, "or");
+#endif
+
+    // first operand is falsy
+    int false_jump = emit_jump(parser, OP_JMP_FALSE);
+
+    // first operand is not falsy
+    int true_jump = emit_jump(parser, OP_JMP);
+
+    patch_jump(parser, false_jump);
+
+    emit_byte(parser, OP_POP);
+    parse(parser, PREC_OR + 1);
+
+    patch_jump(parser, true_jump);
 
 #ifdef DEBUG_TRACE_PARSING
     parser->level -= 1;
@@ -300,8 +358,8 @@ static ParseRule rules[] = {
     { NULL,     binary, PREC_FACTOR },       // TOKEN_PERCENT
     { NULL,     NULL,   PREC_NONE },         // TOKEN_DOT
     { unary,    NULL,   PREC_NONE },         // TOKEN_NOT
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_AND
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_OR
+    { NULL,     and_,   PREC_AND },          // TOKEN_AND
+    { NULL,     or_,    PREC_OR  },          // TOKEN_OR
     { NULL,     NULL,   PREC_NONE },         // TOKEN_AT
     { NULL,     NULL,   PREC_NONE },         // TOKEN_COLON_COLON
     { NULL,     binary, PREC_COMPARISON },   // TOKEN_LT
@@ -357,7 +415,7 @@ static void parse(Parser *parser, Precedence precedence) {
     }
 
 #ifdef DEBUG_TRACE_EXECUTION
-    parser->level -=1
+    parser->level -=1;
 #endif
 }
 
@@ -369,7 +427,7 @@ static inline void expression(Parser *parser) {
     parse(parser, PREC_ASSIGNMENT);
 
 #ifdef DEBUG_TRACE_EXECUTION
-    parser->level -=1
+    parser->level -= 1;
 #endif
 }
 

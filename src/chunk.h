@@ -9,7 +9,7 @@ typedef enum {      // Immediate Arguments
     OP_LOAD_TRUE,
     OP_LOAD_FALSE,
     OP_LOAD_NIL,
-    OP_LOAD_CONST,  // constant index
+    OP_LOAD_CONST,  // 1-byte constant index
     
     // Arithmetics
     OP_ADD,
@@ -27,7 +27,11 @@ typedef enum {      // Immediate Arguments
     OP_GT,
     OP_GTQ,
 
-    // Logic
+    // Jumping
+    OP_JMP,         // 2-bytes offset
+    OP_JMP_FALSE,   // 2-bytes offset
+
+    OP_POP,
     OP_NOT,
     
     OP_RETURN,
