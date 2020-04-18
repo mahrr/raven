@@ -5,6 +5,7 @@
 #include "compiler.h"
 #include "chunk.h"
 #include "value.h"
+#include "object.h"
 #include "vm.h"
 
 #ifdef DEBUG_TRACE_EXECUTION
@@ -18,11 +19,13 @@ static inline void reset_stack(VM *vm) {
 void init_vm(VM *vm) {
     vm->chunk = NULL;
     vm->ip = NULL;
+    vm->objects = NULL;
     
     reset_stack(vm);
 }
 
 void free_vm(VM *vm) {
+    free_objects(vm->objects);
     init_vm(vm);
 }
 
@@ -188,6 +191,7 @@ InterpretResult interpret(VM *vm, const char *source) {
     vm->chunk = &chunk;
 
     if (!compile(vm, source)) {
+        free_chunk(&chunk);
         return INTERPRET_COMPILE_ERROR;
     }
     

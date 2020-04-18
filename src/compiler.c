@@ -5,6 +5,8 @@
 #include "common.h"
 #include "compiler.h"
 #include "lexer.h"
+#include "object.h"
+#include "value.h"
 #include "vm.h"
 
 #if defined(DEBUG_DUMP_CODE) || defined(DEBUG_TRACE_PARSING)
@@ -289,6 +291,23 @@ static void number(Parser *parser) {
 #endif
 }
 
+static void string(Parser *parser) {
+#ifdef DEBUG_TRACE_PARSING
+    debug_log(parser, "string");
+#endif
+
+    // +1 and -2 for the literal string quotes
+    ObjString *string = copy_string(parser->vm,
+                                    parser->previous.lexeme + 1,
+                                    parser->previous.length - 2);
+    emit_constant(parser, Obj_Value(string));
+    
+#ifdef DEBUG_TRACE_PARSING
+    parser->level -= 1;
+#endif
+
+}
+
 static void boolean(Parser *parser) {
 #ifdef DEBUG_TRACE_PARSING
     debug_log(parser, "boolean");
@@ -384,7 +403,7 @@ static ParseRule rules[] = {
     { NULL,     NULL,   PREC_NONE },         // TOKEN_RIGHT_BRACKET
     { NULL,     NULL,   PREC_NONE },         // TOKEN_IDENTIFIER
     { number,   NULL,   PREC_NONE },         // TOKEN_NUMBER
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_STRING
+    { string,   NULL,   PREC_NONE },         // TOKEN_STRING
     { NULL,     NULL,   PREC_NONE },         // TOKEN_ERROR
     { NULL,     NULL,   PREC_NONE },         // TOKEN_EOF
 };

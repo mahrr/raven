@@ -2,6 +2,7 @@
 
 #include "common.h"
 #include "mem.h"
+#include "object.h"
 #include "value.h"
 
 void init_value_array(ValueArray *array) {
@@ -31,6 +32,7 @@ void print_value(Value value) {
     case VALUE_NUM:  printf("%g", As_Num(value)); break;
     case VALUE_BOOL: printf(As_Bool(value) ? "true" : "false"); break;
     case VALUE_NIL:  printf("nil"); break;
+    case VALUE_OBJ:  print_object(value); break;
     default:
         assert(0);
     }

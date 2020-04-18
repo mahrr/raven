@@ -5,10 +5,16 @@
 
 #include "common.h"
 
+// Forward declarations to avoid cyclic include
+// problem with 'object.h'.
+typedef struct Object Object;
+typedef struct ObjString ObjString;
+
 typedef enum {
     VALUE_NUM,
     VALUE_BOOL,
     VALUE_NIL,
+    VALUE_OBJ,
 } ValueType;
 
 typedef struct {
@@ -16,19 +22,24 @@ typedef struct {
     union {
         double number;
         bool boolean;
+        Object *object; // Heap allocated
     } as;
 } Value;
 
 #define Is_Num(value)  ((value).type == VALUE_NUM)
 #define Is_Bool(value) ((value).type == VALUE_BOOL)
 #define Is_Nil(value)  ((value).type == VALUE_NIL)
+#define Is_Obj(value)  ((value).type == VALUE_OBJ)
 
 #define As_Num(value)  ((value).as.number)
 #define As_Bool(value) ((value).as.boolean)
+#define As_Obj(value)  ((value).as.object)
 
 #define Num_Value(value)  ((Value){ VALUE_NUM, { .number = value }})
 #define Bool_Value(value) ((Value){ VALUE_BOOL, { .boolean = value }})
 #define Nil_Value         ((Value){ VALUE_NIL, { .number = 0 }})
+#define Obj_Value(value)                                    \
+    ((Value){ VALUE_OBJ, { .object = (Object *)value }})
 
 typedef struct {
     int count;

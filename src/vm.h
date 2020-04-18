@@ -17,6 +17,8 @@ typedef struct {
     
     Chunk *chunk;
     uint8_t *ip;
+
+    Object *objects;
 } VM;
 
 typedef enum {
