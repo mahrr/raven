@@ -112,3 +112,25 @@ void table_copy(Table *from, Table *to) {
         }
     }
 }
+
+ObjString *table_interned(Table *table, const char *chars,
+                          uint32_t hash, int length) {
+    if (table->count == 0) return NULL;
+
+    uint32_t index = hash % table->capacity;
+    for (;;) {
+        Entry *entry = &table->entries[index];
+
+        if (entry->key == NULL && Is_Nil(entry->value)) return NULL;
+
+        ObjString *key = entry->key;
+
+        if (key->length == length &&
+            key->hash == hash &&
+            memcmp(key->chars, chars, length) == 0) {
+            return key;
+        }
+
+        index = (index + 1) % table->capacity;
+    }
+}

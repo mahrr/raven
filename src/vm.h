@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "chunk.h"
+#include "table.h"
 #include "value.h"
 
 // The limit of nested frames.
@@ -18,7 +19,8 @@ typedef struct {
     Chunk *chunk;
     uint8_t *ip;
 
-    Object *objects;
+    Table strings;    // Interned strings (All strings on the system).
+    Object *objects;  // Intrusive linked list of all allocated objects.
 } VM;
 
 typedef enum {

@@ -39,4 +39,9 @@ bool table_remove(Table *table, ObjString *key);
 // Copy every entry from a table to another.
 void table_copy(Table *from, Table *to);
 
+// Return interned string object key, if it's found in
+// the table entries, otherwise return NULL.
+ObjString *table_interned(Table *table, const char *chars,
+                          uint32_t hash, int length);
+
 #endif

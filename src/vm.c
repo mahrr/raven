@@ -20,12 +20,15 @@ void init_vm(VM *vm) {
     vm->chunk = NULL;
     vm->ip = NULL;
     vm->objects = NULL;
-    
+
+    init_table(&vm->strings);
     reset_stack(vm);
 }
 
 void free_vm(VM *vm) {
+    free_table(&vm->strings);
     free_objects(vm->objects);
+
     init_vm(vm);
 }
 

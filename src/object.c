@@ -2,8 +2,10 @@
 #include <stdio.h>
 
 #include "common.h"
+#include "table.h"
 #include "mem.h"
 #include "object.h"
+#include "value.h"
 #include "vm.h"
 
 #define Alloc_Object(vm, struct_type, object_type)                      \
@@ -25,6 +27,7 @@ static ObjString *alloc_string(VM *vm, int length, uint32_t hash,
     string->hash = hash;
     string->chars = chars;
 
+    table_set(&vm->strings, string, Nil_Value);
     return string;
 }
 
@@ -40,16 +43,31 @@ static uint32_t hash_string(const char *key, int length) {
 }
 
 ObjString *copy_string(VM *vm, const char *chars, int length) {
+    uint32_t hash = hash_string(chars, length);
+    ObjString *interned = table_interned(&vm->strings, chars,
+                                         hash, length);
+
+    if (interned != NULL) return interned;
+
     char *copy = Alloc(char, length + 1);
     memcpy(copy, chars, length);
     copy[length] = '\0';
 
-    uint32_t hash = hash_string(chars, length);
     return alloc_string(vm, length, hash, copy);
 }
 
 ObjString *box_string(VM *vm, char *chars, int length) {
     uint32_t hash = hash_string(chars, length);
+    ObjString *interned = table_interned(&vm->strings, chars,
+                                         hash, length);
+
+    // box_string takes ownership of chars memory, so if
+    // the string is already interned, it frees this memory,
+    // as it's no longer needed.
+    if (interned != NULL) {
+        Free_Array(char, chars, length + 1);
+        return interned;
+    }
 
     return alloc_string(vm, length, hash, chars);
 }
