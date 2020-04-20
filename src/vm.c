@@ -66,6 +66,7 @@ static bool equal_values(Value x, Value y) {
     case VALUE_NUM:  return As_Num(x) == As_Num(y);
     case VALUE_BOOL: return As_Bool(x) == As_Bool(y);
     case VALUE_NIL:  return true;
+    case VALUE_OBJ:  return As_Obj(x) == As_Obj(y);
     default:
         assert(0);
     }

@@ -8,7 +8,7 @@ LDLIBS =
 RM = rm -f
 MKDIR = mkdir -p
 
-OBJS = raven.o vm.o chunk.o object.o value.o compiler.o \
+OBJS = raven.o vm.o chunk.o table.o object.o value.o compiler.o \
 	   lexer.o debug.o mem.o
 
 dev: bin/raven

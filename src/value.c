@@ -12,7 +12,7 @@ void init_value_array(ValueArray *array) {
 }
 
 void free_value_array(ValueArray *array) {
-    Free_Array(array->values, Value, array->capacity);
+    Free_Array(Value, array->values, array->capacity);
     init_value_array(array);
 }
 

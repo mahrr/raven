@@ -16,8 +16,8 @@ void init_chunk(Chunk *chunk) {
 }
 
 void free_chunk(Chunk *chunk) {
-    Free_Array(chunk->opcodes, uint8_t, chunk->capacity);
-    Free_Array(chunk->lines, Line, chunk->lines_capacity);
+    Free_Array(uint8_t, chunk->opcodes, chunk->capacity);
+    Free_Array(Line, chunk->lines, chunk->lines_capacity);
     free_value_array(&chunk->constants);
 }
 

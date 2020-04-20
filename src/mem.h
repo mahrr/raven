@@ -16,7 +16,7 @@
                      sizeof(type) * (new_size))
 
 
-#define Free_Array(array, type, size)                   \
+#define Free_Array(type, array, size)                   \
     (void)allocate((array), sizeof(type) * (size), 0)
 
 //
