@@ -10,6 +10,7 @@ int main(void) {
     
     init_vm(&vm);
     for (;;) {
+        printf("> ");
         if (!fgets(buff, 128, stdin) || feof(stdin)) break;
         interpret(&vm, buff);
     }

@@ -357,6 +357,7 @@ static void unary(Parser *parser) {
 static ParseRule rules[] = {
     { NULL,     NULL,   PREC_NONE },         // TOKEN_BREAK
     { NULL,     NULL,   PREC_NONE },         // TOKEN_COND
+    { NULL,     NULL,   PREC_NONE },         // TOKEN_CONTINUE
     { NULL,     NULL,   PREC_NONE },         // TOKEN_ELSE
     { boolean,  NULL,   PREC_NONE },         // TOKEN_FALSE
     { NULL,     NULL,   PREC_NONE },         // TOKEN_FN
@@ -450,9 +451,9 @@ static inline void expression(Parser *parser) {
 #endif
 }
 
-bool compile(VM *vm, const char *source) {
+bool compile(VM *vm, const char *source, const char *file) {
     Lexer lexer;
-    init_lexer(&lexer, source);
+    init_lexer(&lexer, source, file);
     
     Parser parser;
     parser.lexer = &lexer;

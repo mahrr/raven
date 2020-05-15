@@ -3,11 +3,12 @@
 
 typedef enum {
     // Keywords
-    TOKEN_BREAK, TOKEN_COND, TOKEN_ELSE,
-    TOKEN_FALSE, TOKEN_FN,   TOKEN_FOR,
-    TOKEN_IF,    TOKEN_IN,   TOKEN_LET,
-    TOKEN_MATCH, TOKEN_NIL,  TOKEN_RETURN,
-    TOKEN_WHILE, TOKEN_TRUE, TOKEN_TYPE,
+    TOKEN_BREAK,  TOKEN_COND, TOKEN_CONTINUE,
+    TOKEN_ELSE,   TOKEN_FALSE, TOKEN_FN,
+    TOKEN_FOR,    TOKEN_IF,    TOKEN_IN,
+    TOKEN_LET,    TOKEN_MATCH, TOKEN_NIL,
+    TOKEN_RETURN, TOKEN_WHILE, TOKEN_TRUE,
+    TOKEN_TYPE,
 
     // Operators
     TOKEN_PLUS,    TOKEN_MINUS,    TOKEN_STAR,
@@ -43,13 +44,14 @@ typedef struct {
 } Token;
 
 typedef struct {
+    const char *file;
     const char *start;
     const char *current;
     int line;
 } Lexer;
 
 // Initialize a lexer with a given string source.
-void init_lexer(Lexer *lexer, const char *source);
+void init_lexer(Lexer *lexer, const char *source, const char *file);
 
 // Consume and return the next token.
 Token next_token(Lexer *lexer);

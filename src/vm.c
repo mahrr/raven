@@ -194,7 +194,7 @@ InterpretResult interpret(VM *vm, const char *source) {
     init_chunk(&chunk);
     vm->chunk = &chunk;
 
-    if (!compile(vm, source)) {
+    if (!compile(vm, source, "stdin")) {
         free_chunk(&chunk);
         return INTERPRET_COMPILE_ERROR;
     }

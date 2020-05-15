@@ -5,18 +5,12 @@
 #include "common.h"
 #include "lexer.h"
 
-void init_lexer(Lexer *lexer, const char *source) {
-    lexer->start = source;
-    lexer->current = source;
-    lexer->line = 1;
-}
-
 static inline bool at_end(Lexer *lexer) {
     return *lexer->current == '\0';
 }
 
 static inline char advance(Lexer *lexer) {
-    return *lexer->current++;
+    return at_end(lexer) ? '\0' : *lexer->current++;
 }
 
 static inline char peek(Lexer *lexer) {
@@ -37,7 +31,7 @@ static inline bool match(Lexer *lexer, char expected) {
     return false;
 }
 
-static Token new_token(Lexer *lexer, TokenType type) {
+static inline Token new_token(Lexer *lexer, TokenType type) {
     Token token;
     token.type = type;
     token.line = lexer->line;
@@ -48,8 +42,8 @@ static Token new_token(Lexer *lexer, TokenType type) {
 }
 
 static Token error_token(Lexer *lexer, const char *message) {
-    fprintf(stderr, "[line %d] SyntaxError at '%.1s': %s\n",
-            lexer->line, lexer->start, message);
+    fprintf(stderr, "[%s: %d] SyntaxError at '%.1s': %s\n",
+            lexer->file, lexer->line, lexer->start, message);
     
     Token token;
     token.type = TOKEN_ERROR;
@@ -61,7 +55,9 @@ static Token error_token(Lexer *lexer, const char *message) {
 }
 
 static Token string(Lexer *lexer) {
-    while (!at_end(lexer) && peek(lexer) != '\'' && peek(lexer) != '\n') {
+    while (!at_end(lexer) &&
+           peek(lexer) != '\'' &&
+           peek(lexer) != '\n') {
         advance(lexer);
     }
 
@@ -73,8 +69,8 @@ static Token string(Lexer *lexer) {
     return new_token(lexer, TOKEN_STRING);
 }
 
-static TokenType match_keyword(Lexer *lexer, int start, int length,
-                               const char *rest, TokenType type) {
+static inline TokenType is_keyword(Lexer *lexer, int start, int length,
+                                   const char *rest, TokenType type) {
     if (lexer->current - lexer->start == start + length &&
         memcmp(lexer->start + start, rest, length) == 0) {
         return type;
@@ -84,62 +80,75 @@ static TokenType match_keyword(Lexer *lexer, int start, int length,
 }
 
 static TokenType identifier_type(Lexer *lexer) {
+#define Is_Keyword(start, rest, type)                       \
+    is_keyword(lexer, start, sizeof(rest) - 1, rest, type)
+
     switch (lexer->start[0]) {
-    case 'a': return match_keyword(lexer, 1, 2, "nd", TOKEN_AND);
-    case 'b': return match_keyword(lexer, 1, 4, "reak", TOKEN_BREAK);
-    case 'c': return match_keyword(lexer, 1, 3, "ond", TOKEN_COND);
-    case 'd': return match_keyword(lexer, 1, 1, "o", TOKEN_DO);
-    case 'l': return match_keyword(lexer, 1, 2, "et", TOKEN_LET);
-    case 'm': return match_keyword(lexer, 1, 4, "atch", TOKEN_MATCH);
-    case 'o': return match_keyword(lexer, 1, 1, "r", TOKEN_OR);
-    case 'r': return match_keyword(lexer, 1, 5, "eturn", TOKEN_RETURN);
-    case 'w': return match_keyword(lexer, 1, 4, "hile", TOKEN_WHILE);
+    case 'a': return Is_Keyword(1, "nd",    TOKEN_AND);
+    case 'b': return Is_Keyword(1, "reak",  TOKEN_BREAK);
+    case 'd': return Is_Keyword(1, "o",     TOKEN_DO);
+    case 'l': return Is_Keyword(1, "et",    TOKEN_LET);
+    case 'm': return Is_Keyword(1, "atch",  TOKEN_MATCH);
+    case 'o': return Is_Keyword(1, "r",     TOKEN_OR);
+    case 'r': return Is_Keyword(1, "eturn", TOKEN_RETURN);
+    case 'w': return Is_Keyword(1, "hile",  TOKEN_WHILE);
+
+    case 'c':
+        if (lexer->current - lexer->start < 4) break;
+        if (lexer->start[1] != 'o') break;
+        if (lexer->start[2] != 'n') break;
+
+        switch (lexer->start[3]) {
+        case 'd': return Is_Keyword(4, "",     TOKEN_COND);
+        case 't': return Is_Keyword(4, "inue", TOKEN_CONTINUE);
+        }
+        break;
         
     case 'e':
-        if (lexer->current - lexer->start == 1) break;
+        if (lexer->current - lexer->start < 3) break;
         
         switch (lexer->start[1]) {
-        case 'n': return match_keyword(lexer, 2, 1, "d", TOKEN_END);
-        case 'l': return match_keyword(lexer, 2, 2, "se", TOKEN_ELSE);
+        case 'n': return Is_Keyword(2, "d",  TOKEN_END);
+        case 'l': return Is_Keyword(2, "se", TOKEN_ELSE);
         }
         break;
 
     case 'f':
-        if (lexer->current - lexer->start == 1) break;
+        if (lexer->current - lexer->start < 2) break;
         
         switch (lexer->start[1]) {
-        case 'a': return match_keyword(lexer, 2, 3, "lse", TOKEN_FALSE);
-        case 'n': return match_keyword(lexer, 2, 0, "", TOKEN_FN);
-        case 'o': return match_keyword(lexer, 2, 1, "r", TOKEN_FOR);
+        case 'a': return Is_Keyword(2, "lse", TOKEN_FALSE);
+        case 'n': return Is_Keyword(2, "",    TOKEN_FN);
+        case 'o': return Is_Keyword(2, "r",   TOKEN_FOR);
         }
         break;
 
 
     case 'n':
-        if (lexer->current - lexer->start == 1) break;
+        if (lexer->current - lexer->start != 3) break;
 
         switch (lexer->start[1]) {
-        case 'i': return match_keyword(lexer, 2, 1, "l", TOKEN_NIL);
-        case 'o': return match_keyword(lexer, 2, 1, "t", TOKEN_NOT);
+        case 'i': return Is_Keyword(2, "l", TOKEN_NIL);
+        case 'o': return Is_Keyword(2, "t", TOKEN_NOT);
         }
         break;
 
     case 'i':
-        if (lexer->current - lexer->start == 1) break;
+        if (lexer->current - lexer->start != 2) break;
 
         switch (lexer->start[1]) {
-        case 'f': return match_keyword(lexer, 2, 0, "", TOKEN_IF);
-        case 'n': return match_keyword(lexer, 2, 0, "", TOKEN_IN);
+        case 'f': return TOKEN_IF;
+        case 'n': return TOKEN_IN;
         }
         break;
  
 
     case 't':
-        if (lexer->current - lexer->start == 1) break;
+        if (lexer->current - lexer->start < 4) break;
 
         switch (lexer->start[1]) {
-        case 'r': return match_keyword(lexer, 2, 2, "ue", TOKEN_TRUE);
-        case 'y': return match_keyword(lexer, 2, 2, "pe", TOKEN_TYPE);
+        case 'r': return Is_Keyword(2, "ue", TOKEN_TRUE);
+        case 'y': return Is_Keyword(2, "pe", TOKEN_TYPE);
         }
         break;
     }
@@ -283,4 +292,11 @@ Token next_token(Lexer *lexer) {
 
     return error_token(lexer, "Unexpected symbol");
 #undef New_Token    
+}
+
+void init_lexer(Lexer *lexer, const char *source, const char *file) {
+    lexer->file = file;
+    lexer->start = source;
+    lexer->current = source;
+    lexer->line = 1;
 }
