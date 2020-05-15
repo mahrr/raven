@@ -15,9 +15,9 @@ let_declaration ::= "let" pattern "=" expression delimiter;
 
 fn_declaration ::= "fn" name "(" parameter_list ")" chunk "end";
 
-type_declaration ::= "type" name ":" {type_variant} "end";
+type_declaration ::= "type" name ":" type_variant [{"|" type_variant}] "end";
 
-type_variant ::= "|" name "("[name {"," name} ]")";
+type_variant ::= name "("[name {"," name} ]")";
 
 statement ::= expression_statement
             | return_statement
@@ -62,9 +62,14 @@ while_expression ::= "while" expression "do" chunk "end";
 
 for_expression ::= "for" pattern "in" expression "do" chunk "end";
 
-cond_expression ::= "cond:" {expression -> expression} "end";
+cond_expression ::= "cond:" expression -> expression
+                      [{"," expression -> expression}]
+                    "end";
 
-match_expression ::= "match" expression ":" {pattern -> expression} "end";
+match_expression ::= "match" expression ":"
+                             pattern -> expression
+                       [{"," pattern -> expression}]
+                     "end";
 
 identifier_expression ::= name;
 
