@@ -42,7 +42,8 @@ static void runtime_error(VM *vm, const char *format, ...) {
     
     vfprintf(stderr, format, arguments);
     putc('\n', stderr);
-    
+
+    va_end(arguments);
     reset_stack(vm);
 }
 
