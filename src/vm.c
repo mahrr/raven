@@ -22,10 +22,12 @@ void init_vm(VM *vm) {
     vm->objects = NULL;
 
     init_table(&vm->strings);
+    init_table(&vm->globals);
     reset_stack(vm);
 }
 
 void free_vm(VM *vm) {
+    free_table(&vm->globals);
     free_table(&vm->strings);
     free_objects(vm->objects);
 
@@ -72,15 +74,16 @@ static bool equal_values(Value x, Value y) {
     case VALUE_NIL:  return true;
     case VALUE_OBJ:  return As_Obj(x) == As_Obj(y);
     default:
-        assert(0);
+        assert(!"invalid value type");
     }
 }
 
-// The VM main loop.
+// VM Dispatch Loop
 static InterpretResult run_vm(VM *vm) {
     // Reading Operations
 #define Read_Byte()     (*vm->ip++)
 #define Read_Constant() (vm->chunk->constants.values[Read_Byte()])
+#define Read_String()   (As_String(Read_Constant()))
 #define Read_Offset()                                       \
     (vm->ip += 2, (uint16_t)(vm->ip[-2] << 8 | vm->ip[-1]))
 
@@ -157,6 +160,16 @@ static InterpretResult run_vm(VM *vm) {
         case OP_GT:  Binary_OP(Bool_Value, >);  break;
         case OP_GTQ: Binary_OP(Bool_Value, >=); break;
 
+        case OP_DEF_GLOBAL: {
+            ObjString *name = Read_String();
+            table_set(&vm->globals, name, Peek(0));
+            // Pop(); // TODO: value, or nil?
+            break;
+        }
+
+        case OP_SET_GLOBAL: break;
+        case OP_GET_GLOBAL: break;
+
         case OP_JMP: {
             uint16_t offset = Read_Offset();
             vm->ip += offset;
@@ -178,7 +191,7 @@ static InterpretResult run_vm(VM *vm) {
             return INTERPRET_OK;
 
         default:
-            assert(0);
+            assert(!"invalid instruction");
         }
     }
 
@@ -186,6 +199,7 @@ static InterpretResult run_vm(VM *vm) {
 #undef Pop
 #undef Push
 #undef Read_Offset
+#undef Read_String
 #undef Read_Constant
 #undef Read_Byte
 }

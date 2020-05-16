@@ -34,6 +34,6 @@ void print_value(Value value) {
     case VALUE_NIL:  printf("nil"); break;
     case VALUE_OBJ:  print_object(value); break;
     default:
-        assert(0);
+        assert(!"invalid value type");
     }
 }

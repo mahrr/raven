@@ -86,6 +86,15 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     case OP_GTQ:
         return basic_instruction("GTQ", offset);
 
+    case OP_DEF_GLOBAL:
+        return const_instruction("DEF_GLOBAL", chunk, offset);
+
+    case OP_SET_GLOBAL:
+        return const_instruction("SET_GLOBAL", chunk, offset);
+
+    case OP_GET_GLOBAL:
+        return const_instruction("GET_GLOBAL", chunk, offset);
+
     case OP_JMP:
         return jump_instruction("JMP", chunk, 1, offset);
 
@@ -97,13 +106,12 @@ int disassemble_instruction(Chunk *chunk, int offset) {
 
     case OP_NOT:
         return basic_instruction("NOT", offset);
-
         
     case OP_RETURN:
         return basic_instruction("RETURN", offset);
     }
 
-    assert(0);
+    assert(!"invalid instruction type");
 }
 
 void disassemble_chunk(Chunk *chunk, const char *name) {

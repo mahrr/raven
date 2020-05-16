@@ -76,7 +76,7 @@ void print_object(Value value) {
     switch (Obj_Type(value)) {
     case OBJ_STRING: printf("%s", As_CString(value)); break;
     default:
-        assert(0);
+        assert(!"invalid object type");
     }
 }
 
@@ -90,7 +90,7 @@ static void free_object(Object *object) {
     }
 
     default:
-        assert(0);
+        assert(!"invalid object type");
     }
 }
 

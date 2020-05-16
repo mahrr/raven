@@ -27,6 +27,11 @@ typedef enum {      // Immediate Arguments
     OP_GT,
     OP_GTQ,
 
+    // Variables
+    OP_DEF_GLOBAL,  // 1-byte name index
+    OP_SET_GLOBAL,  // 1-byte name index
+    OP_GET_GLOBAL,  // 1-byte name index
+
     // Jumping
     OP_JMP,         // 2-bytes offset
     OP_JMP_FALSE,   // 2-bytes offset

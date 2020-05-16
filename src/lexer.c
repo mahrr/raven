@@ -5,6 +5,13 @@
 #include "common.h"
 #include "lexer.h"
 
+void init_lexer(Lexer *lexer, const char *source, const char *file) {
+    lexer->file = file;
+    lexer->start = source;
+    lexer->current = source;
+    lexer->line = 1;
+}
+
 static inline bool at_end(Lexer *lexer) {
     return *lexer->current == '\0';
 }
@@ -154,6 +161,8 @@ static TokenType identifier_type(Lexer *lexer) {
     }
 
     return TOKEN_IDENTIFIER;
+
+#undef Is_Keyword
 }
 
 static Token identifier(Lexer *lexer) {
@@ -292,11 +301,4 @@ Token next_token(Lexer *lexer) {
 
     return error_token(lexer, "Unexpected symbol");
 #undef New_Token    
-}
-
-void init_lexer(Lexer *lexer, const char *source, const char *file) {
-    lexer->file = file;
-    lexer->start = source;
-    lexer->current = source;
-    lexer->line = 1;
 }

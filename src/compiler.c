@@ -67,7 +67,7 @@ typedef struct {
 
 #ifdef DEBUG_TRACE_PARSING
 
-static char *strings_precedences[] = {
+static const char *precedence_string[] = {
     "None",
     "Assignment",
     "Or",
@@ -95,6 +95,18 @@ static void debug_log(Parser *parser, const char *fmt, ...) {
     parser->level += 1;
 }
 
+#define Debug_Logf(parser, fmt, ...)            \
+    debug_log(parser, fmt, ##__VA_ARGS__)
+
+#define Debug_Log(parser) debug_log(parser, __func__);
+#define Debug_Exit(parser) (parser)->level -= 1
+
+#else
+
+#define Debug_Logf(parser, fmt, ...)
+#define Debug_Log(parser)
+#define Debug_Exit(parser)
+
 #endif
 
 /** Error Reporting **/
@@ -103,7 +115,8 @@ static void error(Parser *parser, Token *where, const char *message) {
     if (parser->panic_mode) return;
     parser->panic_mode = true;
 
-    fprintf(stderr, "[line %d] SyntaxError", where->line);
+    fprintf(stderr, "[%s: %d] SyntaxError",
+            parser->lexer->file, where->line);
 
     if (where->type == TOKEN_EOF) {
         fprintf(stderr, " at end");
@@ -125,7 +138,7 @@ static inline void error_current(Parser *parser, const char *message) {
 
 /** Parser State **/
 
-static void advance(Parser *parser) {
+static inline void advance(Parser *parser) {
     parser->previous = parser->current;
     
     for (;;) {
@@ -135,12 +148,24 @@ static void advance(Parser *parser) {
     }
 }
 
-static void consume(Parser *parser, TokenType type, const char *msg) {
+static inline void consume(Parser *parser, TokenType type,
+                           const char *msg) {
     if (parser->current.type == type) {
         advance(parser);
     } else {
         error_current(parser, msg);
     }
+}
+
+static inline bool check(Parser *parser, TokenType type) {
+    return parser->current.type == type;
+}
+
+static inline bool match(Parser *parser, TokenType type) {
+    if (!check(parser, type)) return false;
+
+    advance(parser);
+    return true;
 }
 
 /** Emitting **/
@@ -189,19 +214,17 @@ static inline void emit_constant(Parser *parser, Value value) {
 
 /** Parsing **/
 
-static void expression(Parser *);
-static void parse(Parser *, Precedence);
-static ParseRule *token_rule(TokenType);
+static void parse_precedence(Parser*, Precedence);
+static inline void expression(Parser*);
+static inline ParseRule *token_rule(TokenType);
 
 static void binary(Parser *parser) {
-#ifdef DEBUG_TRACE_PARSING
-    debug_log(parser, "binary");
-#endif
+    Debug_Log(parser);
     
     TokenType operator = parser->previous.type;
 
     ParseRule *rule = token_rule(operator);
-    parse(parser, (Precedence)(rule->precedence + 1));
+    parse_precedence(parser, (Precedence)(rule->precedence + 1));
 
     switch (operator) {
     case TOKEN_PLUS:          emit_byte(parser, OP_ADD); break;
@@ -216,35 +239,27 @@ static void binary(Parser *parser) {
     case TOKEN_EQUAL_EQUAL:   emit_byte(parser, OP_EQ);  break;
     case TOKEN_BANG_EQUAL:    emit_byte(parser, OP_NEQ); break;
     default:
-        assert(0);
+        assert(!"invalid token type");
     }
 
-#ifdef DEBUG_TRACE_PARSING
-    parser->level -= 1;
-#endif
+    Debug_Exit(parser);
 }
 
 static void and_(Parser *parser) {
-#ifdef DEBUG_TRACE_PARSING
-    debug_log(parser, "and");
-#endif
+    Debug_Log(parser);
 
     int jump = emit_jump(parser, OP_JMP_FALSE);
 
     emit_byte(parser, OP_POP);
-    parse(parser, PREC_AND + 1);
+    parse_precedence(parser, PREC_AND + 1);
 
     patch_jump(parser, jump);
 
-#ifdef DEBUG_TRACE_PARSING
-    parser->level -= 1;
-#endif
+    Debug_Exit(parser);
 }
 
 static void or_(Parser *parser) {
-#ifdef DEBUG_TRACE_PARSING
-    debug_log(parser, "or");
-#endif
+    Debug_Log(parser);
 
     // first operand is falsy
     int false_jump = emit_jump(parser, OP_JMP_FALSE);
@@ -255,102 +270,75 @@ static void or_(Parser *parser) {
     patch_jump(parser, false_jump);
 
     emit_byte(parser, OP_POP);
-    parse(parser, PREC_OR + 1);
+    parse_precedence(parser, PREC_OR + 1);
 
     patch_jump(parser, true_jump);
 
-#ifdef DEBUG_TRACE_PARSING
-    parser->level -= 1;
-#endif
+    Debug_Exit(parser);
 }
 
 static void grouping(Parser *parser) {
-#ifdef DEBUG_TRACE_PARSING
-    debug_log(parser, "grouping");
-#endif
+    Debug_Log(parser);
     
     expression(parser);
     consume(parser, TOKEN_RIGHT_PAREN,
             "Expect closing ')' after group expression");
 
-#ifdef DEBUG_TRACE_PARSING
-    parser->level -= 1;
-#endif
+    Debug_Exit(parser);
 }
 
 static void number(Parser *parser) {
-#ifdef DEBUG_TRACE_PARSING
-    debug_log(parser, "number");
-#endif
+    Debug_Log(parser);
     
     Value value = Num_Value(strtod(parser->previous.lexeme, NULL));
     emit_constant(parser, value);
-    
-#ifdef DEBUG_TRACE_PARSING
-    parser->level -= 1;
-#endif
+
+    Debug_Exit(parser);
 }
 
 static void string(Parser *parser) {
-#ifdef DEBUG_TRACE_PARSING
-    debug_log(parser, "string");
-#endif
+    Debug_Log(parser);
 
     // +1 and -2 for the literal string quotes
     ObjString *string = copy_string(parser->vm,
                                     parser->previous.lexeme + 1,
                                     parser->previous.length - 2);
     emit_constant(parser, Obj_Value(string));
-    
-#ifdef DEBUG_TRACE_PARSING
-    parser->level -= 1;
-#endif
 
+    Debug_Exit(parser);
 }
 
 static void boolean(Parser *parser) {
-#ifdef DEBUG_TRACE_PARSING
-    debug_log(parser, "boolean");
-#endif
+    Debug_Log(parser);
     
     TokenType type = parser->previous.type;
     emit_byte(parser, type == TOKEN_TRUE ? OP_LOAD_TRUE : OP_LOAD_FALSE);
 
-#ifdef DEBUG_TRACE_PARSING
-    parser->level -= 1;
-#endif
+    Debug_Exit(parser);
 }
 
 static void nil(Parser *parser) {
-#ifdef DEBUG_TRACE_PARSING
-    debug_log(parser, "nil");
-#endif
+    Debug_Log(parser);
     
     emit_byte(parser, OP_LOAD_NIL);
 
-#ifdef DEBUG_TRACE_PARSING
-    parser->level -= 1;
-#endif
+    Debug_Exit(parser);
 }
 
 static void unary(Parser *parser) {
-#ifdef DEBUG_TRACE_PARSING
-    debug_log(parser, "unary");
-#endif
+    Debug_Log(parser);
     
     TokenType operator = parser->previous.type;
-    parse(parser, PREC_UNARY);
+    parse_precedence(parser, PREC_UNARY);
 
     switch (operator) {
     case TOKEN_MINUS: emit_byte(parser, OP_NEG); break;
     case TOKEN_NOT:   emit_byte(parser, OP_NOT); break;
     default:
-        assert(0);
+        assert(!"invalid token type");
     }
 
-#ifdef DEBUG_TRACE_PARSING
-    parser->level -= 1;
-#endif
+    Debug_Exit(parser);
 }
 
 // Parsing rule table
@@ -414,10 +402,8 @@ static inline ParseRule *token_rule(TokenType type) {
     return &rules[type];
 }
 
-static void parse(Parser *parser, Precedence precedence) {
-#ifdef DEBUG_TRACE_PARSING
-    debug_log(parser, "parse(%s)", strings_precedences[precedence]);
-#endif
+static void parse_precedence(Parser *parser, Precedence precedence) {
+    Debug_Logf(parser, "expression(%s)", precedence_string[precedence]);
     
     advance(parser);
 
@@ -430,50 +416,124 @@ static void parse(Parser *parser, Precedence precedence) {
     prefix(parser);
     while (precedence <= token_rule(parser->current.type)->precedence) {
         advance(parser);
-        ParseFn infix = token_rule(parser->previous.type)->infix;
-        infix(parser);
+        token_rule(parser->previous.type)->infix(parser);
     }
 
-#ifdef DEBUG_TRACE_EXECUTION
-    parser->level -=1;
-#endif
+    Debug_Exit(parser);
 }
 
 static inline void expression(Parser *parser) {
-#ifdef DEBUG_TRACE_PARSING
-    debug_log(parser, "expression");
-#endif
-    
-    parse(parser, PREC_ASSIGNMENT);
+    parse_precedence(parser, PREC_ASSIGNMENT);
+}
 
-#ifdef DEBUG_TRACE_EXECUTION
-    parser->level -= 1;
-#endif
+// Put the name in the constant table as string , and return its index.
+static inline uint8_t identifier_constant(Parser *parser, Token *name) {
+    const char *start = name->lexeme;
+    int length = name->length;
+    
+    Value ident = Obj_Value(copy_string(parser->vm, start, length));
+    return write_constant(parser->vm->chunk, ident);
+}
+
+static inline uint8_t parse_variable(Parser *parser, const char *error) {
+    consume(parser, TOKEN_IDENTIFIER, error);
+    return identifier_constant(parser, &parser->previous); 
+}
+
+static inline void define_variable(Parser *parser, uint8_t name_index) {
+    emit_bytes(parser, OP_DEF_GLOBAL, name_index);
+}
+
+static inline void let_declaration(Parser *parser) {
+    Debug_Log(parser);
+
+    uint8_t index = parse_variable(parser, "expect a variable name");
+    
+    if (match(parser, TOKEN_EQUAL)) {
+        expression(parser);
+    } else {
+        emit_byte(parser, OP_LOAD_NIL);
+    }
+
+    consume(parser, TOKEN_SEMICOLON,
+            "expect ';' or newline after let declaration");
+    define_variable(parser, index);
+    
+    Debug_Exit(parser);
+}
+
+// Synchronize the parser state to the next statement.
+static inline void recover(Parser *parser) {
+    parser->panic_mode = false;
+
+    for (;;) {
+        switch (parser->current.type) {
+        case TOKEN_LET:
+        case TOKEN_FN:
+        case TOKEN_TYPE:
+        case TOKEN_RETURN:
+        case TOKEN_BREAK:
+        case TOKEN_CONTINUE:
+        case TOKEN_EOF:
+            return;
+
+        default:
+            if (parser->previous.type == TOKEN_SEMICOLON) return;
+        }
+        
+        advance(parser);
+    }
+}
+
+static inline void declaration(Parser *parser) {
+    Debug_Log(parser);
+
+    // emit_byte(parser, OP_POP); // Pop the previous declaration value.
+
+
+    if (match(parser, TOKEN_LET)) {
+        let_declaration(parser);
+    } else  {
+        expression(parser);
+        // consume(parser, TOKEN_SEMICOLON,
+        //         "expect ';' or newline after expression");
+    }
+
+    if (parser->panic_mode) recover(parser);
+
+    Debug_Exit(parser);
 }
 
 bool compile(VM *vm, const char *source, const char *file) {
     Lexer lexer;
     init_lexer(&lexer, source, file);
-    
+
     Parser parser;
     parser.lexer = &lexer;
     parser.vm = vm;
     parser.had_error = false;
     parser.panic_mode = false;
-    
+
 #ifdef DEBUG_TRACE_PARSING
     parser.level = 0;
 #endif
 
     advance(&parser);
-    expression(&parser);
-    consume(&parser, TOKEN_EOF, "Expect end of expression");
+
+    // This slot should be replaced with the final expression
+    // evaluation value, if it's a statement, not an expression,
+    // the value will remain nil.
+    // emit_byte(&parser, OP_LOAD_NIL);
+
+    while (!match(&parser, TOKEN_EOF)) {
+        declaration(&parser);
+    }
 
     emit_byte(&parser, OP_RETURN);
 
 #ifdef DEBUG_DUMP_CODE
     disassemble_chunk(vm->chunk, "top-level");
 #endif
-    
+
     return !parser.had_error;
 }

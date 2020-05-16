@@ -20,6 +20,8 @@ typedef struct {
     uint8_t *ip;
 
     Table strings;    // Interned strings (All strings on the system).
+    Table globals;
+    
     Object *objects;  // Intrusive linked list of all allocated objects.
 } VM;
 
