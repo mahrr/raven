@@ -212,11 +212,45 @@ static inline void emit_constant(Parser *parser, Value value) {
     emit_bytes(parser, OP_LOAD_CONST, make_constant(parser, value));
 }
 
+// Put the name in the constant table as string , and return its index.
+static inline uint8_t identifier_constant(Parser *parser, Token *name) {
+    const char *start = name->lexeme;
+    int length = name->length;
+    
+    Value ident = Obj_Value(copy_string(parser->vm, start, length));
+    return write_constant(parser->vm->chunk, ident);
+}
+
 /** Parsing **/
 
 static void parse_precedence(Parser*, Precedence);
 static inline void expression(Parser*);
 static inline ParseRule *token_rule(TokenType);
+
+static void assignment(Parser *parser) {
+    Debug_Log(parser);
+    
+    Chunk *chunk = parser->vm->chunk;
+
+    // Check if the left hand side was an identifier.
+    if (chunk->count < 2 ||
+        chunk->opcodes[chunk->count-2] != OP_GET_GLOBAL) {
+        error_previous(parser, "invalid assignment target");
+        return;
+    }
+
+    // Get the name index and discard the get instruction.
+    uint8_t name_index = chunk->opcodes[chunk->count-1];
+    chunk->count -= 2;
+
+    
+    // Not PREC_ASSIGNMENT + 1, sicne assignment is right associated.
+    parse_precedence(parser, PREC_ASSIGNMENT);
+
+    emit_bytes(parser, OP_SET_GLOBAL, name_index);
+
+    Debug_Exit(parser);
+}
 
 static void binary(Parser *parser) {
     Debug_Log(parser);
@@ -287,6 +321,15 @@ static void grouping(Parser *parser) {
     Debug_Exit(parser);
 }
 
+static void identifier(Parser *parser) {
+    Debug_Log(parser);
+    
+    uint8_t name_index = identifier_constant(parser, &parser->previous);
+    emit_bytes(parser, OP_GET_GLOBAL, name_index);
+
+    Debug_Exit(parser);
+}
+
 static void number(Parser *parser) {
     Debug_Log(parser);
     
@@ -343,58 +386,58 @@ static void unary(Parser *parser) {
 
 // Parsing rule table
 static ParseRule rules[] = {
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_BREAK
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_COND
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_CONTINUE
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_ELSE
-    { boolean,  NULL,   PREC_NONE },         // TOKEN_FALSE
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_FN
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_FOR
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_IF
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_IN
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_LET
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_MATCH
-    { nil,      NULL,   PREC_NONE },         // TOKEN_NIL
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_RETURN
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_WHILE
-    { boolean,  NULL,   PREC_NONE },         // TOKEN_TRUE
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_TYPE
-    { NULL,     binary, PREC_TERM },         // TOKEN_PLUS
-    { unary,    binary, PREC_TERM },         // TOKEN_MINUS
-    { NULL,     binary, PREC_FACTOR },       // TOKEN_STAR
-    { NULL,     binary, PREC_FACTOR },       // TOKEN_SLASH
-    { NULL,     binary, PREC_FACTOR },       // TOKEN_PERCENT
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_DOT
-    { unary,    NULL,   PREC_NONE },         // TOKEN_NOT
-    { NULL,     and_,   PREC_AND },          // TOKEN_AND
-    { NULL,     or_,    PREC_OR  },          // TOKEN_OR
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_AT
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_COLON_COLON
-    { NULL,     binary, PREC_COMPARISON },   // TOKEN_LT
-    { NULL,     binary, PREC_COMPARISON },   // TOKEN_LT_EQUAL
-    { NULL,     binary, PREC_COMPARISON },   // TOKEN_GT
-    { NULL,     binary, PREC_COMPARISON },   // TOKEN_GT_EQUAL
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_EQUAL
-    { NULL,     binary, PREC_EQUALITY },     // TOKEN_EQUAL_EQUAL
-    { NULL,     binary, PREC_EQUALITY },     // TOKEN_BANG_EQUAL
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_DO
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_END
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_PIPE
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_HYPHEN_LT
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_COMMA
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_SEMICOLON
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_COLON
-    { grouping, NULL,   PREC_NONE },         // TOKEN_LEFT_PAREN
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_RIGHT_PAREN
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_LEFT_BRACE
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_RIGHT_BRACE
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_LEFT_BRACKET
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_RIGHT_BRACKET
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_IDENTIFIER
-    { number,   NULL,   PREC_NONE },         // TOKEN_NUMBER
-    { string,   NULL,   PREC_NONE },         // TOKEN_STRING
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_ERROR
-    { NULL,     NULL,   PREC_NONE },         // TOKEN_EOF
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_BREAK
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_COND
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_CONTINUE
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_ELSE
+    { boolean,    NULL,       PREC_NONE },         // TOKEN_FALSE
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_FN
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_FOR
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_IF
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_IN
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_LET
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_MATCH
+    { nil,        NULL,       PREC_NONE },         // TOKEN_NIL
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_RETURN
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_WHILE
+    { boolean,    NULL,       PREC_NONE },         // TOKEN_TRUE
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_TYPE
+    { NULL,       binary,     PREC_TERM },         // TOKEN_PLUS
+    { unary,      binary,     PREC_TERM },         // TOKEN_MINUS
+    { NULL,       binary,     PREC_FACTOR },       // TOKEN_STAR
+    { NULL,       binary,     PREC_FACTOR },       // TOKEN_SLASH
+    { NULL,       binary,     PREC_FACTOR },       // TOKEN_PERCENT
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_DOT
+    { unary,      NULL,       PREC_NONE },         // TOKEN_NOT
+    { NULL,       and_,       PREC_AND },          // TOKEN_AND
+    { NULL,       or_,        PREC_OR  },          // TOKEN_OR
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_AT
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_COLON_COLON
+    { NULL,       binary,     PREC_COMPARISON },   // TOKEN_LESS
+    { NULL,       binary,     PREC_COMPARISON },   // TOKEN_LESS_EQUAL
+    { NULL,       binary,     PREC_COMPARISON },   // TOKEN_GREATER
+    { NULL,       binary,     PREC_COMPARISON },   // TOKEN_GREATER_EQUAL
+    { NULL,       assignment, PREC_ASSIGNMENT },   // TOKEN_EQUAL
+    { NULL,       binary,     PREC_EQUALITY },     // TOKEN_EQUAL_EQUAL
+    { NULL,       binary,     PREC_EQUALITY },     // TOKEN_BANG_EQUAL
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_DO
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_END
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_PIPE
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_HYPHEN_LT
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_COMMA
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_SEMICOLON
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_COLON
+    { grouping,   NULL,       PREC_NONE },         // TOKEN_LEFT_PAREN
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_PAREN
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_LEFT_BRACE
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_BRACE
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_LEFT_BRACKET
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_BRACKET
+    { identifier, NULL,       PREC_NONE },         // TOKEN_IDENTIFIER
+    { number,     NULL,       PREC_NONE },         // TOKEN_NUMBER
+    { string,     NULL,       PREC_NONE },         // TOKEN_STRING
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_ERROR
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_EOF
 };
 
 // Return the parsing rule of a given token type.
@@ -426,22 +469,13 @@ static inline void expression(Parser *parser) {
     parse_precedence(parser, PREC_ASSIGNMENT);
 }
 
-// Put the name in the constant table as string , and return its index.
-static inline uint8_t identifier_constant(Parser *parser, Token *name) {
-    const char *start = name->lexeme;
-    int length = name->length;
-    
-    Value ident = Obj_Value(copy_string(parser->vm, start, length));
-    return write_constant(parser->vm->chunk, ident);
+static inline void define_variable(Parser *parser, uint8_t name_index) {
+    emit_bytes(parser, OP_DEF_GLOBAL, name_index);
 }
 
 static inline uint8_t parse_variable(Parser *parser, const char *error) {
     consume(parser, TOKEN_IDENTIFIER, error);
     return identifier_constant(parser, &parser->previous); 
-}
-
-static inline void define_variable(Parser *parser, uint8_t name_index) {
-    emit_bytes(parser, OP_DEF_GLOBAL, name_index);
 }
 
 static inline void let_declaration(Parser *parser) {

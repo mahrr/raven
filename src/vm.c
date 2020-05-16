@@ -167,8 +167,26 @@ static InterpretResult run_vm(VM *vm) {
             break;
         }
 
-        case OP_SET_GLOBAL: break;
-        case OP_GET_GLOBAL: break;
+        case OP_SET_GLOBAL: {
+            ObjString *name = Read_String();
+            if (table_set(&vm->globals, name, Peek(0))) {
+                table_remove(&vm->globals, name);
+                runtime_error(vm, "unbound variable '%s'", name->chars);
+                return INTERPRET_RUNTIME_ERROR;
+            }
+            break;
+        }
+            
+        case OP_GET_GLOBAL: {
+            ObjString *name = Read_String();
+            Value value;
+            if (!table_get(&vm->globals, name, &value)) {
+                runtime_error(vm, "unbound variable '%s'", name->chars);
+                return INTERPRET_RUNTIME_ERROR;
+            }
+            Push(value);
+            break;
+        }
 
         case OP_JMP: {
             uint16_t offset = Read_Offset();
