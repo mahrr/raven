@@ -24,7 +24,7 @@
 
 typedef struct Local {
     Token name;
-    int depth;
+    int depth;  // -1 indicates uninitialized state
 } Local;
 
 // Context (Lexical Block) State
@@ -252,7 +252,7 @@ static inline void add_local(Parser *parser, Token name) {
     
     Local *local = &context->locals[context->local_count++];
     local->name = name;
-    local->depth = context->scope_depth;
+    local->depth = -1; // Uninitialized
 }
 
 static inline void begin_scope(Parser *parser) {
@@ -291,8 +291,21 @@ static inline int resolve_local(Context *context, Token *name) {
     for (int i = context->local_count - 1; i >= 0; i--) {
         Local *local = &context->locals[i];
         
-        // Found a local with this name.
-        if (same_identifier(name, &local->name)) return i;
+        // Find an initialized local variable with this name.
+        // The "local->depth != -1" test skips the edge case:
+        //   let x = x;
+        // But in the same time, allow same name shadowing:
+        //   do
+        //     let x = 1;
+        //     do
+        //       let x = x + x; // x -> 2
+        //       ...
+        //     end
+        //     ...
+        //   end
+        if (local->depth != -1 && same_identifier(name, &local->name)) {
+            return i;
+        }
     }
 
     // Not Found
@@ -595,7 +608,15 @@ static void declare_variable(Parser *parser) {
 }
 
 static void define_variable(Parser *parser, uint8_t name_index) {
-    if (parser->context->scope_depth > 0) return; // Local Scope
+    Context *context = parser->context;
+
+    // Local Scope?
+    if (context->scope_depth > 0) {
+        // Initialize the most declared local variable.
+        int last_index = context->local_count - 1;
+        context->locals[last_index].depth = context->scope_depth;
+        return;
+    }
     
     emit_bytes(parser, OP_DEF_GLOBAL, name_index);
 }
