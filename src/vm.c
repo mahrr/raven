@@ -20,6 +20,7 @@ void init_vm(VM *vm) {
     vm->chunk = NULL;
     vm->ip = NULL;
     vm->objects = NULL;
+    vm->x = Nil_Value;
 
     init_table(&vm->strings);
     init_table(&vm->globals);
@@ -125,7 +126,10 @@ static InterpretResult run_vm(VM *vm) {
         case OP_LOAD_FALSE: Push(Bool_Value(false)); break;
         case OP_LOAD_NIL:   Push(Nil_Value);         break;
         case OP_LOAD_CONST: Push(Read_Constant());   break;
-            
+
+        case OP_LOAD:  Push(vm->x);   break;
+        case OP_STORE: vm->x = Pop(); break;
+                        
         case OP_ADD: Binary_OP(Num_Value, +); break;
         case OP_SUB: Binary_OP(Num_Value, -); break;
         case OP_MUL: Binary_OP(Num_Value, *); break;
@@ -163,7 +167,7 @@ static InterpretResult run_vm(VM *vm) {
         case OP_DEF_GLOBAL: {
             ObjString *name = Read_String();
             table_set(&vm->globals, name, Peek(0));
-            // Pop(); // TODO: value, or nil?
+            Pop();
             break;
         }
 
@@ -188,6 +192,18 @@ static InterpretResult run_vm(VM *vm) {
             break;
         }
 
+        case OP_SET_LOCAL: {
+            uint8_t slot = Read_Byte();
+            vm->stack[slot] = Peek(0);
+            break;
+        }
+
+        case OP_GET_LOCAL: {
+            uint8_t slot = Read_Byte();
+            Push(vm->stack[slot]);
+            break;
+        }
+
         case OP_JMP: {
             uint16_t offset = Read_Offset();
             vm->ip += offset;
@@ -201,10 +217,16 @@ static InterpretResult run_vm(VM *vm) {
         }
 
         case OP_POP: Pop(); break;
+        case OP_POPN: {
+            uint8_t count = Read_Byte();
+            vm->stack_top -= count;
+            break;
+        }
+            
         case OP_NOT: Push(Bool_Value(is_falsy(Pop()))); break;
 
         case OP_RETURN:
-            print_value(Pop());
+            print_value(vm->x);
             putchar('\n');
             return INTERPRET_OK;
 

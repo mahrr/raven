@@ -20,4 +20,16 @@
 # define THREADED_CODE
 #endif
 
+// System Configuration
+// TODO: move this to a separate header.
+
+// The limit of nested frames.
+#define FRAME_LIMIT 128
+
+// Maximum number of values on the stack.
+#define STACK_SIZE (256 * FRAME_LIMIT)
+
+// The limit of number of locals per block.
+#define LOCALS_LIMIT 256
+
 #endif

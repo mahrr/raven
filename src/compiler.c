@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "chunk.h"
 #include "common.h"
@@ -21,10 +22,24 @@
  * parsing infix function for each token type.
 */
 
-// Parser state
+typedef struct Local {
+    Token name;
+    int depth;
+} Local;
+
+// Context (Lexical Block) State
+typedef struct Context {
+    Local locals[LOCALS_LIMIT];
+    int local_count;   // Number of locals in the current scope
+    int scope_depth;   // Number of the surrounding blocks
+} Context;
+
+// Parser State
 typedef struct {
     Lexer *lexer;     // The input, token stream
     VM *vm;           // The output chunk, bytecode stream
+
+    Context *context; // The current scope state
     
     Token current;    // Current consumed token
     Token previous;   // Previously consumed token
@@ -136,6 +151,59 @@ static inline void error_current(Parser *parser, const char *message) {
     error(parser, &parser->current, message);
 }
 
+/** Emitting **/
+
+static inline void emit_byte(Parser *parser, uint8_t byte) {
+    write_byte(parser->vm->chunk, byte, parser->previous.line);
+}
+
+static inline void emit_bytes(Parser *parser, uint8_t x, uint8_t y) {
+    emit_byte(parser, x);
+    emit_byte(parser, y);
+}
+
+static inline int emit_jump(Parser *parser, uint8_t instruction) {
+    emit_byte(parser, instruction);
+    emit_bytes(parser, 0xff, 0xff);
+    return parser->vm->chunk->count - 2;
+}
+
+static inline void patch_jump(Parser *parser, int from) {
+    // -2 because of the jmp instruction 2-bytes immediate argument
+    int offset = parser->vm->chunk->count - from - 2;
+
+    if (offset > UINT16_MAX) {
+        error_current(parser, "Jump offset exceeds the allowed limit");
+    }
+
+    parser->vm->chunk->opcodes[from] = (offset >> 8) & 0xff;
+    parser->vm->chunk->opcodes[from + 1] = offset & 0xff;
+}
+
+static inline uint8_t make_constant(Parser *parser, Value value) {
+    int constant_index = write_constant(parser->vm->chunk, value);
+
+    if (constant_index > UINT8_MAX) {
+        error_current(parser, "Too many constants in one chunk");
+        return 0;
+    }
+
+    return (uint8_t)constant_index;
+}
+
+static inline void emit_constant(Parser *parser, Value value) {
+    emit_bytes(parser, OP_LOAD_CONST, make_constant(parser, value));
+}
+
+// Put the name in the constant table as string , and return its index.
+static inline uint8_t identifier_constant(Parser *parser, Token *name) {
+    const char *start = name->lexeme;
+    int length = name->length;
+    
+    Value ident = Obj_Value(copy_string(parser->vm, start, length));
+    return write_constant(parser->vm->chunk, ident);
+}
+
 /** Parser State **/
 
 static inline void advance(Parser *parser) {
@@ -168,63 +236,74 @@ static inline bool match(Parser *parser, TokenType type) {
     return true;
 }
 
-/** Emitting **/
-
-static inline void emit_byte(Parser *parser, uint8_t byte) {
-    write_byte(parser->vm->chunk, byte, parser->previous.line);
+static inline void init_context(Parser *parser, Context *context) {
+    context->local_count = 0;
+    context->scope_depth = 0;
+    parser->context = context;
 }
 
-static inline void emit_bytes(Parser *parser, uint8_t x, uint8_t y) {
-    emit_byte(parser, x);
-    emit_byte(parser, y);
-}
+static inline void add_local(Parser *parser, Token name) {
+    Context *context = parser->context;
 
-static inline int emit_jump(Parser *parser, uint8_t instruction) {
-    emit_byte(parser, instruction);
-    emit_bytes(parser, 0xff, 0xff);
-    return parser->vm->chunk->count - 2;
-}
-
-static inline void patch_jump(Parser *parser, int from) {
-    // -2 because of the jmp instruction 2-bytes immediate argument
-    int offset = parser->vm->chunk->count - from - 2;
-
-    if (offset > UINT16_MAX) {
-        error_current(parser, "Jump offset exceeds the allowed limit");
+    if (context->local_count == LOCALS_LIMIT) {
+        error_previous(parser, "Function locals limit is exceeded");
+        return;
     }
-
-    parser->vm->chunk->opcodes[from] = (offset >> 8) & 0xff;
-    parser->vm->chunk->opcodes[from + 1] = offset & 0xff;
-}
-
-static uint8_t make_constant(Parser *parser, Value value) {
-    int constant_index = write_constant(parser->vm->chunk, value);
-
-    if (constant_index > UINT8_MAX) {
-        error_current(parser, "Too many constants in one chunk");
-        return 0;
-    }
-
-    return (uint8_t)constant_index;
-}
-
-static inline void emit_constant(Parser *parser, Value value) {
-    emit_bytes(parser, OP_LOAD_CONST, make_constant(parser, value));
-}
-
-// Put the name in the constant table as string , and return its index.
-static inline uint8_t identifier_constant(Parser *parser, Token *name) {
-    const char *start = name->lexeme;
-    int length = name->length;
     
-    Value ident = Obj_Value(copy_string(parser->vm, start, length));
-    return write_constant(parser->vm->chunk, ident);
+    Local *local = &context->locals[context->local_count++];
+    local->name = name;
+    local->depth = context->scope_depth;
+}
+
+static inline void begin_scope(Parser *parser) {
+    parser->context->scope_depth++;
+}
+
+static inline void end_scope(Parser *parser) {
+    Context *context = parser->context;
+    int local_count = 0;
+    
+    for (int i = context->local_count - 1; i >= 0; i--) {
+        if (context->locals[i].depth < context->scope_depth) {
+            break;
+        }
+
+        local_count++;
+    }
+
+    context->local_count -= local_count;
+    if (local_count != 0) {
+        emit_bytes(parser, OP_POPN, (uint8_t)local_count);
+    }
+
+    // Push the value of the last expression in the block.
+    emit_byte(parser, OP_LOAD);
+    context->scope_depth--;
+}
+
+static inline bool same_identifier(Token *a, Token *b) {
+    if (a->length != b->length) return false;
+    return memcmp(a->lexeme, b->lexeme, a->length) == 0;
+}
+
+// TODO: consider using a hash map for faster lookup.
+static inline int resolve_local(Context *context, Token *name) {
+    for (int i = context->local_count - 1; i >= 0; i--) {
+        Local *local = &context->locals[i];
+        
+        // Found a local with this name.
+        if (same_identifier(name, &local->name)) return i;
+    }
+
+    // Not Found
+    return -1;
 }
 
 /** Parsing **/
 
 static void parse_precedence(Parser*, Precedence);
-static inline void expression(Parser*);
+static void expression(Parser*);
+static void declaration(Parser*);
 static inline ParseRule *token_rule(TokenType);
 
 static void assignment(Parser *parser) {
@@ -232,22 +311,25 @@ static void assignment(Parser *parser) {
     
     Chunk *chunk = parser->vm->chunk;
 
-    // Check if the left hand side was an identifier.
+    // Check if the left hand side was an identifier, it's kind of a hack.
+    // TODO: experiemnt with alternative approaches.
     if (chunk->count < 2 ||
-        chunk->opcodes[chunk->count-2] != OP_GET_GLOBAL) {
+        (chunk->opcodes[chunk->count-2] != OP_GET_GLOBAL &&
+         chunk->opcodes[chunk->count-2] != OP_GET_LOCAL)) {
         error_previous(parser, "invalid assignment target");
         return;
     }
 
-    // Get the name index and discard the get instruction.
-    uint8_t name_index = chunk->opcodes[chunk->count-1];
+    // Get the name, or slot index and extract the corresponding
+    // set instruction, and then discard the get instruction.
+    uint8_t index = chunk->opcodes[chunk->count-1];
+    uint8_t set_op = chunk->opcodes[chunk->count-2] - 1;
     chunk->count -= 2;
 
     
     // Not PREC_ASSIGNMENT + 1, sicne assignment is right associated.
     parse_precedence(parser, PREC_ASSIGNMENT);
-
-    emit_bytes(parser, OP_SET_GLOBAL, name_index);
+    emit_bytes(parser, set_op, index);
 
     Debug_Exit(parser);
 }
@@ -311,6 +393,20 @@ static void or_(Parser *parser) {
     Debug_Exit(parser);
 }
 
+static void block(Parser *parser) {
+    Debug_Log(parser);
+    
+    begin_scope(parser);
+    while (!check(parser, TOKEN_END) && !check(parser, TOKEN_EOF)) {
+        declaration(parser);
+    }
+
+    consume(parser, TOKEN_END, "expect closing 'end' after block");
+    end_scope(parser);
+    
+    Debug_Exit(parser);
+}
+
 static void grouping(Parser *parser) {
     Debug_Log(parser);
     
@@ -323,9 +419,18 @@ static void grouping(Parser *parser) {
 
 static void identifier(Parser *parser) {
     Debug_Log(parser);
+
+    uint8_t get_op;
+    int index = resolve_local(parser->context, &parser->previous);
+
+    if (index != -1) {
+        get_op = OP_GET_LOCAL;
+    } else {
+        index = identifier_constant(parser, &parser->previous);
+        get_op = OP_GET_GLOBAL;
+    }
     
-    uint8_t name_index = identifier_constant(parser, &parser->previous);
-    emit_bytes(parser, OP_GET_GLOBAL, name_index);
+    emit_bytes(parser, get_op, index);
 
     Debug_Exit(parser);
 }
@@ -420,7 +525,7 @@ static ParseRule rules[] = {
     { NULL,       assignment, PREC_ASSIGNMENT },   // TOKEN_EQUAL
     { NULL,       binary,     PREC_EQUALITY },     // TOKEN_EQUAL_EQUAL
     { NULL,       binary,     PREC_EQUALITY },     // TOKEN_BANG_EQUAL
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_DO
+    { block,      NULL,       PREC_NONE },         // TOKEN_DO
     { NULL,       NULL,       PREC_NONE },         // TOKEN_END
     { NULL,       NULL,       PREC_NONE },         // TOKEN_PIPE
     { NULL,       NULL,       PREC_NONE },         // TOKEN_HYPHEN_LT
@@ -465,20 +570,46 @@ static void parse_precedence(Parser *parser, Precedence precedence) {
     Debug_Exit(parser);
 }
 
-static inline void expression(Parser *parser) {
+static void expression(Parser *parser) {
     parse_precedence(parser, PREC_ASSIGNMENT);
 }
 
-static inline void define_variable(Parser *parser, uint8_t name_index) {
+static void declare_variable(Parser *parser) {
+    Context *context = parser->context;
+    if (context->scope_depth == 0) return; // Global Scope
+
+    Token *name = &parser->previous;
+    for (int i = context->local_count - 1; i >= 0; i--) {
+        Local *local = &context->locals[i];
+
+        if (local->depth == -1 || local->depth < context->scope_depth) {
+            break; // Not previously declared in the current scope.
+        }
+
+        if (same_identifier(name, &local->name)) {
+            error_previous(parser, "This name is already declared.");
+        }
+    }
+    
+    add_local(parser, *name);
+}
+
+static void define_variable(Parser *parser, uint8_t name_index) {
+    if (parser->context->scope_depth > 0) return; // Local Scope
+    
     emit_bytes(parser, OP_DEF_GLOBAL, name_index);
 }
 
-static inline uint8_t parse_variable(Parser *parser, const char *error) {
+static uint8_t parse_variable(Parser *parser, const char *error) {
     consume(parser, TOKEN_IDENTIFIER, error);
+
+    declare_variable(parser);
+    if (parser->context->scope_depth > 0) return 0;
+    
     return identifier_constant(parser, &parser->previous); 
 }
 
-static inline void let_declaration(Parser *parser) {
+static void let_declaration(Parser *parser) {
     Debug_Log(parser);
 
     uint8_t index = parse_variable(parser, "expect a variable name");
@@ -497,7 +628,7 @@ static inline void let_declaration(Parser *parser) {
 }
 
 // Synchronize the parser state to the next statement.
-static inline void recover(Parser *parser) {
+static void recover(Parser *parser) {
     parser->panic_mode = false;
 
     for (;;) {
@@ -519,11 +650,8 @@ static inline void recover(Parser *parser) {
     }
 }
 
-static inline void declaration(Parser *parser) {
+static void declaration(Parser *parser) {
     Debug_Log(parser);
-
-    // emit_byte(parser, OP_POP); // Pop the previous declaration value.
-
 
     if (match(parser, TOKEN_LET)) {
         let_declaration(parser);
@@ -531,6 +659,7 @@ static inline void declaration(Parser *parser) {
         expression(parser);
         // consume(parser, TOKEN_SEMICOLON,
         //         "expect ';' or newline after expression");
+        emit_byte(parser, OP_STORE);
     }
 
     if (parser->panic_mode) recover(parser);
@@ -548,16 +677,14 @@ bool compile(VM *vm, const char *source, const char *file) {
     parser.had_error = false;
     parser.panic_mode = false;
 
+    Context context;
+    init_context(&parser, &context);
+
 #ifdef DEBUG_TRACE_PARSING
     parser.level = 0;
 #endif
 
     advance(&parser);
-
-    // This slot should be replaced with the final expression
-    // evaluation value, if it's a statement, not an expression,
-    // the value will remain nil.
-    // emit_byte(&parser, OP_LOAD_NIL);
 
     while (!match(&parser, TOKEN_EOF)) {
         declaration(&parser);

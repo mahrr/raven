@@ -6,15 +6,11 @@
 #include "table.h"
 #include "value.h"
 
-// The limit of nested frames.
-#define FRAME_LIMIT 128
-
-// Maximum number of values on the stack.
-#define STACK_SIZE (256 * FRAME_LIMIT)
-
-typedef struct {
+typedef struct {    
     Value stack[STACK_SIZE];
     Value *stack_top;
+
+    Value x;          // Last evaluated expression register.
     
     Chunk *chunk;
     uint8_t *ip;

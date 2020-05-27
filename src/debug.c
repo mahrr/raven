@@ -16,6 +16,12 @@ static int const_instruction(const char *tag, Chunk *chunk, int offset) {
     return offset + 2;
 }
 
+static int byte_instruction(const char *tag, Chunk *chunk, int offset) {
+    uint8_t count = chunk->opcodes[offset + 1];
+    printf("%-16s %4d\n", tag, count);
+    return offset + 2;
+}
+
 static int jump_instruction(const char *tag, Chunk *chunk, int sign,
                             int offset) {
     uint16_t jump = (uint16_t)(chunk->opcodes[offset + 1] << 8 |
@@ -49,6 +55,12 @@ int disassemble_instruction(Chunk *chunk, int offset) {
         
     case OP_LOAD_CONST:
         return const_instruction("LOAD_CONST", chunk, offset);
+
+    case OP_LOAD:
+        return basic_instruction("LOAD", offset);
+        
+    case OP_STORE:
+        return basic_instruction("STORE", offset);
         
     case OP_ADD:
         return basic_instruction("ADD", offset);
@@ -95,6 +107,12 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     case OP_GET_GLOBAL:
         return const_instruction("GET_GLOBAL", chunk, offset);
 
+    case OP_SET_LOCAL:
+        return byte_instruction("SET_LOCAL", chunk, offset);
+
+    case OP_GET_LOCAL:
+        return byte_instruction("GET_LOCAL", chunk, offset);
+
     case OP_JMP:
         return jump_instruction("JMP", chunk, 1, offset);
 
@@ -103,6 +121,9 @@ int disassemble_instruction(Chunk *chunk, int offset) {
 
     case OP_POP:
         return basic_instruction("POP", offset);
+
+    case OP_POPN:
+        return byte_instruction("POPN", chunk, offset);
 
     case OP_NOT:
         return basic_instruction("NOT", offset);
