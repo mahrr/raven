@@ -41,8 +41,9 @@ typedef enum {      // Immediate Arguments
 
     // Jumping
     OP_JMP,         // 2-bytes offset
+    OP_JMP_BACK,    // 2-bytes offset
     OP_JMP_FALSE,   // 2-bytes offset
-
+    
     OP_POP,
     OP_POPN,        // 1-byte count
     OP_NOT,

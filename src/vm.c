@@ -210,6 +210,12 @@ static InterpretResult run_vm(VM *vm) {
             break;
         }
 
+        case OP_JMP_BACK: {
+            uint16_t offset = Read_Offset();
+            vm->ip -= offset;
+            break;
+        }
+
         case OP_JMP_FALSE: {
             uint16_t offset = Read_Offset();
             if (is_falsy(Peek(0))) vm->ip += offset;

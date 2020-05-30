@@ -116,6 +116,9 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     case OP_JMP:
         return jump_instruction("JMP", chunk, 1, offset);
 
+    case OP_JMP_BACK:
+        return jump_instruction("JMP_BACK", chunk, -1, offset);
+
     case OP_JMP_FALSE:
         return jump_instruction("JMP_FALSE", chunk, 1, offset);
 

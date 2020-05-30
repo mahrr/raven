@@ -168,6 +168,18 @@ static inline int emit_jump(Parser *parser, uint8_t instruction) {
     return parser->vm->chunk->count - 2;
 }
 
+static inline void emit_loop(Parser *parser, int start) {
+    emit_byte(parser, OP_JMP_BACK);
+
+    // +2 for the OP_JMP_BACK 2-bytes operand.
+    int offset = parser->vm->chunk->count - start + 2;
+    if (offset > UINT16_MAX) {
+        error_current(parser, "Loop body exceeds the allowed limit");
+    }
+
+    emit_bytes(parser, (offset >> 8) & 0xff, offset & 0xff);
+}
+
 static inline void patch_jump(Parser *parser, int from) {
     // -2 because of the jmp instruction 2-bytes immediate argument
     int offset = parser->vm->chunk->count - from - 2;
@@ -259,7 +271,7 @@ static inline void begin_scope(Parser *parser) {
     parser->context->scope_depth++;
 }
 
-static inline void end_scope(Parser *parser) {
+static inline void end_scope(Parser *parser, bool loading) {
     Context *context = parser->context;
     int local_count = 0;
     
@@ -277,7 +289,7 @@ static inline void end_scope(Parser *parser) {
     }
 
     // Push the value of the last expression in the block.
-    emit_byte(parser, OP_LOAD);
+    if (loading) emit_byte(parser, OP_LOAD);
     context->scope_depth--;
 }
 
@@ -424,6 +436,7 @@ static void or_(Parser *parser) {
     Debug_Exit(parser);
 }
 
+// TODO: abstract the block parsing function in a clean way.
 static void if_block(Parser *parser) {
     Debug_Log(parser);
 
@@ -439,7 +452,23 @@ static void if_block(Parser *parser) {
         consume(parser, TOKEN_END, "expect closing 'end' after if block");
     }
     
-    end_scope(parser);
+    end_scope(parser, true);
+    
+    Debug_Exit(parser);
+}
+
+static void loop_block(Parser *parser) {
+    Debug_Log(parser);
+       
+    begin_scope(parser);
+
+    while (!check(parser, TOKEN_END) && !check(parser, TOKEN_EOF)) {
+        declaration(parser);
+    }
+
+    consume(parser, TOKEN_END, "expect closing 'end' after loop block");
+    
+    end_scope(parser, false);
     
     Debug_Exit(parser);
 }
@@ -455,12 +484,14 @@ static void block(Parser *parser) {
 
     consume(parser, TOKEN_END, "expect closing 'end' after block");
     
-    end_scope(parser);
+    end_scope(parser, true);
     
     Debug_Exit(parser);
 }
 
 static void if_(Parser *parser) {
+    Debug_Log(parser);
+    
     expression(parser); // Condition
     consume(parser, TOKEN_DO, "expect 'do' after if condition");
 
@@ -478,6 +509,32 @@ static void if_(Parser *parser) {
     }                                                 //       |
                                                       //       |
     patch_jump(parser, else_jump);                    // <------
+
+    Debug_Exit(parser);
+}
+
+static void while_(Parser *parser) {
+    Debug_Log(parser);
+
+    int loop_start = parser->vm->chunk->count;        // <-----.
+    expression(parser); // Condition                  //       |
+                                                      //       |
+    consume(parser, TOKEN_DO, "expect 'do' after while condition");
+                                                      //       |
+    int exit_jump = emit_jump(parser, OP_JMP_FALSE);  // ---.  |
+                                                      //    |  |
+    emit_byte(parser, OP_POP); // Condition           //    |  |
+    loop_block(parser);                               //    |  |
+                                                      //    |  |
+    emit_loop(parser, loop_start);                    // -------
+                                                      //    |
+    patch_jump(parser, exit_jump);                    // <---
+    emit_byte(parser, OP_POP); // Condition
+
+    // The resulting expression of a loop is always nil.
+    emit_byte(parser, OP_LOAD_NIL);
+    
+    Debug_Exit(parser);
 }
 
 static void grouping(Parser *parser) {
@@ -577,7 +634,7 @@ static ParseRule rules[] = {
     { NULL,       NULL,       PREC_NONE },         // TOKEN_MATCH
     { nil,        NULL,       PREC_NONE },         // TOKEN_NIL
     { NULL,       NULL,       PREC_NONE },         // TOKEN_RETURN
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_WHILE
+    { while_,     NULL,       PREC_NONE },         // TOKEN_WHILE
     { boolean,    NULL,       PREC_NONE },         // TOKEN_TRUE
     { NULL,       NULL,       PREC_NONE },         // TOKEN_TYPE
     { NULL,       binary,     PREC_TERM },         // TOKEN_PLUS
