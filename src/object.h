@@ -12,6 +12,7 @@ typedef enum {
 } ObjectType;
 
 // The header (metadata) of all objects.
+// TODO: consider using pointer tagging.
 struct Object {
     ObjectType type;
     struct Object *next;

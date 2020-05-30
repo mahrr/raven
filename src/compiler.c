@@ -375,6 +375,14 @@ static void binary(Parser *parser) {
 }
 
 static void and_(Parser *parser) {
+    // Operator Flow:
+    //
+    // [Left Operand]
+    // OP_JMP_FALSE   ---.
+    // OP_POP            |
+    // [Right Operand]   |
+    // ....    <----------
+    
     Debug_Log(parser);
 
     int jump = emit_jump(parser, OP_JMP_FALSE);
@@ -387,7 +395,17 @@ static void and_(Parser *parser) {
     Debug_Exit(parser);
 }
 
+// TODO: test the performance difference with OP_JMP_TRUE instruction.
 static void or_(Parser *parser) {
+    // Operator Flow:
+    //
+    // [Left Operand]
+    // OP_JMP_FALSE   ---.
+    // OP_JMP         ---|--.
+    // OP_POP  <----------  |
+    // [Right Operand]      |
+    // ....    <-------------
+    
     Debug_Log(parser);
 
     // first operand is falsy
@@ -406,18 +424,60 @@ static void or_(Parser *parser) {
     Debug_Exit(parser);
 }
 
+static void if_block(Parser *parser) {
+    Debug_Log(parser);
+
+    begin_scope(parser);
+
+    while (!check(parser, TOKEN_END) &&
+           !check(parser, TOKEN_EOF) &&
+           !check(parser, TOKEN_ELSE)) {
+        declaration(parser);
+    }
+
+    if (!match(parser, TOKEN_ELSE)) {
+        consume(parser, TOKEN_END, "expect closing 'end' after if block");
+    }
+    
+    end_scope(parser);
+    
+    Debug_Exit(parser);
+}
+
 static void block(Parser *parser) {
     Debug_Log(parser);
-    
+
     begin_scope(parser);
+
     while (!check(parser, TOKEN_END) && !check(parser, TOKEN_EOF)) {
         declaration(parser);
     }
 
     consume(parser, TOKEN_END, "expect closing 'end' after block");
+    
     end_scope(parser);
     
     Debug_Exit(parser);
+}
+
+static void if_(Parser *parser) {
+    expression(parser); // Condition
+    consume(parser, TOKEN_DO, "expect 'do' after if condition");
+
+    int then_jump = emit_jump(parser, OP_JMP_FALSE);  // ---. (false)
+    emit_byte(parser, OP_POP); // Condition           //    |
+    if_block(parser);                                 //    |
+                                                      //    |
+    int else_jump = emit_jump(parser, OP_JMP);        // ---|--. (true)
+                                                      //    |  |
+    patch_jump(parser, then_jump);                    // <---  |
+    emit_byte(parser, OP_POP); // Condition           //       |
+                                                      //       |
+    if (parser->previous.type == TOKEN_ELSE) {        //       |
+        block(parser);                                //       |
+    }                                                 //       |
+                                                      //       |
+    patch_jump(parser, else_jump);                    // <------
 }
 
 static void grouping(Parser *parser) {
@@ -511,7 +571,7 @@ static ParseRule rules[] = {
     { boolean,    NULL,       PREC_NONE },         // TOKEN_FALSE
     { NULL,       NULL,       PREC_NONE },         // TOKEN_FN
     { NULL,       NULL,       PREC_NONE },         // TOKEN_FOR
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_IF
+    { if_,        NULL,       PREC_NONE },         // TOKEN_IF
     { NULL,       NULL,       PREC_NONE },         // TOKEN_IN
     { NULL,       NULL,       PREC_NONE },         // TOKEN_LET
     { NULL,       NULL,       PREC_NONE },         // TOKEN_MATCH
