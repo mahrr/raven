@@ -222,6 +222,12 @@ static InterpretResult run_vm(VM *vm) {
             break;
         }
 
+        case OP_JMP_POP_FALSE: {
+            uint16_t offset = Read_Offset();
+            if (is_falsy(Pop())) vm->ip += offset;
+            break;
+        }
+
         case OP_POP: Pop(); break;
         case OP_POPN: {
             uint8_t count = Read_Byte();

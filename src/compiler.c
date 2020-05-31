@@ -494,55 +494,57 @@ static void block(Parser *parser) {
 }
 
 static void if_(Parser *parser) {
+    // If Control Flow
+    // <TODO>
+    
     Debug_Log(parser);
     
     expression(parser); // Condition
     consume(parser, TOKEN_DO, "expect 'do' after if condition");
 
-    int then_jump = emit_jump(parser, OP_JMP_FALSE);  // ---. (false)
-    emit_byte(parser, OP_POP); // Condition           //    |
-    if_block(parser);                                 //    |
-                                                      //    |
-    int else_jump = emit_jump(parser, OP_JMP);        // ---|--. (true)
-                                                      //    |  |
-    patch_jump(parser, then_jump);                    // <---  |
-    emit_byte(parser, OP_POP); // Condition           //       |
-                                                      //       |
-    if (parser->previous.type == TOKEN_ELSE) {        //       |
-        block(parser);                                //       |
-    }                                                 //       |
-                                                      //       |
-    patch_jump(parser, else_jump);                    // <------
+    int then_jump = emit_jump(parser, OP_JMP_POP_FALSE);  // ---. false
+    if_block(parser);                                     //    |
+                                                          //    |
+    int else_jump = emit_jump(parser, OP_JMP);            // ---|--. true
+                                                          //    |  |
+    patch_jump(parser, then_jump);                        // <---  |
+                                                          //       |
+    if (parser->previous.type == TOKEN_ELSE) {            //       |
+        block(parser);                                    //       |
+    }                                                     //       |
+                                                          //       |
+    patch_jump(parser, else_jump);                        // <------
 
     Debug_Exit(parser);
 }
 
 static void while_(Parser *parser) {
+    // While Control Flow
+    // <TODO>
+    
     Debug_Log(parser);
 
     // Register the surrounding loop state.
     int previous_inner_loop_start = parser->inner_loop_start;
     int previous_inner_loop_depth = parser->inner_loop_depth;
 
-    int loop_start = parser->vm->chunk->count;        // <-----.
-                                                      //       |
-    // Push the current loop state                    //       |
-    parser->inner_loop_start = loop_start;            //       |
-    parser->inner_loop_depth = parser->context->scope_depth;// |
-                                                      //       |
-    expression(parser); // Condition                  //       |
-                                                      //       |
+    int loop_start = parser->vm->chunk->count;            // <-----.
+                                                          //       |
+    // Push the current loop state                        //       |
+    parser->inner_loop_start = loop_start;                //       |
+    parser->inner_loop_depth = parser->context->scope_depth;//     |
+                                                          //       |
+    expression(parser); // Condition                      //       |
+                                                          //       |
     consume(parser, TOKEN_DO, "expect 'do' after while condition");
-                                                      //       |
-    int exit_jump = emit_jump(parser, OP_JMP_FALSE);  // ---.  |
-                                                      //    |  |
-    emit_byte(parser, OP_POP); // Condition           //    |  |
-    loop_block(parser);                               //    |  |
-                                                      //    |  |
-    emit_loop(parser, loop_start);                    // -------
-                                                      //    |
-    patch_jump(parser, exit_jump);                    // <---
-    emit_byte(parser, OP_POP); // Condition
+                                                          //       |
+    int exit_jump = emit_jump(parser, OP_JMP_POP_FALSE);  // ---.  |
+                                                          //    |  |
+    loop_block(parser);                                   //    |  |
+                                                          //    |  |
+    emit_loop(parser, loop_start);                        // -------
+                                                          //    |
+    patch_jump(parser, exit_jump);                        // <---
 
     // The resulting expression of a loop is always nil.
     emit_byte(parser, OP_LOAD_NIL);
@@ -865,7 +867,6 @@ bool compile(VM *vm, const char *source, const char *file) {
     parser.panic_mode = false;
     parser.inner_loop_start = -1;
     parser.inner_loop_depth = -1;
-    parser.inner_loop_break = -1;
 
     Context context;
     init_context(&parser, &context);
