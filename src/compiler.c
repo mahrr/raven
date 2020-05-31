@@ -47,6 +47,10 @@ typedef struct {
     bool had_error;   // Error flag to stop bytecode execution later
     bool panic_mode;  // If set, any parsing error will be ignored
 
+    // Used in continue statement.
+    int inner_loop_start;
+    int inner_loop_depth;
+
 #ifdef DEBUG_TRACE_PARSING
     int level;        // Parser nesting level, for debugging
 #endif
@@ -516,7 +520,16 @@ static void if_(Parser *parser) {
 static void while_(Parser *parser) {
     Debug_Log(parser);
 
+    // Register the surrounding loop state.
+    int previous_inner_loop_start = parser->inner_loop_start;
+    int previous_inner_loop_depth = parser->inner_loop_depth;
+
     int loop_start = parser->vm->chunk->count;        // <-----.
+                                                      //       |
+    // Push the current loop state                    //       |
+    parser->inner_loop_start = loop_start;            //       |
+    parser->inner_loop_depth = parser->context->scope_depth;// |
+                                                      //       |
     expression(parser); // Condition                  //       |
                                                       //       |
     consume(parser, TOKEN_DO, "expect 'do' after while condition");
@@ -533,6 +546,10 @@ static void while_(Parser *parser) {
 
     // The resulting expression of a loop is always nil.
     emit_byte(parser, OP_LOAD_NIL);
+
+    // Pop the current loop state.
+    parser->inner_loop_start = previous_inner_loop_start;
+    parser->inner_loop_depth = previous_inner_loop_depth;
     
     Debug_Exit(parser);
 }
@@ -765,6 +782,36 @@ static void let_declaration(Parser *parser) {
     Debug_Exit(parser);
 }
 
+static void continue_statement(Parser *parser) {
+    Debug_Log(parser);
+
+    // In a loop?
+    if (parser->inner_loop_start == -1) {
+        error_previous(parser, "use of 'continue' outside a loop");
+    }
+
+    consume(parser, TOKEN_SEMICOLON, "expect ; after continue");
+
+    int local_count = 0;
+    Context *context = parser->context;
+    
+    for (int i = context->local_count - 1; i >= 0; i--) {
+        if (context->locals[i].depth < parser->inner_loop_depth) {
+            break;
+        }
+
+        local_count++;
+    }
+
+    if (local_count > 0) {
+        emit_bytes(parser, OP_POPN, (uint8_t)local_count);
+    }
+
+    emit_loop(parser, parser->inner_loop_start);
+
+    Debug_Exit(parser);
+}
+
 // Synchronize the parser state to the next statement.
 static void recover(Parser *parser) {
     parser->panic_mode = false;
@@ -793,7 +840,9 @@ static void declaration(Parser *parser) {
 
     if (match(parser, TOKEN_LET)) {
         let_declaration(parser);
-    } else  {
+    } else if (match(parser, TOKEN_CONTINUE)) {
+        continue_statement(parser);
+    } else {
         expression(parser);
         // consume(parser, TOKEN_SEMICOLON,
         //         "expect ';' or newline after expression");
@@ -814,6 +863,9 @@ bool compile(VM *vm, const char *source, const char *file) {
     parser.vm = vm;
     parser.had_error = false;
     parser.panic_mode = false;
+    parser.inner_loop_start = -1;
+    parser.inner_loop_depth = -1;
+    parser.inner_loop_break = -1;
 
     Context context;
     init_context(&parser, &context);
