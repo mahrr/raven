@@ -139,6 +139,7 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     }
 
     assert(!"invalid instruction type");
+    return 0; // For Warnings
 }
 
 void disassemble_chunk(Chunk *chunk, const char *name) {

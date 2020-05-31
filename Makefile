@@ -2,7 +2,8 @@ CC = gcc
 CFLAGS = -std=gnu99 -Wall -Wextra -Werror -pedantic
 DEBUG_FLAGS = -ggdb -DDEBUG -O0
 RELEASE_FLAGS = -march=native -DNDEBUG -O2
-PROFILE_FLAGS = $(RELEASE_FLAGS) -pg
+RELEASE_SYMBOLS_FLAGS = $(RELEASE_FLAGS) -ggdb
+PROFILE_FLAGS = $(RELEASE_FLAGS) -pg # for profiling with gprof
 LDLIBS =
 
 RM = rm -f
@@ -14,10 +15,12 @@ OBJS = raven.o vm.o chunk.o table.o object.o value.o compiler.o \
 dev: bin/raven
 release: clean bin/raven
 profile: clean bin/raven
+release_symbols: clean bin/raven
 
 dev: CFLAGS += $(DEBUG_FLAGS)
 release: CFLAGS += $(RELEASE_FLAGS)
 profile: CFLAGS += $(PROFILE_FLAGS)
+release_symbols: CFLAGS += $(RELEASE_SYMBOL_FLAGS)
 
 bin/raven: $(OBJS:%.o=src/%.o)
 	@$(MKDIR) bin/

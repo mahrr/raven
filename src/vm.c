@@ -74,9 +74,10 @@ static bool equal_values(Value x, Value y) {
     case VALUE_BOOL: return As_Bool(x) == As_Bool(y);
     case VALUE_NIL:  return true;
     case VALUE_OBJ:  return As_Obj(x) == As_Obj(y);
-    default:
-        assert(!"invalid value type");
     }
+
+    assert(!"invalid value type");
+    return false; // For warnings
 }
 
 // VM Dispatch Loop
@@ -127,7 +128,7 @@ static InterpretResult run_vm(VM *vm) {
         case OP_LOAD_NIL:   Push(Nil_Value);         break;
         case OP_LOAD_CONST: Push(Read_Constant());   break;
 
-        case OP_LOAD:  Push(vm->x);   break;
+        case OP_LOAD: Push(vm->x); vm->x = Nil_Value; break;
         case OP_STORE: vm->x = Pop(); break;
                         
         case OP_ADD: Binary_OP(Num_Value, +); break;
