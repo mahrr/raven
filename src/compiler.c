@@ -583,13 +583,13 @@ static void if_(Parser *parser) {
     // If Control Flow:
     //
     // Condition
-    // OP_JMP_POP_FALSE   ----.
-    //                        |
-    // Then Block             |
-    // OP_JMP             --------.
-    //                        |   |
-    // [Else Block]    <-------   | 
-    // ....            <-----------
+    // OP_JMP_POP_FALSE    -------.
+    //                            |
+    // Then Block                 |
+    // OP_JMP              -----------.
+    //                            |   |
+    // [Else Block | Nil]  <-------   | 
+    // ....                <-----------
     
     Debug_Log(parser);
     
@@ -605,6 +605,8 @@ static void if_(Parser *parser) {
                                                           //       |
     if (parser->previous.type == TOKEN_ELSE) {            //       |
         block(parser);                                    //       |
+    } else {                                              //       |
+        emit_byte(parser, OP_LOAD_NIL);                   //       |
     }                                                     //       |
                                                           //       |
     patch_jump(parser, else_jump);                        // <------
