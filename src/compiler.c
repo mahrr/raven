@@ -178,7 +178,7 @@ static inline void emit_loop(Parser *parser, int start) {
     // +2 for the OP_JMP_BACK 2-bytes operand.
     int offset = parser->vm->chunk->count - start + 2;
     if (offset > UINT16_MAX) {
-        error_current(parser, "Loop body exceeds the allowed limit");
+        error_current(parser, "loop body exceeds the allowed limit");
     }
 
     emit_bytes(parser, (offset >> 8) & 0xff, offset & 0xff);
@@ -189,7 +189,7 @@ static inline void patch_jump(Parser *parser, int from) {
     int offset = parser->vm->chunk->count - from - 2;
 
     if (offset > UINT16_MAX) {
-        error_current(parser, "Jump offset exceeds the allowed limit");
+        error_current(parser, "jump offset exceeds the allowed limit");
     }
 
     parser->vm->chunk->opcodes[from] = (offset >> 8) & 0xff;
@@ -222,6 +222,25 @@ static inline uint8_t identifier_constant(Parser *parser, Token *name) {
 
 /** Parser State **/
 
+static inline void init_parser(Parser *parser, Lexer *lexer, VM *vm) {
+    parser->lexer = lexer;
+    parser->vm = vm;
+    parser->had_error = false;
+    parser->panic_mode = false;
+    parser->inner_loop_start = -1;
+    parser->inner_loop_depth = -1;
+    
+#ifdef DEBUG_TRACE_PARSING
+    parser->level = 0;
+#endif
+}
+
+static inline void init_context(Parser *parser, Context *context) {
+    context->local_count = 0;
+    context->scope_depth = 0;
+    parser->context = context;
+}
+
 static inline void advance(Parser *parser) {
     parser->previous = parser->current;
     
@@ -252,12 +271,6 @@ static inline bool match(Parser *parser, TokenType type) {
     return true;
 }
 
-static inline void init_context(Parser *parser, Context *context) {
-    context->local_count = 0;
-    context->scope_depth = 0;
-    parser->context = context;
-}
-
 static inline void add_local(Parser *parser, Token name) {
     Context *context = parser->context;
 
@@ -275,12 +288,12 @@ static inline void begin_scope(Parser *parser) {
     parser->context->scope_depth++;
 }
 
-static inline void end_scope(Parser *parser, bool loading) {
+static void unwind_stack(Parser *parser, int depth) {
     Context *context = parser->context;
     int local_count = 0;
     
     for (int i = context->local_count - 1; i >= 0; i--) {
-        if (context->locals[i].depth < context->scope_depth) {
+        if (context->locals[i].depth < depth) {
             break;
         }
 
@@ -291,10 +304,14 @@ static inline void end_scope(Parser *parser, bool loading) {
     if (local_count != 0) {
         emit_bytes(parser, OP_POPN, (uint8_t)local_count);
     }
+}
 
+static inline void end_scope(Parser *parser, bool loading) {
+    unwind_stack(parser, parser->context->scope_depth);
+    
     // Push the value of the last expression in the block.
     if (loading) emit_byte(parser, OP_LOAD);
-    context->scope_depth--;
+    parser->context->scope_depth--;
 }
 
 static inline bool same_identifier(Token *a, Token *b) {
@@ -471,7 +488,7 @@ static void loop_block(Parser *parser) {
     }
 
     consume(parser, TOKEN_END, "expect closing 'end' after loop block");
-    
+
     end_scope(parser, false);
     
     Debug_Exit(parser);
@@ -493,9 +510,86 @@ static void block(Parser *parser) {
     Debug_Exit(parser);
 }
 
+static void cond(Parser *parser) {
+    // Cond Control Flow:
+    //
+    // Condition (1)
+    // OP_JMP_POP_FALSE  ---.
+    //                      |
+    // Expression (1)       |
+    // OP_JMP            --------.
+    //                      |    |
+    // [Condition (2)]   <---    |
+    // OP_JMP_POP_FALSE  ----    |
+    //                      |    |
+    // [Expression (2)]     |    |
+    // OP_JMP            --------|
+    //                      |    |
+    // [Condition (3)]   <---    |
+    // OP_JMP_POP_FALSE  ---.    |
+    //                      |    |
+    // [Expression (3)]     |    |
+    // OP_JMP            --------|
+    //                      |    |
+    // ....                 .    .
+    // ....                 .    .
+    //                      |    |
+    // [Condition (n)]   <---    |
+    // OP_JMP_POP_FALSE  ---.    |
+    //                      |    |
+    // [Expression (n)]     |    |
+    // OP_JMP            --------|
+    //                      |    |
+    // OP_LOAD_NIL <---------    |
+    // ....        <--------------
+
+    Debug_Log(parser);
+    consume(parser, TOKEN_COLON, "expect ':' after cond");
+
+    int cases_exit[COND_LIMIT];
+    int cases_count = 0;
+
+    do {
+        if (cases_count == COND_LIMIT) {
+            error_previous(parser, "cond cases exceeds the allowd limit");
+            break;
+        }
+        
+        // Condition
+        expression(parser);
+        consume(parser, TOKEN_ARROW, "expect '->' after expression");
+        int next_case = emit_jump(parser, OP_JMP_POP_FALSE);
+
+        // Expression
+        expression(parser);
+        cases_exit[cases_count++] = emit_jump(parser, OP_JMP);
+        
+        patch_jump(parser, next_case);
+    } while (match(parser, TOKEN_COMMA));
+
+    // If all conditions evaluate to false.
+    emit_byte(parser, OP_LOAD_NIL);
+    
+    for (int i = 0; i < cases_count; i++) {
+        patch_jump(parser, cases_exit[i]);
+    }
+
+    consume(parser, TOKEN_END, "expect 'end' after cond cases");
+    
+    Debug_Exit(parser);
+}
+
 static void if_(Parser *parser) {
-    // If Control Flow
-    // <TODO>
+    // If Control Flow:
+    //
+    // Condition
+    // OP_JMP_POP_FALSE   ----.
+    //                        |
+    // Then Block             |
+    // OP_JMP             --------.
+    //                        |   |
+    // [Else Block]    <-------   | 
+    // ....            <-----------
     
     Debug_Log(parser);
     
@@ -520,7 +614,17 @@ static void if_(Parser *parser) {
 
 static void while_(Parser *parser) {
     // While Control Flow
-    // <TODO>
+    //
+    // Condition       <----------.
+    // OP_JMP_POP_FALSE   -----.  |
+    //                         |  |
+    // [continue]              |  |
+    // OP_JMP_BACK        --------|
+    //                         |  |
+    // Loop Body               |  |
+    // OP_JMP_BACK        ---------
+    //                         |
+    // ....            <--------
     
     Debug_Log(parser);
 
@@ -641,7 +745,7 @@ static void unary(Parser *parser) {
 // Parsing rule table
 static ParseRule rules[] = {
     { NULL,       NULL,       PREC_NONE },         // TOKEN_BREAK
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_COND
+    { cond,       NULL,       PREC_NONE },         // TOKEN_COND
     { NULL,       NULL,       PREC_NONE },         // TOKEN_CONTINUE
     { NULL,       NULL,       PREC_NONE },         // TOKEN_ELSE
     { boolean,    NULL,       PREC_NONE },         // TOKEN_FALSE
@@ -677,7 +781,7 @@ static ParseRule rules[] = {
     { block,      NULL,       PREC_NONE },         // TOKEN_DO
     { NULL,       NULL,       PREC_NONE },         // TOKEN_END
     { NULL,       NULL,       PREC_NONE },         // TOKEN_PIPE
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_HYPHEN_LT
+    { NULL,       NULL,       PREC_NONE },         // TOKEN_ARROW
     { NULL,       NULL,       PREC_NONE },         // TOKEN_COMMA
     { NULL,       NULL,       PREC_NONE },         // TOKEN_SEMICOLON
     { NULL,       NULL,       PREC_NONE },         // TOKEN_COLON
@@ -789,26 +893,12 @@ static void continue_statement(Parser *parser) {
 
     // In a loop?
     if (parser->inner_loop_start == -1) {
-        error_previous(parser, "use of 'continue' outside a loop");
+        error_previous(parser, "use of continue outside a loop");
     }
 
-    consume(parser, TOKEN_SEMICOLON, "expect ; after continue");
+    consume(parser, TOKEN_SEMICOLON, "expect ';' after continue");
 
-    int local_count = 0;
-    Context *context = parser->context;
-    
-    for (int i = context->local_count - 1; i >= 0; i--) {
-        if (context->locals[i].depth < parser->inner_loop_depth) {
-            break;
-        }
-
-        local_count++;
-    }
-
-    if (local_count > 0) {
-        emit_bytes(parser, OP_POPN, (uint8_t)local_count);
-    }
-
+    unwind_stack(parser, parser->inner_loop_depth);
     emit_loop(parser, parser->inner_loop_start);
 
     Debug_Exit(parser);
@@ -861,19 +951,10 @@ bool compile(VM *vm, const char *source, const char *file) {
     init_lexer(&lexer, source, file);
 
     Parser parser;
-    parser.lexer = &lexer;
-    parser.vm = vm;
-    parser.had_error = false;
-    parser.panic_mode = false;
-    parser.inner_loop_start = -1;
-    parser.inner_loop_depth = -1;
+    init_parser(&parser, &lexer, vm);
 
     Context context;
     init_context(&parser, &context);
-
-#ifdef DEBUG_TRACE_PARSING
-    parser.level = 0;
-#endif
 
     advance(&parser);
 

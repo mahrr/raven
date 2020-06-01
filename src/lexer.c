@@ -268,7 +268,7 @@ Token next_token(Lexer *lexer) {
 
         // Possible Two-Charachter Tokens
     case '-':
-        if (match(lexer, '>')) return New_Token(TOKEN_HYPHEN_LESS);
+        if (match(lexer, '>')) return New_Token(TOKEN_ARROW);
         return New_Token(TOKEN_MINUS);
         
     case '=':

@@ -32,4 +32,7 @@
 // The limit of number of locals per block.
 #define LOCALS_LIMIT 256
 
+// The limit of cond cases.
+#define COND_LIMIT 256
+
 #endif
