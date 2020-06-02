@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "common.h"
+#include "chunk.h"
 #include "table.h"
 #include "mem.h"
 #include "object.h"
@@ -72,12 +73,31 @@ ObjString *box_string(VM *vm, char *chars, int length) {
     return alloc_string(vm, length, hash, chars);
 }
 
+ObjFunction *new_function(VM *vm) {
+    ObjFunction *function = Alloc_Object(vm, ObjFunction, OBJ_FUNCTION);
+
+    function->name = NULL;
+    function->arity = 0;
+    init_chunk(&function->chunk);
+    return function;
+}
+
+static void print_function(ObjFunction *function) {
+    if (function->name == NULL) {
+        printf("<top-level>");
+        return;
+    }
+
+    printf("<fn %s>", function->name->chars);
+}
+
 void print_object(Value value) {
     switch (Obj_Type(value)) {
-    case OBJ_STRING: printf("%s", As_CString(value)); break;
-    default:
-        assert(!"invalid object type");
+    case OBJ_STRING:   printf("%s", As_CString(value)); break;
+    case OBJ_FUNCTION: print_function(As_Function(value)); break;
     }
+    
+    assert(!"invalid object type");
 }
 
 static void free_object(Object *object) {
@@ -89,9 +109,16 @@ static void free_object(Object *object) {
         break;
     }
 
-    default:
-        assert(!"invalid object type");
+    case OBJ_FUNCTION: {
+        ObjFunction *function = (ObjFunction *)object;
+        // TODO: manually free the name or leave it to the GC?
+        free_chunk(&function->chunk);
+        Free(ObjFunction, function);
+        break;
     }
+    }
+    
+    assert(!"invalid object type");
 }
 
 void free_objects(Object *objects) {

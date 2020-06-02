@@ -4,11 +4,13 @@
 // Raven Heap Object Representation
 
 #include "common.h"
+#include "chunk.h"
 #include "value.h"
 #include "vm.h"
 
 typedef enum {
     OBJ_STRING,
+    OBJ_FUNCTION,
 } ObjectType;
 
 // The header (metadata) of all objects.
@@ -25,12 +27,21 @@ struct ObjString {
     char *chars;
 };
 
+struct ObjFunction {
+    Object header;
+    ObjString *name;
+    int arity;
+    Chunk chunk;
+};
+
 #define Obj_Type(value) (As_Obj(value)->type)
 
-#define Is_String(value) (is_objet_type(value, OBJ_STRING))
+#define Is_String(value) (is_object_type(value, OBJ_STRING))
+#define Is_Function(value) (is_object_type(value, OBJ_FUNCTION))
 
-#define As_String(value)  ((ObjString *)As_Obj(value))
-#define As_CString(value) ((As_String(value))->chars)
+#define As_String(value)   ((ObjString *)As_Obj(value))
+#define As_CString(value)  ((As_String(value))->chars)
+#define As_Function(value) ((ObjFunction *)As_Obj(value))
 
 
 // Note the first parameter of constructing functions is a vm
@@ -46,6 +57,9 @@ ObjString *copy_string(VM *vm, const char *chars, int length);
 // Construct an ObjString with the given string. the ObjString
 // will have the ownership of the chars memory.
 ObjString *box_string(VM *vm, char *chars, int length);
+
+// Construct an empty function object.
+ObjFunction *new_function(VM *vm);
 
 void print_object(Value value);
 

@@ -588,7 +588,7 @@ static void if_(Parser *parser) {
     // Then Block                 |
     // OP_JMP              -----------.
     //                            |   |
-    // [Else Block | Nil]  <-------   | 
+    // Else Block | Nil    <-------   | 
     // ....                <-----------
     
     Debug_Log(parser);

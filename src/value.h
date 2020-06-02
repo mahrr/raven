@@ -9,6 +9,7 @@
 // problem with 'object.h'.
 typedef struct Object Object;
 typedef struct ObjString ObjString;
+typedef struct ObjFunction ObjFunction;
 
 typedef enum {
     VALUE_NUM,
