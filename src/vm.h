@@ -6,15 +6,20 @@
 #include "table.h"
 #include "value.h"
 
-typedef struct {    
+typedef struct {
+    ObjFunction *function;
+    uint8_t *ip;
+    Value *slots;
+} CallFrame;
+
+typedef struct {
+    Value x;          // Last evaluated expression register.
     Value stack[STACK_SIZE];
     Value *stack_top;
 
-    Value x;          // Last evaluated expression register.
+    CallFrame frames[FRAME_LIMIT];
+    int frame_count;
     
-    Chunk *chunk;
-    uint8_t *ip;
-
     Table strings;    // Interned strings (All strings on the system).
     Table globals;
     
@@ -35,6 +40,6 @@ void free_vm(VM *vm);
 
 // Execute the given source code, and return
 // the interpretation result.
-InterpretResult interpret(VM *vm, const char *source);
+InterpretResult interpret(VM *vm, const char *source, const char *file);
 
 #endif

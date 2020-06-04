@@ -5,8 +5,8 @@
 #include "vm.h"
 
 // Compile a given source code to bytecode instructions,
-// and dump these instructions to the given vm chunk.
-// Return true on success compilation, otherwise false.
-bool compile(VM *vm, const char *source, const char *file);
+// Return a function object containing the output chunk,
+// or NULL on compilation error.
+ObjFunction *compile(VM *vm, const char *source, const char *file);
 
 #endif

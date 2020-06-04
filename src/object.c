@@ -95,9 +95,9 @@ void print_object(Value value) {
     switch (Obj_Type(value)) {
     case OBJ_STRING:   printf("%s", As_CString(value)); break;
     case OBJ_FUNCTION: print_function(As_Function(value)); break;
-    }
-    
-    assert(!"invalid object type");
+    default:
+        assert(!"invalid object type");
+    }    
 }
 
 static void free_object(Object *object) {
@@ -116,9 +116,10 @@ static void free_object(Object *object) {
         Free(ObjFunction, function);
         break;
     }
-    }
-    
-    assert(!"invalid object type");
+
+    default:
+        assert(!"invalid object type");
+    }    
 }
 
 void free_objects(Object *objects) {

@@ -12,7 +12,7 @@ int main(void) {
     for (;;) {
         printf("> ");
         if (!fgets(buff, 128, stdin) || feof(stdin)) break;
-        interpret(&vm, buff);
+        interpret(&vm, buff, "stdin");
     }
 
     free_vm(&vm);

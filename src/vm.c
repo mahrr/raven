@@ -17,8 +17,7 @@ static inline void reset_stack(VM *vm) {
 }
 
 void init_vm(VM *vm) {
-    vm->chunk = NULL;
-    vm->ip = NULL;
+    vm->frame_count = 0;
     vm->objects = NULL;
     vm->x = Nil_Value;
 
@@ -39,9 +38,12 @@ static void runtime_error(VM *vm, const char *format, ...) {
     va_list arguments;
     va_start(arguments, format);
 
+    CallFrame *frame = &vm->frames[vm->frame_count - 1];
+
     // -1 obecause ip is sitting on the next instruction to be executed.
-    int offset = (int) (vm->ip - vm->chunk->opcodes - 1);
-    fprintf(stderr, "[line: %d] ", decode_line(vm->chunk, offset));
+    int offset = (int) (frame->ip - frame->function->chunk.opcodes - 1);
+    int line = decode_line(&frame->function->chunk, offset);
+    fprintf(stderr, "[line: %d] ", line);
     
     vfprintf(stderr, format, arguments);
     putc('\n', stderr);
@@ -82,12 +84,16 @@ static bool equal_values(Value x, Value y) {
 
 // VM Dispatch Loop
 static InterpretResult run_vm(VM *vm) {
+    // TODO: test if this variable would be better register qualifited.
+    CallFrame *frame = &vm->frames[vm->frame_count - 1];
+    
     // Reading Operations
-#define Read_Byte()     (*vm->ip++)
-#define Read_Constant() (vm->chunk->constants.values[Read_Byte()])
-#define Read_String()   (As_String(Read_Constant()))
-#define Read_Offset()                                       \
-    (vm->ip += 2, (uint16_t)(vm->ip[-2] << 8 | vm->ip[-1]))
+#define Read_Byte() (*frame->ip++)
+#define Read_Offset()                                                   \
+    (frame->ip += 2, (uint16_t)(frame->ip[-2] << 8 | frame->ip[-1]))
+#define Read_Constant()                                                 \
+    (frame->function->chunk.constants.values[Read_Byte()])
+#define Read_String() (As_String(Read_Constant()))
 
     // Stack Operations
 #define Pop()          (pop(vm))
@@ -118,8 +124,8 @@ static InterpretResult run_vm(VM *vm) {
         }
         putchar('\n');
         
-        int offset = (int) (vm->ip - vm->chunk->opcodes);
-        disassemble_instruction(vm->chunk, offset);
+        int offset = (int) (frame->ip - frame->function->chunk.opcodes);
+        disassemble_instruction(&frame->function->chunk, offset);
 #endif
         uint8_t instruction;
         switch (instruction = Read_Byte()) {
@@ -195,37 +201,37 @@ static InterpretResult run_vm(VM *vm) {
 
         case OP_SET_LOCAL: {
             uint8_t slot = Read_Byte();
-            vm->stack[slot] = Peek(0);
+            frame->slots[slot] = Peek(0);
             break;
         }
 
         case OP_GET_LOCAL: {
             uint8_t slot = Read_Byte();
-            Push(vm->stack[slot]);
+            Push(frame->slots[slot]);
             break;
         }
 
         case OP_JMP: {
             uint16_t offset = Read_Offset();
-            vm->ip += offset;
+            frame->ip += offset;
             break;
         }
 
         case OP_JMP_BACK: {
             uint16_t offset = Read_Offset();
-            vm->ip -= offset;
+            frame->ip -= offset;
             break;
         }
 
         case OP_JMP_FALSE: {
             uint16_t offset = Read_Offset();
-            if (is_falsy(Peek(0))) vm->ip += offset;
+            if (is_falsy(Peek(0))) frame->ip += offset;
             break;
         }
 
         case OP_JMP_POP_FALSE: {
             uint16_t offset = Read_Offset();
-            if (is_falsy(Pop())) vm->ip += offset;
+            if (is_falsy(Pop())) frame->ip += offset;
             break;
         }
 
@@ -257,19 +263,17 @@ static InterpretResult run_vm(VM *vm) {
 #undef Read_Byte
 }
 
-InterpretResult interpret(VM *vm, const char *source) {
-    Chunk chunk;
-    init_chunk(&chunk);
-    vm->chunk = &chunk;
+InterpretResult interpret(VM *vm, const char *source, const char *file) {
+    ObjFunction *function = compile(vm, source, file);
+    if (function == NULL) return INTERPRET_COMPILE_ERROR;
 
-    if (!compile(vm, source, "stdin")) {
-        free_chunk(&chunk);
-        return INTERPRET_COMPILE_ERROR;
-    }
+    // The compiler already reserve this slot for the function.
+    push(vm, Obj_Value(function));
     
-    vm->ip = chunk.opcodes;
-    InterpretResult result = run_vm(vm);
-
-    free_chunk(&chunk);
-    return result;
+    CallFrame *frame = &vm->frames[vm->frame_count++];
+    frame->function = function;
+    frame->ip = function->chunk.opcodes;
+    frame->slots = vm->stack;
+    
+    return run_vm(vm);
 }

@@ -29,17 +29,19 @@ typedef struct Local {
 
 // Context (Lexical Block) State
 typedef struct Context {
+    ObjFunction *function; // Current output chunk, bytecode stream
+    bool toplevel;
+    
     Local locals[LOCALS_LIMIT];
-    int local_count;   // Number of locals in the current scope
-    int scope_depth;   // Number of the surrounding blocks
+    int local_count;       // Number of locals in the current scope
+    int scope_depth;       // Number of the surrounding blocks
 } Context;
 
 // Parser State
 typedef struct {
     Lexer *lexer;     // The input, token stream
-    VM *vm;           // The output chunk, bytecode stream
-
-    Context *context; // The current scope state
+    Context *context; // The current scope state and output chunck
+    VM *vm;           // For compile time object allocation
     
     Token current;    // Current consumed token
     Token previous;   // Previously consumed token
@@ -83,6 +85,8 @@ typedef struct {
 } ParseRule;
 
 /** Parser Tracing **/
+
+// TODO: move this to the debug module.
 
 #ifdef DEBUG_TRACE_PARSING
 
@@ -157,8 +161,12 @@ static inline void error_current(Parser *parser, const char *message) {
 
 /** Emitting **/
 
+static inline Chunk *parser_chunk(Parser *parser) {
+    return &parser->context->function->chunk;
+}
+
 static inline void emit_byte(Parser *parser, uint8_t byte) {
-    write_byte(parser->vm->chunk, byte, parser->previous.line);
+    write_byte(parser_chunk(parser), byte, parser->previous.line);
 }
 
 static inline void emit_bytes(Parser *parser, uint8_t x, uint8_t y) {
@@ -169,14 +177,14 @@ static inline void emit_bytes(Parser *parser, uint8_t x, uint8_t y) {
 static inline int emit_jump(Parser *parser, uint8_t instruction) {
     emit_byte(parser, instruction);
     emit_bytes(parser, 0xff, 0xff);
-    return parser->vm->chunk->count - 2;
+    return parser_chunk(parser)->count - 2;
 }
 
 static inline void emit_loop(Parser *parser, int start) {
     emit_byte(parser, OP_JMP_BACK);
 
     // +2 for the OP_JMP_BACK 2-bytes operand.
-    int offset = parser->vm->chunk->count - start + 2;
+    int offset = parser_chunk(parser)->count - start + 2;
     if (offset > UINT16_MAX) {
         error_current(parser, "loop body exceeds the allowed limit");
     }
@@ -185,19 +193,21 @@ static inline void emit_loop(Parser *parser, int start) {
 }
 
 static inline void patch_jump(Parser *parser, int from) {
+    Chunk *chunk = parser_chunk(parser);
+    
     // -2 because of the jmp instruction 2-bytes immediate argument
-    int offset = parser->vm->chunk->count - from - 2;
+    int offset = chunk->count - from - 2;
 
     if (offset > UINT16_MAX) {
         error_current(parser, "jump offset exceeds the allowed limit");
     }
 
-    parser->vm->chunk->opcodes[from] = (offset >> 8) & 0xff;
-    parser->vm->chunk->opcodes[from + 1] = offset & 0xff;
+    chunk->opcodes[from] = (offset >> 8) & 0xff;
+    chunk->opcodes[from + 1] = offset & 0xff;
 }
 
 static inline uint8_t make_constant(Parser *parser, Value value) {
-    int constant_index = write_constant(parser->vm->chunk, value);
+    int constant_index = write_constant(parser_chunk(parser), value);
 
     if (constant_index > UINT8_MAX) {
         error_current(parser, "Too many constants in one chunk");
@@ -211,35 +221,17 @@ static inline void emit_constant(Parser *parser, Value value) {
     emit_bytes(parser, OP_LOAD_CONST, make_constant(parser, value));
 }
 
-// Put the name in the constant table as string , and return its index.
+// Put the name in the constant table as string, and return its index.
 static inline uint8_t identifier_constant(Parser *parser, Token *name) {
     const char *start = name->lexeme;
     int length = name->length;
-    
+
+    // ??
     Value ident = Obj_Value(copy_string(parser->vm, start, length));
-    return write_constant(parser->vm->chunk, ident);
+    return write_constant(parser_chunk(parser), ident);
 }
 
 /** Parser State **/
-
-static inline void init_parser(Parser *parser, Lexer *lexer, VM *vm) {
-    parser->lexer = lexer;
-    parser->vm = vm;
-    parser->had_error = false;
-    parser->panic_mode = false;
-    parser->inner_loop_start = -1;
-    parser->inner_loop_depth = -1;
-    
-#ifdef DEBUG_TRACE_PARSING
-    parser->level = 0;
-#endif
-}
-
-static inline void init_context(Parser *parser, Context *context) {
-    context->local_count = 0;
-    context->scope_depth = 0;
-    parser->context = context;
-}
 
 static inline void advance(Parser *parser) {
     parser->previous = parser->current;
@@ -345,6 +337,51 @@ static inline int resolve_local(Context *context, Token *name) {
     return -1;
 }
 
+static inline void init_parser(Parser *parser, Lexer *lexer,
+                               Context *context, VM *vm) {
+    parser->lexer = lexer;
+    parser->context = context;
+    parser->vm = vm;
+    parser->had_error = false;
+    parser->panic_mode = false;
+    parser->inner_loop_start = -1;
+    parser->inner_loop_depth = -1;
+    
+#ifdef DEBUG_TRACE_PARSING
+    parser->level = 0;
+#endif
+
+    advance(parser);
+}
+
+static inline ObjFunction *end_parser(Parser *parser) {
+    ObjFunction *function = parser->context->function;
+    emit_byte(parser, OP_RETURN);
+        
+#ifdef DEBUG_DUMP_CODE
+    ObjString *name = function->name;
+    disassemble_chunk(parser_chunk(parser),
+                      name ? name->chars : "top-level");
+#endif
+    
+    return function;
+}
+
+static inline void init_context(Context *context, VM *vm, bool toplevel) {
+    context->function = NULL; // For GC
+    context->toplevel = toplevel;
+    
+    context->local_count = 0;
+    context->scope_depth = 0;
+    context->function = new_function(vm);
+
+    // Reserve the first slot of the stack for VM internal use.
+    Local *local = &context->locals[context->local_count++];
+    local->depth = 0;
+    local->name.lexeme = "";
+    local->name.length = 0;
+}
+
 /** Parsing **/
 
 static void parse_precedence(Parser*, Precedence);
@@ -355,7 +392,7 @@ static inline ParseRule *token_rule(TokenType);
 static void assignment(Parser *parser) {
     Debug_Log(parser);
     
-    Chunk *chunk = parser->vm->chunk;
+    Chunk *chunk = parser_chunk(parser);
 
     // Check if the left hand side was an identifier, it's kind of a hack.
     // TODO: experiemnt with alternative approaches.
@@ -634,23 +671,23 @@ static void while_(Parser *parser) {
     int previous_inner_loop_start = parser->inner_loop_start;
     int previous_inner_loop_depth = parser->inner_loop_depth;
 
-    int loop_start = parser->vm->chunk->count;            // <-----.
-                                                          //       |
-    // Push the current loop state                        //       |
-    parser->inner_loop_start = loop_start;                //       |
-    parser->inner_loop_depth = parser->context->scope_depth;//     |
-                                                          //       |
-    expression(parser); // Condition                      //       |
-                                                          //       |
-    consume(parser, TOKEN_DO, "expect 'do' after while condition");
-                                                          //       |
-    int exit_jump = emit_jump(parser, OP_JMP_POP_FALSE);  // ---.  |
-                                                          //    |  |
-    loop_block(parser);                                   //    |  |
-                                                          //    |  |
-    emit_loop(parser, loop_start);                        // -------
-                                                          //    |
-    patch_jump(parser, exit_jump);                        // <---
+    int loop_start = parser_chunk(parser)->count;             // <-----.
+                                                              //       |
+    // Push the current loop state                            //       |
+    parser->inner_loop_start = loop_start;                    //       |
+    parser->inner_loop_depth = parser->context->scope_depth;  //       |
+                                                              //       |
+    expression(parser); // Condition                          //       |
+                                                              //       |
+    consume(parser, TOKEN_DO, "expect 'do' after while condition"); // |
+                                                              //       |
+    int exit_jump = emit_jump(parser, OP_JMP_POP_FALSE);      // ---.  |
+                                                              //    |  |
+    loop_block(parser);                                       //    |  |
+                                                              //    |  |
+    emit_loop(parser, loop_start);                            // -------
+                                                              //    |
+    patch_jump(parser, exit_jump);                            // <---
 
     // The resulting expression of a loop is always nil.
     emit_byte(parser, OP_LOAD_NIL);
@@ -948,27 +985,20 @@ static void declaration(Parser *parser) {
     Debug_Exit(parser);
 }
 
-bool compile(VM *vm, const char *source, const char *file) {
+ObjFunction *compile(VM *vm, const char *source, const char *file) {
     Lexer lexer;
     init_lexer(&lexer, source, file);
 
-    Parser parser;
-    init_parser(&parser, &lexer, vm);
-
     Context context;
-    init_context(&parser, &context);
-
-    advance(&parser);
-
+    init_context(&context, vm, true);
+    
+    Parser parser;
+    init_parser(&parser, &lexer, &context, vm);
+    
     while (!match(&parser, TOKEN_EOF)) {
         declaration(&parser);
     }
 
-    emit_byte(&parser, OP_RETURN);
-
-#ifdef DEBUG_DUMP_CODE
-    disassemble_chunk(vm->chunk, "top-level");
-#endif
-
-    return !parser.had_error;
+    ObjFunction *function = end_parser(&parser);
+    return parser.had_error ? NULL : function;
 }
