@@ -27,8 +27,10 @@ typedef struct Local {
     int depth;  // -1 indicates uninitialized state
 } Local;
 
-// Context (Lexical Block) State
+// Function Lexical Block State
 typedef struct Context {
+    struct Context *enclosing;
+    
     ObjFunction *function; // Current output chunk, bytecode stream
     bool toplevel;
     
@@ -337,10 +339,9 @@ static inline int resolve_local(Context *context, Token *name) {
     return -1;
 }
 
-static inline void init_parser(Parser *parser, Lexer *lexer,
-                               Context *context, VM *vm) {
+static inline void init_parser(Parser *parser, Lexer *lexer, VM *vm) {
     parser->lexer = lexer;
-    parser->context = context;
+    parser->context = NULL;
     parser->vm = vm;
     parser->had_error = false;
     parser->panic_mode = false;
@@ -354,7 +355,33 @@ static inline void init_parser(Parser *parser, Lexer *lexer,
     advance(parser);
 }
 
-static inline ObjFunction *end_parser(Parser *parser) {
+static inline void init_context(Context *context, Parser *parser,
+                                bool toplevel) {
+    // TODO: limit the amount of nesting function declaration.
+    context->enclosing = parser->context; // Save the previous scope.
+    parser->context = context;            // Push the new scope.
+    
+    context->function = NULL; // For GC
+    context->toplevel = toplevel;
+    
+    context->local_count = 0;
+    context->scope_depth = 0;
+    context->function = new_function(parser->vm);
+
+    // Reserve the first slot of the stack for VM internal use.
+    Local *local = &context->locals[context->local_count++];
+    local->depth = 0;
+    local->name.lexeme = "";
+    local->name.length = 0;
+
+    if (!toplevel) {
+        context->function->name = copy_string(parser->vm,
+                                              parser->previous.lexeme,
+                                              parser->previous.length);
+    }
+}
+
+static inline ObjFunction *end_context(Parser *parser) {
     ObjFunction *function = parser->context->function;
     emit_byte(parser, OP_RETURN);
         
@@ -363,23 +390,10 @@ static inline ObjFunction *end_parser(Parser *parser) {
     disassemble_chunk(parser_chunk(parser),
                       name ? name->chars : "top-level");
 #endif
-    
+
+    // Pop the current scope.
+    parser->context = parser->context->enclosing;
     return function;
-}
-
-static inline void init_context(Context *context, VM *vm, bool toplevel) {
-    context->function = NULL; // For GC
-    context->toplevel = toplevel;
-    
-    context->local_count = 0;
-    context->scope_depth = 0;
-    context->function = new_function(vm);
-
-    // Reserve the first slot of the stack for VM internal use.
-    Local *local = &context->locals[context->local_count++];
-    local->depth = 0;
-    local->name.lexeme = "";
-    local->name.length = 0;
 }
 
 /** Parsing **/
@@ -886,21 +900,25 @@ static void declare_variable(Parser *parser) {
     add_local(parser, *name);
 }
 
+static inline void mark_initialized(Context *context) {
+    size_t last_index = context->local_count - 1;
+    context->locals[last_index].depth = context->scope_depth;
+}
+
 static void define_variable(Parser *parser, uint8_t name_index) {
     Context *context = parser->context;
 
     // Local Scope?
     if (context->scope_depth > 0) {
         // Initialize the most declared local variable.
-        int last_index = context->local_count - 1;
-        context->locals[last_index].depth = context->scope_depth;
+        mark_initialized(parser->context);
         return;
     }
     
     emit_bytes(parser, OP_DEF_GLOBAL, name_index);
 }
 
-static uint8_t parse_variable(Parser *parser, const char *error) {
+static uint8_t variable(Parser *parser, const char *error) {
     consume(parser, TOKEN_IDENTIFIER, error);
 
     declare_variable(parser);
@@ -912,7 +930,7 @@ static uint8_t parse_variable(Parser *parser, const char *error) {
 static void let_declaration(Parser *parser) {
     Debug_Log(parser);
 
-    uint8_t index = parse_variable(parser, "expect a variable name");
+    uint8_t index = variable(parser, "expect a variable name");
     
     if (match(parser, TOKEN_EQUAL)) {
         expression(parser);
@@ -925,6 +943,53 @@ static void let_declaration(Parser *parser) {
     define_variable(parser, index);
     
     Debug_Exit(parser);
+}
+
+static void parameters(Parser *parser) {
+    if (check(parser, TOKEN_RIGHT_PAREN)) return;
+
+    ObjFunction *function = parser->context->function;
+    
+    do {
+        function->arity++;
+        
+        if (function->arity > UINT8_MAX) {
+            error_current(parser, "exceeds parameters limit (255)");
+        }
+
+        uint8_t index = variable(parser, "expect parameter name");
+        define_variable(parser, index);
+    } while (match(parser, TOKEN_COMMA));
+}
+
+static void function(Parser *parser) {
+    Context context;
+    init_context(&context, parser, false);
+    begin_scope(parser);
+
+    // Parameters
+    consume(parser, TOKEN_LEFT_PAREN, "expect '(' after function name");
+    parameters(parser);
+    consume(parser, TOKEN_RIGHT_PAREN, "expect ')' after pararmeters");
+
+    // Function Body
+    block(parser);
+
+    ObjFunction *function = end_context(parser);
+    uint8_t index = make_constant(parser, Obj_Value(function));
+    emit_bytes(parser, OP_LOAD_CONST, index);
+}
+
+static void fn_declaration(Parser *parser) {
+    uint8_t index = variable(parser, "expect a function name");
+
+    // TODO: write global scope predicate.
+    if (parser->context->scope_depth > 0) {
+        mark_initialized(parser->context);
+    }
+    
+    function(parser);
+    define_variable(parser, index);
 }
 
 static void continue_statement(Parser *parser) {
@@ -971,6 +1036,8 @@ static void declaration(Parser *parser) {
 
     if (match(parser, TOKEN_LET)) {
         let_declaration(parser);
+    } else if (match(parser, TOKEN_FN)) {
+        fn_declaration(parser);
     } else if (match(parser, TOKEN_CONTINUE)) {
         continue_statement(parser);
     } else {
@@ -989,16 +1056,16 @@ ObjFunction *compile(VM *vm, const char *source, const char *file) {
     Lexer lexer;
     init_lexer(&lexer, source, file);
 
-    Context context;
-    init_context(&context, vm, true);
-    
     Parser parser;
-    init_parser(&parser, &lexer, &context, vm);
+    init_parser(&parser, &lexer, vm);
+    
+    Context context;
+    init_context(&context, &parser, true);
     
     while (!match(&parser, TOKEN_EOF)) {
         declaration(&parser);
     }
 
-    ObjFunction *function = end_parser(&parser);
+    ObjFunction *function = end_context(&parser);
     return parser.had_error ? NULL : function;
 }
