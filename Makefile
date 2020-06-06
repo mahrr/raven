@@ -20,7 +20,7 @@ release_symbols: clean bin/raven
 dev: CFLAGS += $(DEBUG_FLAGS)
 release: CFLAGS += $(RELEASE_FLAGS)
 profile: CFLAGS += $(PROFILE_FLAGS)
-release_symbols: CFLAGS += $(RELEASE_SYMBOL_FLAGS)
+release_symbols: CFLAGS += $(RELEASE_SYMBOLS_FLAGS)
 
 bin/raven: $(OBJS:%.o=src/%.o)
 	@$(MKDIR) bin/
