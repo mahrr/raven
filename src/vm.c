@@ -34,19 +34,42 @@ void free_vm(VM *vm) {
     init_vm(vm);
 }
 
+static void dump_stack_trace(VM *vm, FILE *out) {
+    fprintf(out, "stack traceback:\n");
+
+    // TODO: an option to control the stack trace dumping order.
+    for (int i = vm->frame_count - 1; i >= 0; i--) {
+        CallFrame *frame = &vm->frames[i];
+        ObjFunction *function = frame->function;
+
+        size_t offset = frame->ip - frame->function->chunk.opcodes - 1;
+        int line = decode_line(&frame->function->chunk, offset);
+        
+        fprintf(out, "\t%s | line:%d in ", vm->file, line);
+
+        if (function->name == NULL) {
+            fprintf(out, "<toplevel>\n");
+        } else {
+            fprintf(out, "'%s'\n", function->name->chars);
+        }
+    }
+}
+
 static void runtime_error(VM *vm, const char *format, ...) {
     va_list arguments;
     va_start(arguments, format);
 
     CallFrame *frame = &vm->frames[vm->frame_count - 1];
 
-    // -1 obecause ip is sitting on the next instruction to be executed.
-    int offset = (int) (frame->ip - frame->function->chunk.opcodes - 1);
+    // -1 because ip is sitting on the next instruction to be executed.
+    size_t offset = frame->ip - frame->function->chunk.opcodes - 1;
     int line = decode_line(&frame->function->chunk, offset);
-    fprintf(stderr, "[line: %d] ", line);
+    fprintf(stderr, "[%s | line: %d] ", vm->file, line);
     
     vfprintf(stderr, format, arguments);
     putc('\n', stderr);
+
+    dump_stack_trace(vm, stderr);
 
     va_end(arguments);
     reset_stack(vm);
@@ -98,7 +121,7 @@ static inline bool push_frame(VM *vm, ObjFunction *function, int count) {
 
 static inline bool call_func(VM *vm, ObjFunction *function, int count) {
     if (function->arity != count) {
-        runtime_error(vm, "expect %d arguments, bug got %d",
+        runtime_error(vm, "expect %d arguments, but got %d",
                       function->arity, count);
         return false;
     }
@@ -337,6 +360,7 @@ InterpretResult interpret(VM *vm, const char *source, const char *file) {
     // Top-level code is wrapped in a function for convenience,
     // to run the code, we simply call the wapping function.
     push_frame(vm, function, 0);
-    
+
+    vm->file = file;
     return run_vm(vm);
 }

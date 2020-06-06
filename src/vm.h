@@ -24,6 +24,8 @@ typedef struct {
     Table globals;
     
     Object *objects;  // Intrusive linked list of all allocated objects.
+
+    const char *file;
 } VM;
 
 typedef enum {
