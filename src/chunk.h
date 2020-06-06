@@ -12,7 +12,7 @@ typedef enum {         // Immediate Arguments
     OP_LOAD_CONST,     // 1-byte constant index
 
     // TODO: optimize the STORE, LOAD, STORE pattern.
-    // Load from/store into X register
+    // Load from, store into X register
     OP_LOAD,
     OP_STORE,
     
@@ -39,7 +39,8 @@ typedef enum {         // Immediate Arguments
     OP_SET_LOCAL,      // 1-byte slot index
     OP_GET_LOCAL,      // 1-byte slot index
 
-    // Jumping
+    // Branching
+    OP_CALL,           // 1-byte arguments count
     OP_JMP,            // 2-bytes offset
     OP_JMP_BACK,       // 2-bytes offset
     OP_JMP_FALSE,      // 2-bytes offset
@@ -48,8 +49,9 @@ typedef enum {         // Immediate Arguments
     OP_POP,
     OP_POPN,           // 1-byte count
     OP_NOT,
-    
+
     OP_RETURN,
+    OP_EXIT
 } Opcode;
 
 // Line encoding

@@ -68,7 +68,7 @@ static inline bool is_falsy(Value value) {
     return Is_Nil(value) || (Is_Bool(value) && !As_Bool(value));
 }
 
-static bool equal_values(Value x, Value y) {
+static inline bool equal_values(Value x, Value y) {
     if (x.type != y.type) return false;
 
     switch (x.type) {
@@ -80,6 +80,39 @@ static bool equal_values(Value x, Value y) {
 
     assert(!"invalid value type");
     return false; // For warnings
+}
+
+static inline bool push_frame(VM *vm, ObjFunction *function, int count) {
+    if (vm->frame_count == FRAME_LIMIT) {
+        runtime_error(vm, "call stack overflows");
+        return false;
+    }
+    
+    CallFrame *frame = &vm->frames[vm->frame_count++];
+    frame->function = function;
+    frame->ip = function->chunk.opcodes;
+    frame->slots = vm->stack_top - count - 1;
+
+    return true;
+}
+
+static inline bool call_func(VM *vm, ObjFunction *function, int count) {
+    if (function->arity != count) {
+        runtime_error(vm, "expect %d arguments, bug got %d",
+                      function->arity, count);
+        return false;
+    }
+
+    return push_frame(vm, function, count);
+}
+
+static inline bool call_value(VM *vm, Value value, int count) {
+    if (Is_Function(value)) {
+        return call_func(vm, As_Function(value), count);
+    }
+
+    runtime_error(vm, "call to a non-callable");
+    return false;
 }
 
 // VM Dispatch Loop
@@ -122,6 +155,8 @@ static InterpretResult run_vm(VM *vm) {
             print_value(*value);
             printf(" ]");
         }
+        printf(" X: ");
+        print_value(vm->x);
         putchar('\n');
         
         int offset = (int) (frame->ip - frame->function->chunk.opcodes);
@@ -211,6 +246,20 @@ static InterpretResult run_vm(VM *vm) {
             break;
         }
 
+        case OP_CALL: {
+            int argument_count = Read_Byte();
+            Value value = Peek(argument_count);
+            
+            if (!call_value(vm, value, argument_count)) {
+                return INTERPRET_RUNTIME_ERROR;
+            }
+            
+            // Push the callee new call frame.
+            frame = &vm->frames[vm->frame_count - 1];
+            
+            break;
+        }
+
         case OP_JMP: {
             uint16_t offset = Read_Offset();
             frame->ip += offset;
@@ -244,7 +293,21 @@ static InterpretResult run_vm(VM *vm) {
             
         case OP_NOT: Push(Bool_Value(is_falsy(Pop()))); break;
 
-        case OP_RETURN:
+        case OP_RETURN: {
+            Value value = Pop();
+
+            // Rewind the stack.
+            vm->frame_count--;
+            vm->stack_top = frame->slots;
+            Push(value);
+
+            frame = &vm->frames[vm->frame_count - 1];
+            break;
+        }
+
+        case OP_EXIT:
+            Pop(); // Top-level Wrapping Function
+            vm->frame_count = 0;
             print_value(vm->x);
             putchar('\n');
             return INTERPRET_OK;
@@ -269,11 +332,10 @@ InterpretResult interpret(VM *vm, const char *source, const char *file) {
 
     // The compiler already reserve this slot for the function.
     push(vm, Obj_Value(function));
-    
-    CallFrame *frame = &vm->frames[vm->frame_count++];
-    frame->function = function;
-    frame->ip = function->chunk.opcodes;
-    frame->slots = vm->stack;
+
+    // Top-level code is wrapped in a function for convenience,
+    // to run the code, we simply call the wapping function.
+    push_frame(vm, function, 0);
     
     return run_vm(vm);
 }

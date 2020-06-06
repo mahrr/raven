@@ -113,6 +113,9 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     case OP_GET_LOCAL:
         return byte_instruction("GET_LOCAL", chunk, offset);
 
+    case OP_CALL:
+        return byte_instruction("CALL", chunk, offset);
+
     case OP_JMP:
         return jump_instruction("JMP", chunk, 1, offset);
 
@@ -136,6 +139,9 @@ int disassemble_instruction(Chunk *chunk, int offset) {
         
     case OP_RETURN:
         return basic_instruction("RETURN", offset);
+
+    case OP_EXIT:
+        return basic_instruction("EXIT", offset);
     }
 
     assert(!"invalid instruction type");

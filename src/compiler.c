@@ -368,7 +368,7 @@ static inline void init_context(Context *context, Parser *parser,
     context->scope_depth = 0;
     context->function = new_function(parser->vm);
 
-    // Reserve the first slot of the stack for VM internal use.
+    // Reserve the first slot of the stack for the function itself.
     Local *local = &context->locals[context->local_count++];
     local->depth = 0;
     local->name.lexeme = "";
@@ -381,9 +381,9 @@ static inline void init_context(Context *context, Parser *parser,
     }
 }
 
-static inline ObjFunction *end_context(Parser *parser) {
+static inline ObjFunction *end_context(Parser *parser, bool toplevel) {
     ObjFunction *function = parser->context->function;
-    emit_byte(parser, OP_RETURN);
+    emit_byte(parser, toplevel ? OP_EXIT : OP_RETURN);
         
 #ifdef DEBUG_DUMP_CODE
     ObjString *name = function->name;
@@ -713,6 +713,28 @@ static void while_(Parser *parser) {
     Debug_Exit(parser);
 }
 
+static uint8_t arguments(Parser *parser) {
+    if (match(parser, TOKEN_RIGHT_PAREN)) return 0;
+    
+    uint8_t count = 0;
+    do {
+        expression(parser);
+
+        if (count == UINT8_MAX) {
+            error_current(parser, "exceeds arguments limit (255)");
+        }
+        
+        count++;
+    } while (match(parser, TOKEN_COMMA));
+
+    consume(parser, TOKEN_RIGHT_PAREN, "expect ')' after arguments");
+    return count;
+}
+
+static void call(Parser *parser) {
+    emit_bytes(parser, OP_CALL, arguments(parser));
+}
+
 static void grouping(Parser *parser) {
     Debug_Log(parser);
     
@@ -838,7 +860,7 @@ static ParseRule rules[] = {
     { NULL,       NULL,       PREC_NONE },         // TOKEN_COMMA
     { NULL,       NULL,       PREC_NONE },         // TOKEN_SEMICOLON
     { NULL,       NULL,       PREC_NONE },         // TOKEN_COLON
-    { grouping,   NULL,       PREC_NONE },         // TOKEN_LEFT_PAREN
+    { grouping,   call,       PREC_CALL },         // TOKEN_LEFT_PAREN
     { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_PAREN
     { NULL,       NULL,       PREC_NONE },         // TOKEN_LEFT_BRACE
     { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_BRACE
@@ -946,7 +968,8 @@ static void let_declaration(Parser *parser) {
 }
 
 static void parameters(Parser *parser) {
-    if (check(parser, TOKEN_RIGHT_PAREN)) return;
+    consume(parser, TOKEN_LEFT_PAREN, "expect '(' after function name");
+    if (match(parser, TOKEN_RIGHT_PAREN)) return;
 
     ObjFunction *function = parser->context->function;
     
@@ -960,6 +983,8 @@ static void parameters(Parser *parser) {
         uint8_t index = variable(parser, "expect parameter name");
         define_variable(parser, index);
     } while (match(parser, TOKEN_COMMA));
+
+    consume(parser, TOKEN_RIGHT_PAREN, "expect ')' after pararmeters");
 }
 
 static void function(Parser *parser) {
@@ -967,20 +992,17 @@ static void function(Parser *parser) {
     init_context(&context, parser, false);
     begin_scope(parser);
 
-    // Parameters
-    consume(parser, TOKEN_LEFT_PAREN, "expect '(' after function name");
     parameters(parser);
-    consume(parser, TOKEN_RIGHT_PAREN, "expect ')' after pararmeters");
-
-    // Function Body
     block(parser);
 
-    ObjFunction *function = end_context(parser);
+    ObjFunction *function = end_context(parser, false);
     uint8_t index = make_constant(parser, Obj_Value(function));
     emit_bytes(parser, OP_LOAD_CONST, index);
 }
 
 static void fn_declaration(Parser *parser) {
+    Debug_Log(parser);
+    
     uint8_t index = variable(parser, "expect a function name");
 
     // TODO: write global scope predicate.
@@ -990,6 +1012,8 @@ static void fn_declaration(Parser *parser) {
     
     function(parser);
     define_variable(parser, index);
+
+    Debug_Exit(parser);
 }
 
 static void continue_statement(Parser *parser) {
@@ -1066,6 +1090,6 @@ ObjFunction *compile(VM *vm, const char *source, const char *file) {
         declaration(&parser);
     }
 
-    ObjFunction *function = end_context(&parser);
+    ObjFunction *function = end_context(&parser, true);
     return parser.had_error ? NULL : function;
 }
