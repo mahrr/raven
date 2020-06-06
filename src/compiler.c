@@ -1016,6 +1016,22 @@ static void fn_declaration(Parser *parser) {
     Debug_Exit(parser);
 }
 
+static void return_statement(Parser *parser) {
+    if (parser->context->toplevel) {
+        error_previous(parser, "cannot return in a top-level code");
+    }
+    
+    if (match(parser, TOKEN_SEMICOLON)) {
+        emit_bytes(parser, OP_LOAD_NIL, OP_RETURN);
+        return;
+    }
+        
+    expression(parser);
+    emit_byte(parser, OP_RETURN);
+
+    consume(parser, TOKEN_SEMICOLON, "expect ';' after return value");
+}
+
 static void continue_statement(Parser *parser) {
     Debug_Log(parser);
 
@@ -1062,6 +1078,8 @@ static void declaration(Parser *parser) {
         let_declaration(parser);
     } else if (match(parser, TOKEN_FN)) {
         fn_declaration(parser);
+    } else if (match(parser, TOKEN_RETURN)) {
+        return_statement(parser);
     } else if (match(parser, TOKEN_CONTINUE)) {
         continue_statement(parser);
     } else {

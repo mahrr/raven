@@ -294,22 +294,23 @@ static InterpretResult run_vm(VM *vm) {
         case OP_NOT: Push(Bool_Value(is_falsy(Pop()))); break;
 
         case OP_RETURN: {
-            Value value = Pop();
+            Value result = Pop();
 
             // Rewind the stack.
             vm->frame_count--;
             vm->stack_top = frame->slots;
-            Push(value);
+            Push(result);
 
             frame = &vm->frames[vm->frame_count - 1];
             break;
         }
 
         case OP_EXIT:
-            Pop(); // Top-level Wrapping Function
-            vm->frame_count = 0;
             print_value(vm->x);
             putchar('\n');
+            Pop(); // Top-level Wrapping Function
+            vm->frame_count = 0;
+            vm->x = Nil_Value;
             return INTERPRET_OK;
 
         default:
