@@ -45,7 +45,7 @@ static void dump_stack_trace(VM *vm, FILE *out) {
         size_t offset = frame->ip - frame->function->chunk.opcodes - 1;
         int line = decode_line(&frame->function->chunk, offset);
         
-        fprintf(out, "\t%s | line:%d in ", vm->file, line);
+        fprintf(out, "\t%s | line:%d in ", vm->path, line);
 
         if (function->name == NULL) {
             fprintf(out, "<toplevel>\n");
@@ -64,7 +64,7 @@ static void runtime_error(VM *vm, const char *format, ...) {
     // -1 because ip is sitting on the next instruction to be executed.
     size_t offset = frame->ip - frame->function->chunk.opcodes - 1;
     int line = decode_line(&frame->function->chunk, offset);
-    fprintf(stderr, "[%s | line: %d] ", vm->file, line);
+    fprintf(stderr, "[%s | line: %d] ", vm->path, line);
     
     vfprintf(stderr, format, arguments);
     putc('\n', stderr);
@@ -350,8 +350,8 @@ static InterpretResult run_vm(VM *vm) {
 #undef Read_Byte
 }
 
-InterpretResult interpret(VM *vm, const char *source, const char *file) {
-    ObjFunction *function = compile(vm, source, file);
+InterpretResult interpret(VM *vm, const char *source, const char *path) {
+    ObjFunction *function = compile(vm, source, path);
     if (function == NULL) return INTERPRET_COMPILE_ERROR;
 
     // The compiler already reserve this slot for the function.
@@ -361,6 +361,6 @@ InterpretResult interpret(VM *vm, const char *source, const char *file) {
     // to run the code, we simply call the wapping function.
     push_frame(vm, function, 0);
 
-    vm->file = file;
+    vm->path = path;
     return run_vm(vm);
 }

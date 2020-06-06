@@ -25,7 +25,7 @@ typedef struct {
     
     Object *objects;  // Intrusive linked list of all allocated objects.
 
-    const char *file;
+    const char *path; // Name of the file being executed.
 } VM;
 
 typedef enum {
@@ -42,6 +42,6 @@ void free_vm(VM *vm);
 
 // Execute the given source code, and return
 // the interpretation result.
-InterpretResult interpret(VM *vm, const char *source, const char *file);
+InterpretResult interpret(VM *vm, const char *source, const char *path);
 
 #endif

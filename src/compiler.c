@@ -1017,6 +1017,8 @@ static void fn_declaration(Parser *parser) {
 }
 
 static void return_statement(Parser *parser) {
+    Debug_Log(parser);
+    
     if (parser->context->toplevel) {
         error_previous(parser, "cannot return in a top-level code");
     }
@@ -1030,6 +1032,8 @@ static void return_statement(Parser *parser) {
     emit_byte(parser, OP_RETURN);
 
     consume(parser, TOKEN_SEMICOLON, "expect ';' after return value");
+
+    Debug_Exit(parser);
 }
 
 static void continue_statement(Parser *parser) {
