@@ -140,8 +140,7 @@ static inline bool call_value(VM *vm, Value value, int count) {
 
 // VM Dispatch Loop
 static InterpretResult run_vm(VM *vm) {
-    // TODO: test if this variable would be better register qualifited.
-    CallFrame *frame = &vm->frames[vm->frame_count - 1];
+    register CallFrame *frame = &vm->frames[vm->frame_count - 1];
     
     // Reading Operations
 #define Read_Byte() (*frame->ip++)

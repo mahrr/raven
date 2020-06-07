@@ -13,7 +13,7 @@ typedef struct {
 
 typedef struct {
     int count;
-    int capacity;
+    int hash_mask;
     Entry *entries;
 } Table;
 

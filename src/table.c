@@ -11,17 +11,17 @@
 
 void init_table(Table *table) {
     table->count = 0;
-    table->capacity = 0;
+    table->hash_mask = -1;
     table->entries = NULL;
 }
 
 void free_table(Table *table) {
-    Free_Array(Entry, table->entries, table->capacity);
+    Free_Array(Entry, table->entries, table->hash_mask + 1);
     init_table(table);
 }
 
-static Entry *find_entry(Entry *entries, ObjString *key, int capacity) {
-    uint32_t index = key->hash % capacity;
+static Entry *find_entry(Entry *entries, ObjString *key, int hash_mask) {
+    uint32_t index = key->hash & hash_mask;
     Entry *tombstone = NULL;
 
     for (;;) {
@@ -37,38 +37,38 @@ static Entry *find_entry(Entry *entries, ObjString *key, int capacity) {
             return entry;
         }
 
-        index = (index + 1) % capacity;
+        index = (index + 1) & hash_mask;
     }
 }
 
-static void adjust_capacity(Table *table, int capacity) {
-    Entry *entries = Alloc(Entry, capacity);
+static void adjust_capacity(Table *table, int hash_mask) {
+    Entry *entries = Alloc(Entry, hash_mask + 1);
 
-    for (int i = 0; i < capacity; i++) {
+    for (int i = 0; i <= hash_mask; i++) {
         entries[i].key = NULL;
         entries[i].value = Nil_Value;
     }
 
     table->count = 0;
-    for (int i = 0; i < table->capacity; i++) {
+    for (int i = 0; i <= table->hash_mask; i++) {
         Entry *entry = &table->entries[i];
         if (entry->key == NULL) continue;
 
-        Entry *copy = find_entry(entries, entry->key, capacity);
+        Entry *copy = find_entry(entries, entry->key, hash_mask);
         copy->key = entry->key;
         copy->value = entry->value;
         table->count++;
     }
 
-    Free_Array(Entry, table->entries, table->capacity);
+    Free_Array(Entry, table->entries, table->hash_mask + 1);
     table->entries = entries;
-    table->capacity = capacity;
+    table->hash_mask = hash_mask;
 }
 
 bool table_get(Table *table, ObjString *key, Value *value) {
     if (table->count == 0) return false;
 
-    Entry *entry = find_entry(table->entries, key, table->capacity);
+    Entry *entry = find_entry(table->entries, key, table->hash_mask);
     if (entry->key == NULL) return false;
 
     *value = entry->value;
@@ -76,12 +76,14 @@ bool table_get(Table *table, ObjString *key, Value *value) {
 }
 
 bool table_set(Table *table, ObjString *key, Value value) {
-    if (table->count >= table->capacity * TABLE_MAX_LOAD) {
-        int new_capacity = Grow_Capacity(table->capacity);
+    int capacity = table->hash_mask + 1;
+    
+    if (table->count >= capacity * TABLE_MAX_LOAD) {
+        int new_capacity = Grow_Capacity(capacity);
         adjust_capacity(table, new_capacity);
     }
 
-    Entry *entry = find_entry(table->entries, key, table->capacity);
+    Entry *entry = find_entry(table->entries, key, table->hash_mask);
 
     bool is_new_key = entry->key == NULL;
     if (is_new_key && Is_Nil(entry->value)) table->count++;
@@ -94,7 +96,7 @@ bool table_set(Table *table, ObjString *key, Value value) {
 bool table_remove(Table *table, ObjString *key) {
     if (table->count == 0) return false;
 
-    Entry *entry = find_entry(table->entries, key, table->capacity);
+    Entry *entry = find_entry(table->entries, key, table->hash_mask);
     if (entry->key == NULL) return false;
 
     entry->key = NULL;
@@ -104,7 +106,7 @@ bool table_remove(Table *table, ObjString *key) {
 }
 
 void table_copy(Table *from, Table *to) {
-    for (int i = 0; i < from->capacity; i++) {
+    for (int i = 0; i <= from->hash_mask; i++) {
         Entry *entry = &from->entries[i];
 
         if (entry->key) {
@@ -117,7 +119,7 @@ ObjString *table_interned(Table *table, const char *chars,
                           uint32_t hash, int length) {
     if (table->count == 0) return NULL;
 
-    uint32_t index = hash % table->capacity;
+    uint32_t index = hash & table->hash_mask;
     for (;;) {
         Entry *entry = &table->entries[index];
 
@@ -131,6 +133,6 @@ ObjString *table_interned(Table *table, const char *chars,
             return key;
         }
 
-        index = (index + 1) % table->capacity;
+        index = (index + 1) & table->hash_mask;
     }
 }
