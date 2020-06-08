@@ -11,6 +11,65 @@ typedef struct Object Object;
 typedef struct ObjString ObjString;
 typedef struct ObjFunction ObjFunction;
 
+#ifdef NAN_TAGGING
+
+#include <string.h>
+
+//
+// IEEE 754 64-bit double-precision IEEE floating-point representation:
+//
+//      NaN bits    Quiet bit / Intel FP bit            Our Space to Use
+//  <  -----------  --<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+// [.][...........][....................................................]
+//  |          |                            |
+//  V          V                            V
+//  sign bit   11-bit exponent              52-bit mantissa
+//
+
+typedef uint64_t Value;
+
+// Cannot use *(Value *)(&number), since it breaks strict aliasing rules.
+static inline Value value_from_number(double number) {
+    Value value;
+    memcpy(&value, &number, sizeof (Value));
+    return value;
+}
+
+static inline double number_from_value(Value value) {
+    double number;
+    memcpy(&number, &value, sizeof (double));
+    return number;
+}
+
+// Exponent bits + Quiet NaN bit + Intel FP bit
+#define QNaN ((uint64_t)0x7ffc000000000000)
+
+// Sign Bit
+#define SB ((uint64_t)0x8000000000000000)
+
+#define TAG_NIL   1
+#define TAG_FALSE 2
+#define TAG_TRUE  3
+
+#define Is_Num(value)  (((value) & QNaN) != QNaN)
+#define Is_Bool(value) (((value) & False_Value) == False_Value)
+#define Is_Nil(value)  ((value) == Nil_Value)
+#define Is_Obj(value)  (((value) & (SB | QNaN)) == (SB | QNaN))
+
+#define As_Num(value)  (number_from_value(value))
+#define As_Bool(value) ((value) == True_Value)
+#define As_Obj(value)  ((Object *)(uintptr_t)((value) & ~(SB | QNaN)))
+
+#define Num_Value(value)  (value_from_number(value))
+#define Bool_Value(value) ((Value)(QNaN | (value) | 2))
+#define True_Value        ((Value)(QNaN | TAG_TRUE))
+#define False_Value       ((Value)(QNaN | TAG_FALSE))
+#define Nil_Value         ((Value)(QNaN | TAG_NIL))
+#define Obj_Value(value)                                \
+    ((Value)(SB | QNaN | (uint64_t)(uintptr_t)(value)))
+
+#else
+
 typedef enum {
     VALUE_NUM,
     VALUE_BOOL,
@@ -42,6 +101,8 @@ typedef struct {
 #define Obj_Value(value)                                    \
     ((Value){ VALUE_OBJ, { .object = (Object *)value }})
 
+#endif // NAN_TAGGING
+    
 typedef struct {
     int count;
     int capacity;
@@ -58,5 +119,7 @@ void free_value_array(ValueArray *array);
 void push_value(ValueArray *array, Value value);
 
 void print_value(Value value);
+
+bool equal_values(Value x, Value y);
 
 #endif

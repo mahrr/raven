@@ -20,6 +20,13 @@
 # define THREADED_CODE
 #endif
 
+// If it's x64_86 architecture use NaN tagging for the value
+// representation. This method was first defined in the paper
+// 'Representing Type Information in Dynamically Typed Languages'.
+#if defined(__amd64__) || defined(__x86_64__) || defined(_M_AMD64)
+# define NAN_TAGGING
+#endif
+
 // System Configuration
 // TODO: move this to a separate header.
 

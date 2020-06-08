@@ -91,20 +91,6 @@ static inline bool is_falsy(Value value) {
     return Is_Nil(value) || (Is_Bool(value) && !As_Bool(value));
 }
 
-static inline bool equal_values(Value x, Value y) {
-    if (x.type != y.type) return false;
-
-    switch (x.type) {
-    case VALUE_NUM:  return As_Num(x) == As_Num(y);
-    case VALUE_BOOL: return As_Bool(x) == As_Bool(y);
-    case VALUE_NIL:  return true;
-    case VALUE_OBJ:  return As_Obj(x) == As_Obj(y);
-    }
-
-    assert(!"invalid value type");
-    return false; // For warnings
-}
-
 static inline bool push_frame(VM *vm, ObjFunction *function, int count) {
     if (vm->frame_count == FRAME_LIMIT) {
         runtime_error(vm, "call stack overflows");
