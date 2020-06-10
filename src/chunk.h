@@ -4,55 +4,11 @@
 #include "common.h"
 #include "value.h"
 
-typedef enum {         // Immediate Arguments
-    // Loading
-    OP_LOAD_TRUE,
-    OP_LOAD_FALSE,
-    OP_LOAD_NIL,
-    OP_LOAD_CONST,     // 1-byte constant index
-
-    // TODO: optimize the STORE, LOAD, STORE pattern.
-    // Load from, store into X register
-    OP_LOAD,
-    OP_STORE,
-    
-    // Arithmetics
-    OP_ADD,
-    OP_SUB,
-    OP_MUL,
-    OP_DIV,
-    OP_MOD,
-    OP_NEG,
-
-    // Comparison
-    OP_EQ,
-    OP_NEQ,
-    OP_LT,
-    OP_LTQ,
-    OP_GT,
-    OP_GTQ,
-
-    // Variables
-    OP_DEF_GLOBAL,     // 1-byte name index
-    OP_SET_GLOBAL,     // 1-byte name index
-    OP_GET_GLOBAL,     // 1-byte name index
-    OP_SET_LOCAL,      // 1-byte slot index
-    OP_GET_LOCAL,      // 1-byte slot index
-
-    // Branching
-    OP_CALL,           // 1-byte arguments count
-    OP_JMP,            // 2-bytes offset
-    OP_JMP_BACK,       // 2-bytes offset
-    OP_JMP_FALSE,      // 2-bytes offset
-    OP_JMP_POP_FALSE,  // 2-bytes offset
-    
-    OP_POP,
-    OP_POPN,           // 1-byte count
-    OP_NOT,
-
-    OP_RETURN,
-    OP_EXIT
-} Opcode;
+enum {
+#define Opcode(opcode) opcode,
+# include "opcode.h"
+#undef Opcode
+};
 
 // Line encoding
 typedef struct {

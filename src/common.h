@@ -16,7 +16,7 @@
 
 // If using GCC or Clang, use computed-goto for the virtual machine
 // dispatch loop, otherwise fallback to the standatd switch statement.
-#if defined(__GNUC__) || defined(__CLANG__)
+#if (defined(__GNUC__) || defined(__CLANG__)) && !defined(__cplusplus)
 # define THREADED_CODE
 #endif
 

@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -std=gnu99 -Wall -Wextra -Werror -pedantic
+CFLAGS = -std=gnu99 -Wall -Wextra -Werror
 DEBUG_FLAGS = -ggdb -DDEBUG -O0
 RELEASE_FLAGS = -march=native -DNDEBUG -O2
 RELEASE_SYMBOLS_FLAGS = $(RELEASE_FLAGS) -ggdb

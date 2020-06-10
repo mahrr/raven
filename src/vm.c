@@ -125,15 +125,62 @@ static inline bool call_value(VM *vm, Value value, int count) {
 }
 
 // VM Dispatch Loop
-static InterpretResult run_vm(VM *vm) {
-    register CallFrame *frame = &vm->frames[vm->frame_count - 1];
+static InterpretResult run_vm(register VM *vm) {
+    register CallFrame frame = vm->frames[vm->frame_count - 1];
+
+#ifdef DEBUG_TRACE_EXECUTION
+#define Log_Execution()                                                  \
+    do {                                                                 \
+        printf("          ");                                            \
+        for (Value *value = vm->stack; value < vm->stack_top; value++) { \
+            printf("[ ");                                                \
+            print_value(*value);                                         \
+            printf(" ]");                                                \
+        }                                                                \
+        printf(" X: ");                                                  \
+        print_value(vm->x);                                              \
+        putchar('\n');                                                   \
+                                                                         \
+        int offset = (int) (frame.ip - frame.function->chunk.opcodes);   \
+        disassemble_instruction(&frame.function->chunk, offset);         \
+    } while (false)
+#else
+#define Log_Execution()
+#endif  // DEBUG_TRACE_EXECUTION
+    
+#ifdef THREADED_CODE
+    
+    static void *dispatch_table[] = {
+#define Opcode(opcode) &&label_##opcode,
+# include "opcode.h"
+#undef Opcode
+    };
+
+#define Start() Dispatch();    
+#define Case(opcode) label_##opcode
+#define Dispatch()                                  \
+    Log_Execution();                                \
+    goto *dispatch_table[instruction = Read_Byte()]
+    
+#else
+
+#define Start()                                 \
+    vm_loop:                                    \
+        switch (instruction = Read_Byte())
+#define Case(opcode) case opcode
+#define Dispatch()                              \
+    Log_Execution();                            \
+    goto vm_loop
+    
+#endif // THREADED_CODE
+    
     
     // Reading Operations
-#define Read_Byte() (*frame->ip++)
+#define Read_Byte() (*frame.ip++)
 #define Read_Offset()                                                   \
-    (frame->ip += 2, (uint16_t)(frame->ip[-2] << 8 | frame->ip[-1]))
+    (frame.ip += 2, (uint16_t)(frame.ip[-2] << 8 | frame.ip[-1]))
 #define Read_Constant()                                                 \
-    (frame->function->chunk.constants.values[Read_Byte()])
+    (frame.function->chunk.constants.values[Read_Byte()])
 #define Read_String() (As_String(Read_Constant()))
 
     // Stack Operations
@@ -154,84 +201,76 @@ static InterpretResult run_vm(VM *vm) {
                                                              \
         Push(value_type(x op y));                            \
     } while (false)
+    
+    register uint8_t instruction;
+    Start() {
+      Case(OP_LOAD_TRUE):  Push(Bool_Value(true));  Dispatch();
+      Case(OP_LOAD_FALSE): Push(Bool_Value(false)); Dispatch();
+      Case(OP_LOAD_NIL):   Push(Nil_Value);         Dispatch();
+      Case(OP_LOAD_CONST): Push(Read_Constant());   Dispatch();
 
-    for (;;) {
-#ifdef DEBUG_TRACE_EXECUTION
-        printf("          ");
-        for (Value *value = vm->stack; value < vm->stack_top; value++) {
-            printf("[ ");
-            print_value(*value);
-            printf(" ]");
-        }
-        printf(" X: ");
-        print_value(vm->x);
-        putchar('\n');
-        
-        int offset = (int) (frame->ip - frame->function->chunk.opcodes);
-        disassemble_instruction(&frame->function->chunk, offset);
-#endif
-        uint8_t instruction;
-        switch (instruction = Read_Byte()) {
-        case OP_LOAD_TRUE:  Push(Bool_Value(true));  break;
-        case OP_LOAD_FALSE: Push(Bool_Value(false)); break;
-        case OP_LOAD_NIL:   Push(Nil_Value);         break;
-        case OP_LOAD_CONST: Push(Read_Constant());   break;
-
-        case OP_LOAD: Push(vm->x); vm->x = Nil_Value; break;
-        case OP_STORE: vm->x = Pop(); break;
+      Case(OP_LOAD):
+        Push(vm->x);
+        vm->x = Nil_Value;
+        Dispatch();
+            
+      Case(OP_STORE):
+        vm->x = Pop();
+        Dispatch();
                         
-        case OP_ADD: Binary_OP(Num_Value, +); break;
-        case OP_SUB: Binary_OP(Num_Value, -); break;
-        case OP_MUL: Binary_OP(Num_Value, *); break;
-        case OP_DIV: Binary_OP(Num_Value, /); break;
-        case OP_MOD: /* TODO */ break;
-        case OP_NEG: {
+      Case(OP_ADD): Binary_OP(Num_Value, +); Dispatch();
+      Case(OP_SUB): Binary_OP(Num_Value, -); Dispatch();
+      Case(OP_MUL): Binary_OP(Num_Value, *); Dispatch();
+      Case(OP_DIV): Binary_OP(Num_Value, /); Dispatch();
+      Case(OP_MOD): /* TODO */ Dispatch();
+      Case(OP_NEG): {
             if (!Is_Num(Peek(0))) {
-                runtime_error(vm, "Negation operand must be a number");
+                runtime_error(vm, "Negation operand must be numeric");
                 return INTERPRET_RUNTIME_ERROR;
             }
-
             Push(Num_Value(-As_Num(Pop())));
-            break;
+            Dispatch();
         }
 
-        case OP_EQ: {
+      Case(OP_EQ): {
             Value y = Pop();
             Value x = Pop();
-
+                
             Push(Bool_Value(equal_values(x, y)));
-            break;
+            Dispatch();
         }
-        case OP_NEQ: {
+            
+      Case(OP_NEQ): {
             Value y = Pop();
             Value x = Pop();
-
+                
             Push(Bool_Value(!equal_values(x, y)));
-            break;
+            Dispatch();
         }
-        case OP_LT:  Binary_OP(Bool_Value, <);  break;
-        case OP_LTQ: Binary_OP(Bool_Value, <=); break;
-        case OP_GT:  Binary_OP(Bool_Value, >);  break;
-        case OP_GTQ: Binary_OP(Bool_Value, >=); break;
+            
+      Case(OP_LT):  Binary_OP(Bool_Value, <);  Dispatch();
+      Case(OP_LTQ): Binary_OP(Bool_Value, <=); Dispatch();
+      Case(OP_GT):  Binary_OP(Bool_Value, >);  Dispatch();
+      Case(OP_GTQ): Binary_OP(Bool_Value, >=); Dispatch();
 
-        case OP_DEF_GLOBAL: {
+      Case(OP_DEF_GLOBAL): {
             ObjString *name = Read_String();
             table_set(&vm->globals, name, Peek(0));
             Pop();
-            break;
+            Dispatch();
         }
-
-        case OP_SET_GLOBAL: {
+            
+      Case(OP_SET_GLOBAL): {
             ObjString *name = Read_String();
             if (table_set(&vm->globals, name, Peek(0))) {
                 table_remove(&vm->globals, name);
                 runtime_error(vm, "unbound variable '%s'", name->chars);
                 return INTERPRET_RUNTIME_ERROR;
             }
-            break;
+            Dispatch();
         }
             
-        case OP_GET_GLOBAL: {
+      Case(OP_GET_GLOBAL): {
             ObjString *name = Read_String();
             Value value;
             if (!table_get(&vm->globals, name, &value)) {
@@ -239,93 +278,96 @@ static InterpretResult run_vm(VM *vm) {
                 return INTERPRET_RUNTIME_ERROR;
             }
             Push(value);
-            break;
+            Dispatch();
         }
 
-        case OP_SET_LOCAL: {
+      Case(OP_SET_LOCAL): {
             uint8_t slot = Read_Byte();
-            frame->slots[slot] = Peek(0);
-            break;
+            frame.slots[slot] = Peek(0);
+            Dispatch();
         }
-
-        case OP_GET_LOCAL: {
+            
+      Case(OP_GET_LOCAL): {
             uint8_t slot = Read_Byte();
-            Push(frame->slots[slot]);
-            break;
+            Push(frame.slots[slot]);
+            Dispatch();
         }
-
-        case OP_CALL: {
+            
+      Case(OP_CALL): {
             int argument_count = Read_Byte();
             Value value = Peek(argument_count);
-            
+
+            // Save the current frame state.
+            vm->frames[vm->frame_count - 1] = frame;
+                
             if (!call_value(vm, value, argument_count)) {
                 return INTERPRET_RUNTIME_ERROR;
             }
-            
+                
             // Push the callee new call frame.
-            frame = &vm->frames[vm->frame_count - 1];
-            
-            break;
+            frame = vm->frames[vm->frame_count - 1];
+                
+            Dispatch();
         }
 
-        case OP_JMP: {
+      Case(OP_JMP): {
             uint16_t offset = Read_Offset();
-            frame->ip += offset;
-            break;
+            frame.ip += offset;
+            Dispatch();
         }
 
-        case OP_JMP_BACK: {
+      Case(OP_JMP_BACK): {
             uint16_t offset = Read_Offset();
-            frame->ip -= offset;
-            break;
+            frame.ip -= offset;
+            Dispatch();
         }
 
-        case OP_JMP_FALSE: {
+      Case(OP_JMP_FALSE): {
             uint16_t offset = Read_Offset();
-            if (is_falsy(Peek(0))) frame->ip += offset;
-            break;
+            if (is_falsy(Peek(0))) frame.ip += offset;
+            Dispatch();
         }
 
-        case OP_JMP_POP_FALSE: {
+      Case(OP_JMP_POP_FALSE): {
             uint16_t offset = Read_Offset();
-            if (is_falsy(Pop())) frame->ip += offset;
-            break;
+            if (is_falsy(Pop())) frame.ip += offset;
+            Dispatch();
         }
 
-        case OP_POP: Pop(); break;
-        case OP_POPN: {
+      Case(OP_POP): Pop(); Dispatch();
+      Case(OP_POPN): {
             uint8_t count = Read_Byte();
             vm->stack_top -= count;
-            break;
+            Dispatch();
         }
             
-        case OP_NOT: Push(Bool_Value(is_falsy(Pop()))); break;
+      Case(OP_NOT): Push(Bool_Value(is_falsy(Pop()))); Dispatch();
 
-        case OP_RETURN: {
+      Case(OP_RETURN): {
             Value result = Pop();
 
             // Rewind the stack.
             vm->frame_count--;
-            vm->stack_top = frame->slots;
+            vm->stack_top = frame.slots;
             Push(result);
 
-            frame = &vm->frames[vm->frame_count - 1];
-            break;
+            frame = vm->frames[vm->frame_count - 1];
+            Dispatch();
         }
 
-        case OP_EXIT:
+      Case(OP_EXIT): {
             print_value(vm->x);
             putchar('\n');
             Pop(); // Top-level Wrapping Function
             vm->frame_count = 0;
             vm->x = Nil_Value;
             return INTERPRET_OK;
-
-        default:
-            assert(!"invalid instruction");
         }
     }
-
+              
+    assert(!"invalid instruction");
+    return INTERPRET_RUNTIME_ERROR; // For warnings
+    
 #undef Peek
 #undef Pop
 #undef Push
