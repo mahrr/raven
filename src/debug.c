@@ -11,7 +11,7 @@ static int basic_instruction(const char *tag, int offset) {
 static int const_instruction(const char *tag, Chunk *chunk, int offset) {
     uint8_t constant_index = chunk->opcodes[offset + 1];
     printf("%-16s %4d '", tag, constant_index);
-    print_value(chunk->constants.values[constant_index]);
+    print_value(chunk->constants[constant_index]);
     printf("'\n");
     return offset + 2;
 }

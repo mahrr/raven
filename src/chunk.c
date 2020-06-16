@@ -12,13 +12,14 @@ void init_chunk(Chunk *chunk) {
     chunk->lines_capacity = 0;
     chunk->lines = NULL;
 
-    init_value_array(&chunk->constants);
+    chunk->constants_count = 0;
 }
 
 void free_chunk(Chunk *chunk) {
     Free_Array(uint8_t, chunk->opcodes, chunk->capacity);
     Free_Array(Line, chunk->lines, chunk->lines_capacity);
-    free_value_array(&chunk->constants);
+
+    init_chunk(chunk);
 }
 
 static void write_line(Chunk *chunk, int line) {
@@ -50,8 +51,8 @@ void write_byte(Chunk *chunk, uint8_t byte, int line) {
 }
 
 int write_constant(Chunk *chunk, Value value) {
-    push_value(&chunk->constants, value);
-    return chunk->constants.count - 1;
+    chunk->constants[chunk->constants_count++] = value;
+    return chunk->constants_count - 1;
 }
 
 int decode_line(Chunk *chunk, int offset) {

@@ -173,14 +173,13 @@ static InterpretResult run_vm(register VM *vm) {
     goto vm_loop
     
 #endif // THREADED_CODE
-    
-    
+
     // Reading Operations
 #define Read_Byte() (*frame.ip++)
 #define Read_Offset()                                                   \
     (frame.ip += 2, (uint16_t)(frame.ip[-2] << 8 | frame.ip[-1]))
 #define Read_Constant()                                                 \
-    (frame.function->chunk.constants.values[Read_Byte()])
+    (frame.function->chunk.constants[Read_Byte()])
 #define Read_String() (As_String(Read_Constant()))
 
     // Stack Operations

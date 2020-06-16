@@ -211,8 +211,9 @@ static inline void patch_jump(Parser *parser, int from) {
 static inline uint8_t make_constant(Parser *parser, Value value) {
     int constant_index = write_constant(parser_chunk(parser), value);
 
-    if (constant_index > UINT8_MAX) {
+    if (constant_index >= CONST_LIMIT) {
         error_current(parser, "Too many constants in one chunk");
+        parser_chunk(parser)->constants_count = 0;
         return 0;
     }
 

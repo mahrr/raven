@@ -36,8 +36,11 @@
 // Maximum number of values on the stack.
 #define STACK_SIZE (256 * FRAME_LIMIT)
 
-// The limit of number of locals per block.
-#define LOCALS_LIMIT 256
+// The limit of number of locals per function.
+#define LOCALS_LIMIT UINT8_MAX + 1
+
+// The limit of number of constants per function.
+#define CONST_LIMIT UINT8_MAX + 1
 
 // The limit of cond cases.
 #define COND_LIMIT 256

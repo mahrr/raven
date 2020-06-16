@@ -29,7 +29,9 @@ typedef struct {
     int lines_capacity;
     Line *lines;
 
-    ValueArray constants;
+    // +1 to not cause an overflow, for the overwritten value.
+    Value constants[CONST_LIMIT + 1];
+    int constants_count;
 } Chunk;
 
 // Initialize the chunk state.
