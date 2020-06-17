@@ -75,15 +75,15 @@ static void runtime_error(VM *vm, const char *format, ...) {
     reset_stack(vm);
 }
 
-static inline Value pop(VM *vm) {
+static inline Value pop(register VM *vm) {
     return *--vm->stack_top;
 }
 
-static inline Value peek(VM *vm, int distance) {
+static inline Value peek(register VM *vm, int distance) {
     return vm->stack_top[-1 - distance];
 }
 
-static inline void push(VM *vm, Value value) {
+static inline void push(register VM *vm, Value value) {
     *vm->stack_top++ = value;
 }
 
@@ -229,19 +229,26 @@ static InterpretResult run_vm(register VM *vm) {
     
     register uint8_t instruction;
     Start() {
-      Case(OP_LOAD_TRUE):  Push(Bool_Value(true));  Dispatch();
-      Case(OP_LOAD_FALSE): Push(Bool_Value(false)); Dispatch();
-      Case(OP_LOAD_NIL):   Push(Nil_Value);         Dispatch();
-      Case(OP_LOAD_CONST): Push(Read_Constant());   Dispatch();
+      Case(OP_PUSH_TRUE):  Push(Bool_Value(true));  Dispatch();
+      Case(OP_PUSH_FALSE): Push(Bool_Value(false)); Dispatch();
+      Case(OP_PUSH_NIL):   Push(Nil_Value);         Dispatch();
+      Case(OP_PUSH_CONST): Push(Read_Constant());   Dispatch();
 
-      Case(OP_LOAD):
+      Case(OP_PUSH_X):
         Push(vm->x);
         vm->x = Nil_Value;
         Dispatch();
             
-      Case(OP_STORE):
+      Case(OP_STORE_X):
         vm->x = Pop();
         Dispatch();
+
+      Case(OP_POP): Pop(); Dispatch();
+      Case(OP_POPN): {
+            uint8_t count = Read_Byte();
+            vm->stack_top -= count;
+            Dispatch();
+        }
                         
       Case(OP_ADD): Binary_OP(Num_Value, +); Dispatch();
       Case(OP_SUB): Binary_OP(Num_Value, -); Dispatch();
@@ -277,7 +284,9 @@ static InterpretResult run_vm(register VM *vm) {
       Case(OP_LTQ): Binary_OP(Bool_Value, <=); Dispatch();
       Case(OP_GT):  Binary_OP(Bool_Value, >);  Dispatch();
       Case(OP_GTQ): Binary_OP(Bool_Value, >=); Dispatch();
-
+        
+      Case(OP_NOT): Push(Bool_Value(is_falsy(Pop()))); Dispatch();
+        
       Case(OP_DEF_GLOBAL): {
             vm->global_buffer[Read_Byte()] = Pop();
             Dispatch();
@@ -359,15 +368,6 @@ static InterpretResult run_vm(register VM *vm) {
             if (is_falsy(Pop())) frame.ip += offset;
             Dispatch();
         }
-
-      Case(OP_POP): Pop(); Dispatch();
-      Case(OP_POPN): {
-            uint8_t count = Read_Byte();
-            vm->stack_top -= count;
-            Dispatch();
-        }
-            
-      Case(OP_NOT): Push(Bool_Value(is_falsy(Pop()))); Dispatch();
 
       Case(OP_RETURN): {
             Value result = Pop();

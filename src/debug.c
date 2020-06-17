@@ -44,23 +44,29 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     }
     
     switch (instruction) {
-    case OP_LOAD_TRUE:
-        return basic_instruction("LOAD_TRUE", offset);
+    case OP_PUSH_TRUE:
+        return basic_instruction("PUSH_TRUE", offset);
         
-    case OP_LOAD_FALSE:
-        return basic_instruction("LOAD_FALSE", offset);
+    case OP_PUSH_FALSE:
+        return basic_instruction("PUSH_FALSE", offset);
         
-    case OP_LOAD_NIL:
-        return basic_instruction("LOAD_NIL", offset);
+    case OP_PUSH_NIL:
+        return basic_instruction("PUSH_NIL", offset);
         
-    case OP_LOAD_CONST:
-        return const_instruction("LOAD_CONST", chunk, offset);
+    case OP_PUSH_CONST:
+        return const_instruction("PUSH_CONST", chunk, offset);
 
-    case OP_LOAD:
-        return basic_instruction("LOAD", offset);
+    case OP_PUSH_X:
+        return basic_instruction("PUSH_X", offset);
         
-    case OP_STORE:
-        return basic_instruction("STORE", offset);
+    case OP_STORE_X:
+        return basic_instruction("STORE_X", offset);
+
+    case OP_POP:
+        return basic_instruction("POP", offset);
+
+    case OP_POPN:
+        return byte_instruction("POPN", chunk, offset);
         
     case OP_ADD:
         return basic_instruction("ADD", offset);
@@ -98,6 +104,9 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     case OP_GTQ:
         return basic_instruction("GTQ", offset);
 
+    case OP_NOT:
+        return basic_instruction("NOT", offset);
+
     case OP_DEF_GLOBAL:
         return const_instruction("DEF_GLOBAL", chunk, offset);
 
@@ -127,15 +136,6 @@ int disassemble_instruction(Chunk *chunk, int offset) {
 
     case OP_JMP_POP_FALSE:
         return jump_instruction("JMP_POP_FALSE", chunk, 1, offset);
-
-    case OP_POP:
-        return basic_instruction("POP", offset);
-
-    case OP_POPN:
-        return byte_instruction("POPN", chunk, offset);
-
-    case OP_NOT:
-        return basic_instruction("NOT", offset);
         
     case OP_RETURN:
         return basic_instruction("RETURN", offset);

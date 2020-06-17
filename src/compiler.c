@@ -221,7 +221,7 @@ static inline uint8_t make_constant(Parser *parser, Value value) {
 }
 
 static inline void emit_constant(Parser *parser, Value value) {
-    emit_bytes(parser, OP_LOAD_CONST, make_constant(parser, value));
+    emit_bytes(parser, OP_PUSH_CONST, make_constant(parser, value));
 }
 
 // Register a global variable name, and returns its index at the globals
@@ -324,7 +324,7 @@ static inline void end_scope(Parser *parser, bool loading) {
     unwind_stack(parser, parser->context->scope_depth);
     
     // Push the value of the last expression in the block.
-    if (loading) emit_byte(parser, OP_LOAD);
+    if (loading) emit_byte(parser, OP_PUSH_X);
     parser->context->scope_depth--;
 }
 
@@ -611,7 +611,7 @@ static void cond(Parser *parser) {
     // [Expression (n)]     |    |
     // OP_JMP            --------|
     //                      |    |
-    // OP_LOAD_NIL <---------    |
+    // OP_PUSH_NIL <---------    |
     // ....        <--------------
 
     Debug_Log(parser);
@@ -639,7 +639,7 @@ static void cond(Parser *parser) {
     } while (match(parser, TOKEN_COMMA));
 
     // If all conditions evaluate to false.
-    emit_byte(parser, OP_LOAD_NIL);
+    emit_byte(parser, OP_PUSH_NIL);
     
     for (int i = 0; i < cases_count; i++) {
         patch_jump(parser, cases_exit[i]);
@@ -677,7 +677,7 @@ static void if_(Parser *parser) {
     if (parser->previous.type == TOKEN_ELSE) {            //       |
         block(parser);                                    //       |
     } else {                                              //       |
-        emit_byte(parser, OP_LOAD_NIL);                   //       |
+        emit_byte(parser, OP_PUSH_NIL);                   //       |
     }                                                     //       |
                                                           //       |
     patch_jump(parser, else_jump);                        // <------
@@ -724,7 +724,7 @@ static void while_(Parser *parser) {
     patch_jump(parser, exit_jump);                            // <---
 
     // The resulting expression of a loop is always nil.
-    emit_byte(parser, OP_LOAD_NIL);
+    emit_byte(parser, OP_PUSH_NIL);
 
     // Pop the current loop state.
     parser->inner_loop_start = previous_inner_loop_start;
@@ -808,7 +808,7 @@ static void boolean(Parser *parser) {
     Debug_Log(parser);
     
     TokenType type = parser->previous.type;
-    emit_byte(parser, type == TOKEN_TRUE ? OP_LOAD_TRUE : OP_LOAD_FALSE);
+    emit_byte(parser, type == TOKEN_TRUE ? OP_PUSH_TRUE : OP_PUSH_FALSE);
 
     Debug_Exit(parser);
 }
@@ -816,7 +816,7 @@ static void boolean(Parser *parser) {
 static void nil(Parser *parser) {
     Debug_Log(parser);
     
-    emit_byte(parser, OP_LOAD_NIL);
+    emit_byte(parser, OP_PUSH_NIL);
 
     Debug_Exit(parser);
 }
@@ -977,7 +977,7 @@ static void let_declaration(Parser *parser) {
     if (match(parser, TOKEN_EQUAL)) {
         expression(parser);
     } else {
-        emit_byte(parser, OP_LOAD_NIL);
+        emit_byte(parser, OP_PUSH_NIL);
     }
 
     consume(parser, TOKEN_SEMICOLON,
@@ -1017,7 +1017,7 @@ static void function(Parser *parser) {
 
     ObjFunction *function = end_context(parser, false);
     uint8_t index = make_constant(parser, Obj_Value(function));
-    emit_bytes(parser, OP_LOAD_CONST, index);
+    emit_bytes(parser, OP_PUSH_CONST, index);
 }
 
 static void fn_declaration(Parser *parser) {
@@ -1044,7 +1044,7 @@ static void return_statement(Parser *parser) {
     }
     
     if (match(parser, TOKEN_SEMICOLON)) {
-        emit_bytes(parser, OP_LOAD_NIL, OP_RETURN);
+        emit_bytes(parser, OP_PUSH_NIL, OP_RETURN);
         return;
     }
         
@@ -1110,7 +1110,7 @@ static void declaration(Parser *parser) {
         expression(parser);
         // consume(parser, TOKEN_SEMICOLON,
         //         "expect ';' or newline after expression");
-        emit_byte(parser, OP_STORE);
+        emit_byte(parser, OP_STORE_X);
     }
 
     if (parser->panic_mode) recover(parser);
