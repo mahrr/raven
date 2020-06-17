@@ -50,10 +50,12 @@ static inline double number_from_value(Value value) {
 #define TAG_NIL   1
 #define TAG_FALSE 2
 #define TAG_TRUE  3
+#define TAG_VOID  4
 
 #define Is_Num(value)  (((value) & QNaN) != QNaN)
 #define Is_Bool(value) (((value) & False_Value) == False_Value)
 #define Is_Nil(value)  ((value) == Nil_Value)
+#define Is_Void(value) ((value) == Void_Value)
 #define Is_Obj(value)  (((value) & (SB | QNaN)) == (SB | QNaN))
 
 #define As_Num(value)  (number_from_value(value))
@@ -65,6 +67,7 @@ static inline double number_from_value(Value value) {
 #define True_Value        ((Value)(QNaN | TAG_TRUE))
 #define False_Value       ((Value)(QNaN | TAG_FALSE))
 #define Nil_Value         ((Value)(QNaN | TAG_NIL))
+#define Void_Value        ((Value)(QNaN | TAG_VOID))
 #define Obj_Value(value)                                \
     ((Value)(SB | QNaN | (uint64_t)(uintptr_t)(value)))
 
@@ -74,6 +77,7 @@ typedef enum {
     VALUE_NUM,
     VALUE_BOOL,
     VALUE_NIL,
+    VALUE_VOID,  // Used only internally
     VALUE_OBJ,
 } ValueType;
 
@@ -89,6 +93,7 @@ typedef struct {
 #define Is_Num(value)  ((value).type == VALUE_NUM)
 #define Is_Bool(value) ((value).type == VALUE_BOOL)
 #define Is_Nil(value)  ((value).type == VALUE_NIL)
+#define Is_Void(value) ((value).type == VALUE_VOID)
 #define Is_Obj(value)  ((value).type == VALUE_OBJ)
 
 #define As_Num(value)  ((value).as.number)
@@ -98,6 +103,7 @@ typedef struct {
 #define Num_Value(value)  ((Value){ VALUE_NUM, { .number = value }})
 #define Bool_Value(value) ((Value){ VALUE_BOOL, { .boolean = value }})
 #define Nil_Value         ((Value){ VALUE_NIL, { .number = 0 }})
+#define Void_Value        ((Value){ VALUE_VOID, { .number = 0 }})
 #define Obj_Value(value)                                    \
     ((Value){ VALUE_OBJ, { .object = (Object *)value }})
 

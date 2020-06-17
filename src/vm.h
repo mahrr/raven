@@ -13,18 +13,24 @@ typedef struct {
 } CallFrame;
 
 typedef struct {
-    Value x;          // Last evaluated expression register.
+    Value x;  // Register to store last evaluated expression.
     Value stack[STACK_SIZE];
     Value *stack_top;
 
-    CallFrame frames[FRAME_LIMIT];
+    CallFrame frames[FRAMES_LIMIT];
     int frame_count;
-    
-    Table strings;    // Interned strings (All strings on the system).
-    Table globals;
-    
-    Object *objects;  // Intrusive linked list of all allocated objects.
 
+    // Map each used global name to its index at the global variables
+    // buffer. It's populated at compile time, as the parser resolve
+    // the identifiers.
+    Table globals;
+
+    // Used to obtain globals variables at runtime.
+    Value global_buffer[GLOBALS_LIMIT];
+            
+    Table strings;    // Interned strings (All strings on the system).
+    Object *objects;  // Intrusive linked list of all allocated objects.
+    
     const char *path; // Name of the file being executed.
 } VM;
 

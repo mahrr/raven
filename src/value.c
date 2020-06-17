@@ -44,6 +44,11 @@ void print_value(Value value) {
         return;
     }
 
+    if (Is_Void(value)) {
+        printf("()");
+        return;
+    }
+
     if (Is_Obj(value)) {
         print_object(value);
         return;
@@ -55,6 +60,7 @@ void print_value(Value value) {
     case VALUE_NUM:  printf("%g", As_Num(value)); break;
     case VALUE_BOOL: printf(As_Bool(value) ? "true" : "false"); break;
     case VALUE_NIL:  printf("nil"); break;
+    case VALUE_VOID: printf("()"); break;
     case VALUE_OBJ:  print_object(value); break;
     default:
         assert(!"invalid value type");
@@ -71,7 +77,8 @@ bool equal_values(Value x, Value y) {
     switch (x.type) {
     case VALUE_NUM:  return As_Num(x) == As_Num(y);
     case VALUE_BOOL: return As_Bool(x) == As_Bool(y);
-    case VALUE_NIL:  return true;
+    case VALUE_NIL:
+    case VALUE_VOID: return true;
     case VALUE_OBJ:  return As_Obj(x) == As_Obj(y);
     }
 

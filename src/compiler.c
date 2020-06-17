@@ -212,7 +212,7 @@ static inline uint8_t make_constant(Parser *parser, Value value) {
     int constant_index = write_constant(parser_chunk(parser), value);
 
     if (constant_index >= CONST_LIMIT) {
-        error_current(parser, "Too many constants in one chunk");
+        error_current(parser, "exceeds allowed number of constants");
         parser_chunk(parser)->constants_count = 0;
         return 0;
     }
@@ -224,14 +224,33 @@ static inline void emit_constant(Parser *parser, Value value) {
     emit_bytes(parser, OP_LOAD_CONST, make_constant(parser, value));
 }
 
-// Put the name in the constant table as string, and return its index.
-static inline uint8_t identifier_constant(Parser *parser, Token *name) {
+// Register a global variable name, and returns its index at the globals
+// buffer (vm->global_buffer[]).
+static inline uint8_t register_identifier(Parser *parser, Token *name) {
     const char *start = name->lexeme;
     int length = name->length;
+    VM *vm = parser->vm;
+    
+    ObjString *ident = copy_string(parser->vm, start, length);
+    Value index_value;
 
-    // ??
-    Value ident = Obj_Value(copy_string(parser->vm, start, length));
-    return write_constant(parser_chunk(parser), ident);
+    // Already registered?
+    if (table_get(&vm->globals, ident, &index_value)) {
+        return (uint8_t)As_Num(index_value);
+    }
+
+    // Exceeds the global limit?
+    if (vm->globals.count >= GLOBALS_LIMIT) {
+        error_current(parser, "exceeds the allowed number of globals");
+        return 0;
+    }
+
+    uint8_t index = vm->globals.count;
+    
+    vm->global_buffer[index] = Void_Value;
+    table_set(&vm->globals, ident, Num_Value((double)index));
+    
+    return index;
 }
 
 /** Parser State **/
@@ -755,7 +774,7 @@ static void identifier(Parser *parser) {
     if (index != -1) {
         get_op = OP_GET_LOCAL;
     } else {
-        index = identifier_constant(parser, &parser->previous);
+        index = register_identifier(parser, &parser->previous);
         get_op = OP_GET_GLOBAL;
     }
     
@@ -947,7 +966,7 @@ static uint8_t variable(Parser *parser, const char *error) {
     declare_variable(parser);
     if (parser->context->scope_depth > 0) return 0;
     
-    return identifier_constant(parser, &parser->previous); 
+    return register_identifier(parser, &parser->previous); 
 }
 
 static void let_declaration(Parser *parser) {

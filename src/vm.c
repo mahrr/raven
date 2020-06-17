@@ -17,12 +17,12 @@ static inline void reset_stack(VM *vm) {
 }
 
 void init_vm(VM *vm) {
+    vm->x = Nil_Value;
     vm->frame_count = 0;
     vm->objects = NULL;
-    vm->x = Nil_Value;
-
-    init_table(&vm->strings);
+    
     init_table(&vm->globals);
+    init_table(&vm->strings);
     reset_stack(vm);
 }
 
@@ -92,7 +92,7 @@ static inline bool is_falsy(Value value) {
 }
 
 static inline bool push_frame(VM *vm, ObjFunction *function, int count) {
-    if (vm->frame_count == FRAME_LIMIT) {
+    if (vm->frame_count == FRAMES_LIMIT) {
         runtime_error(vm, "call stack overflows");
         return false;
     }
@@ -122,6 +122,24 @@ static inline bool call_value(VM *vm, Value value, int count) {
 
     runtime_error(vm, "call to a non-callable");
     return false;
+}
+
+// Returns the name of a registered global at a given index.
+// It's a linear function, but that is not a problem, since it
+// only gets called at runtime errors.
+static inline const char *global_name_at(VM *vm, uint8_t index) {
+    Table *globals = &vm->globals;
+    
+    for (int i = 0; i <= globals->hash_mask; i++) {
+        if (globals->entries[i].key == NULL) continue;
+
+        if ((uint8_t)As_Num(globals->entries[i].value) == index) {
+            return globals->entries[i].key->chars;
+        }
+    }
+
+    assert(!"Query the name of unregistered global variable");
+    return NULL;
 }
 
 // VM Dispatch Loop
@@ -261,29 +279,32 @@ static InterpretResult run_vm(register VM *vm) {
       Case(OP_GTQ): Binary_OP(Bool_Value, >=); Dispatch();
 
       Case(OP_DEF_GLOBAL): {
-            ObjString *name = Read_String();
-            table_set(&vm->globals, name, Peek(0));
-            Pop();
+            vm->global_buffer[Read_Byte()] = Pop();
             Dispatch();
         }
             
       Case(OP_SET_GLOBAL): {
-            ObjString *name = Read_String();
-            if (table_set(&vm->globals, name, Peek(0))) {
-                table_remove(&vm->globals, name);
-                Runtime_Error("unbound variable '%s'", name->chars);
+            uint8_t index = Read_Byte();
+            
+            if (Is_Void(vm->global_buffer[index])) {
+                Runtime_Error("unbound variable '%s'",
+                              global_name_at(vm, index));
                 return INTERPRET_RUNTIME_ERROR;
             }
+            
             Dispatch();
         }
             
       Case(OP_GET_GLOBAL): {
-            ObjString *name = Read_String();
-            Value value;
-            if (!table_get(&vm->globals, name, &value)) {
-                Runtime_Error("unbound variable '%s'", name->chars);
+            uint8_t index = Read_Byte();
+            Value value = vm->global_buffer[index];
+            
+            if (Is_Void(value)) {
+                Runtime_Error("unbound variable '%s'",
+                              global_name_at(vm, index));
                 return INTERPRET_RUNTIME_ERROR;
             }
+            
             Push(value);
             Dispatch();
         }
