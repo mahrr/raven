@@ -187,11 +187,19 @@ static InterpretResult run_vm(register VM *vm) {
 #define Push(value)    (push(vm, value))
 #define Peek(distance) (peek(vm, distance))
 
+    // Register the current cached frame
+#define Save_Frame() vm->frames[vm->frame_count - 1] = frame
+#define Runtime_Error(fmt, ...)                 \
+    do {                                        \
+        Save_Frame();                           \
+        runtime_error(vm, fmt, ##__VA_ARGS__);  \
+    } while (false)
+    
     // Arithmetics Binary
 #define Binary_OP(value_type, op)                            \
     do {                                                     \
         if (!Is_Num(Peek(0)) || !Is_Num(Peek(1))) {          \
-            runtime_error(vm, "Operands must be numbers");   \
+            Runtime_Error("Operands must be numbers");       \
             return INTERPRET_RUNTIME_ERROR;                  \
         }                                                    \
                                                              \
@@ -224,7 +232,7 @@ static InterpretResult run_vm(register VM *vm) {
       Case(OP_MOD): /* TODO */ Dispatch();
       Case(OP_NEG): {
             if (!Is_Num(Peek(0))) {
-                runtime_error(vm, "Negation operand must be numeric");
+                Runtime_Error("Negation operand must be numeric");
                 return INTERPRET_RUNTIME_ERROR;
             }
             Push(Num_Value(-As_Num(Pop())));
@@ -263,7 +271,7 @@ static InterpretResult run_vm(register VM *vm) {
             ObjString *name = Read_String();
             if (table_set(&vm->globals, name, Peek(0))) {
                 table_remove(&vm->globals, name);
-                runtime_error(vm, "unbound variable '%s'", name->chars);
+                Runtime_Error("unbound variable '%s'", name->chars);
                 return INTERPRET_RUNTIME_ERROR;
             }
             Dispatch();
@@ -273,7 +281,7 @@ static InterpretResult run_vm(register VM *vm) {
             ObjString *name = Read_String();
             Value value;
             if (!table_get(&vm->globals, name, &value)) {
-                runtime_error(vm, "unbound variable '%s'", name->chars);
+                Runtime_Error("unbound variable '%s'", name->chars);
                 return INTERPRET_RUNTIME_ERROR;
             }
             Push(value);
@@ -296,9 +304,7 @@ static InterpretResult run_vm(register VM *vm) {
             int argument_count = Read_Byte();
             Value value = Peek(argument_count);
 
-            // Save the current frame state.
-            vm->frames[vm->frame_count - 1] = frame;
-                
+            Save_Frame();
             if (!call_value(vm, value, argument_count)) {
                 return INTERPRET_RUNTIME_ERROR;
             }
@@ -366,7 +372,11 @@ static InterpretResult run_vm(register VM *vm) {
               
     assert(!"invalid instruction");
     return INTERPRET_RUNTIME_ERROR; // For warnings
-    
+
+
+#undef Binary_OP
+#undef Runtime_Error
+#undef Save_Frame
 #undef Peek
 #undef Pop
 #undef Push
@@ -374,6 +384,10 @@ static InterpretResult run_vm(register VM *vm) {
 #undef Read_String
 #undef Read_Constant
 #undef Read_Byte
+#undef Dispatch
+#undef Case
+#undef Start
+#undef Log_Execution
 }
 
 InterpretResult interpret(VM *vm, const char *source, const char *path) {
