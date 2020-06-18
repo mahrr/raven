@@ -59,8 +59,8 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     case OP_PUSH_X:
         return basic_instruction("PUSH_X", offset);
         
-    case OP_STORE_X:
-        return basic_instruction("STORE_X", offset);
+    case OP_SAVE_X:
+        return basic_instruction("SAVE_X", offset);
 
     case OP_POP:
         return basic_instruction("POP", offset);

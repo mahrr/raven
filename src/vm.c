@@ -239,7 +239,7 @@ static InterpretResult run_vm(register VM *vm) {
         vm->x = Nil_Value;
         Dispatch();
             
-      Case(OP_STORE_X):
+      Case(OP_SAVE_X):
         vm->x = Pop();
         Dispatch();
 
@@ -301,6 +301,7 @@ static InterpretResult run_vm(register VM *vm) {
                 return INTERPRET_RUNTIME_ERROR;
             }
             
+            vm->global_buffer[Read_Byte()] = Peek(0);
             Dispatch();
         }
             

@@ -324,7 +324,16 @@ static inline void end_scope(Parser *parser, bool loading) {
     unwind_stack(parser, parser->context->scope_depth);
     
     // Push the value of the last expression in the block.
-    if (loading) emit_byte(parser, OP_PUSH_X);
+    if (loading) {
+        Chunk *chunk = parser_chunk(parser);
+
+        // If possible optimize out OP_SAVE_X/OP_PUSH_X pattern.
+        if (chunk->opcodes[chunk->count - 1] == OP_SAVE_X) {
+            chunk->count--;
+        } else {
+            emit_byte(parser, OP_PUSH_X);
+        }
+    }
     parser->context->scope_depth--;
 }
 
@@ -1110,7 +1119,7 @@ static void declaration(Parser *parser) {
         expression(parser);
         // consume(parser, TOKEN_SEMICOLON,
         //         "expect ';' or newline after expression");
-        emit_byte(parser, OP_STORE_X);
+        emit_byte(parser, OP_SAVE_X);
     }
 
     if (parser->panic_mode) recover(parser);

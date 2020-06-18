@@ -80,7 +80,7 @@ bool table_set(Table *table, ObjString *key, Value value) {
     
     if (table->count >= capacity * TABLE_MAX_LOAD) {
         int new_capacity = Grow_Capacity(capacity);
-        adjust_capacity(table, new_capacity);
+        adjust_capacity(table, new_capacity - 1);
     }
 
     Entry *entry = find_entry(table->entries, key, table->hash_mask);

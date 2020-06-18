@@ -8,9 +8,8 @@ Opcode(OP_PUSH_FALSE)
 Opcode(OP_PUSH_NIL)
 Opcode(OP_PUSH_CONST)     // 1-byte constant index
 
-// TODO: optimize the STORE LOAD STORE pattern.
 Opcode(OP_PUSH_X)
-Opcode(OP_STORE_X)
+Opcode(OP_SAVE_X)
 
 Opcode(OP_POP)
 Opcode(OP_POPN)           // 1-byte count
