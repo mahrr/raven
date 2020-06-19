@@ -51,11 +51,11 @@ struct ObjFunction {
 // would to store that list in some sort of an allocator state,
 // but I stick with the simple approach for the time being.
 
-// Construct an ObjString using a copy of the given string.
-ObjString *copy_string(VM *vm, const char *chars, int length);
+// Construct an ObjString with a copy of the given string.
+ObjString *new_string(VM *vm, const char *chars, int length);
 
-// Construct an ObjString with the given string. the ObjString
-// will have the ownership of the chars memory.
+// Construct an ObjString wrapping the given string.
+// The object will have an ownership of the chars memory.
 ObjString *box_string(VM *vm, char *chars, int length);
 
 // Construct an empty function object.

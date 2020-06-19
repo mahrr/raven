@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdarg.h>
+#include <math.h>
 
 #include "common.h"
 #include "compiler.h"
@@ -217,7 +218,7 @@ static InterpretResult run_vm(register VM *vm) {
 #define Binary_OP(value_type, op)                            \
     do {                                                     \
         if (!Is_Num(Peek(0)) || !Is_Num(Peek(1))) {          \
-            Runtime_Error("Operands must be numbers");       \
+            Runtime_Error("operands must be numeric");       \
             return INTERPRET_RUNTIME_ERROR;                  \
         }                                                    \
                                                              \
@@ -254,10 +255,21 @@ static InterpretResult run_vm(register VM *vm) {
       Case(OP_SUB): Binary_OP(Num_Value, -); Dispatch();
       Case(OP_MUL): Binary_OP(Num_Value, *); Dispatch();
       Case(OP_DIV): Binary_OP(Num_Value, /); Dispatch();
-      Case(OP_MOD): /* TODO */ Dispatch();
+      Case(OP_MOD): {
+            if (!Is_Num(Peek(0)) && !Is_Num(Peek(1))) {
+                Runtime_Error("operands must be numeric");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+
+            double y = As_Num(Pop());
+            double x = As_Num(Pop());
+
+            Push(Num_Value(fmod(x, y)));
+            Dispatch();
+        }
       Case(OP_NEG): {
             if (!Is_Num(Peek(0))) {
-                Runtime_Error("Negation operand must be numeric");
+                Runtime_Error("negation operand must be numeric");
                 return INTERPRET_RUNTIME_ERROR;
             }
             Push(Num_Value(-As_Num(Pop())));
@@ -301,7 +313,7 @@ static InterpretResult run_vm(register VM *vm) {
                 return INTERPRET_RUNTIME_ERROR;
             }
             
-            vm->global_buffer[Read_Byte()] = Peek(0);
+            vm->global_buffer[index] = Peek(0);
             Dispatch();
         }
             

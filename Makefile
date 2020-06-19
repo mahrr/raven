@@ -4,7 +4,7 @@ DEBUG_FLAGS = -ggdb -DDEBUG -O0
 RELEASE_FLAGS = -march=native -DNDEBUG -O2
 RELEASE_SYMBOLS_FLAGS = $(RELEASE_FLAGS) -ggdb
 PROFILE_FLAGS = $(RELEASE_FLAGS) -pg # for profiling with gprof
-LDLIBS =
+LDLIBS = -lm
 
 RM = rm -f
 MKDIR = mkdir -p

@@ -108,13 +108,13 @@ int disassemble_instruction(Chunk *chunk, int offset) {
         return basic_instruction("NOT", offset);
 
     case OP_DEF_GLOBAL:
-        return const_instruction("DEF_GLOBAL", chunk, offset);
+        return byte_instruction("DEF_GLOBAL", chunk, offset);
 
     case OP_SET_GLOBAL:
-        return const_instruction("SET_GLOBAL", chunk, offset);
+        return byte_instruction("SET_GLOBAL", chunk, offset);
 
     case OP_GET_GLOBAL:
-        return const_instruction("GET_GLOBAL", chunk, offset);
+        return byte_instruction("GET_GLOBAL", chunk, offset);
 
     case OP_SET_LOCAL:
         return byte_instruction("SET_LOCAL", chunk, offset);

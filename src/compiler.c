@@ -18,7 +18,7 @@
 /*
  * A Pratt parser is used for expression parsing. A parsing rule
  * is defined with a ParseRule struct. The parser uses a parsing
- * rule table to know the precedence, prefix parsing function and
+ * rule table to get the precedence, prefix parsing function and
  * parsing infix function for each token type.
 */
 
@@ -42,7 +42,7 @@ typedef struct Context {
 // Parser State
 typedef struct {
     Lexer *lexer;     // The input, token stream
-    Context *context; // The current scope state and output chunck
+    Context *context; // The current scope state and output chunk
     VM *vm;           // For compile time object allocation
     
     Token current;    // Current consumed token
@@ -51,7 +51,7 @@ typedef struct {
     bool had_error;   // Error flag to stop bytecode execution later
     bool panic_mode;  // If set, any parsing error will be ignored
 
-    // Used in continue statement.
+    // Used in continue statement
     int inner_loop_start;
     int inner_loop_depth;
 
@@ -231,7 +231,7 @@ static inline uint8_t register_identifier(Parser *parser, Token *name) {
     int length = name->length;
     VM *vm = parser->vm;
     
-    ObjString *ident = copy_string(parser->vm, start, length);
+    ObjString *ident = new_string(vm, start, length);
     Value index_value;
 
     // Already registered?
@@ -266,11 +266,11 @@ static inline void advance(Parser *parser) {
 }
 
 static inline void consume(Parser *parser, TokenType type,
-                           const char *msg) {
+                           const char *message) {
     if (parser->current.type == type) {
         advance(parser);
     } else {
-        error_current(parser, msg);
+        error_current(parser, message);
     }
 }
 
@@ -289,7 +289,7 @@ static inline void add_local(Parser *parser, Token name) {
     Context *context = parser->context;
 
     if (context->local_count == LOCALS_LIMIT) {
-        error_previous(parser, "Function locals limit is exceeded");
+        error_previous(parser, "function locals limit is exceeded");
         return;
     }
     
@@ -404,9 +404,9 @@ static inline void init_context(Context *context, Parser *parser,
     local->name.length = 0;
 
     if (!toplevel) {
-        context->function->name = copy_string(parser->vm,
-                                              parser->previous.lexeme,
-                                              parser->previous.length);
+        context->function->name = new_string(parser->vm,
+                                             parser->previous.lexeme,
+                                             parser->previous.length);
     }
 }
 
@@ -418,6 +418,7 @@ static inline ObjFunction *end_context(Parser *parser, bool toplevel) {
     ObjString *name = function->name;
     disassemble_chunk(parser_chunk(parser),
                       name ? name->chars : "top-level");
+    putchar('\n');
 #endif
 
     // Pop the current scope.
@@ -805,9 +806,9 @@ static void string(Parser *parser) {
     Debug_Log(parser);
 
     // +1 and -2 for the literal string quotes
-    ObjString *string = copy_string(parser->vm,
-                                    parser->previous.lexeme + 1,
-                                    parser->previous.length - 2);
+    ObjString *string = new_string(parser->vm,
+                                   parser->previous.lexeme + 1,
+                                   parser->previous.length - 2);
     emit_constant(parser, Obj_Value(string));
 
     Debug_Exit(parser);
@@ -944,7 +945,7 @@ static void declare_variable(Parser *parser) {
         }
 
         if (same_identifier(name, &local->name)) {
-            error_previous(parser, "This name is already declared.");
+            error_previous(parser, "name is already declared");
         }
     }
     

@@ -43,7 +43,7 @@ static uint32_t hash_string(const char *key, int length) {
     return hash;
 }
 
-ObjString *copy_string(VM *vm, const char *chars, int length) {
+ObjString *new_string(VM *vm, const char *chars, int length) {
     uint32_t hash = hash_string(chars, length);
     ObjString *interned = table_interned(&vm->strings, chars,
                                          hash, length);
