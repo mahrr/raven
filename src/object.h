@@ -11,6 +11,7 @@
 typedef enum {
     OBJ_STRING,
     OBJ_FUNCTION,
+    OBJ_CLOSURE,
 } ObjectType;
 
 // The header (metadata) of all objects.
@@ -34,14 +35,21 @@ struct RavFunction {
     Chunk chunk;
 };
 
+struct RavClosure {
+    Object header;
+    RavFunction *function;
+};
+
 #define Obj_Type(value) (As_Obj(value)->type)
 
-#define Is_String(value) (is_object_type(value, OBJ_STRING))
-#define Is_Function(value) (is_object_type(value, OBJ_FUNCTION))
+#define Is_String(value)   is_object_type(value, OBJ_STRING)
+#define Is_Function(value) is_object_type(value, OBJ_FUNCTION)
+#define Is_Closure(value)  is_object_type(value, OBJ_CLOSURE)
 
 #define As_String(value)   ((RavString *)As_Obj(value))
 #define As_CString(value)  ((As_String(value))->chars)
 #define As_Function(value) ((RavFunction *)As_Obj(value))
+#define As_Closure(value)  ((RavClosure *)As_Obj(value))
 
 
 // Note the first parameter of constructing functions is a vm
@@ -60,6 +68,12 @@ RavString *box_string(VM *vm, char *chars, int length);
 
 // Construct an empty function object.
 RavFunction *new_function(VM *vm);
+
+// Construct a closure object. The closure object doesn't own
+// the function object memory, since multiple closures may be
+// reference the same function object, besides the surrounding
+// functions whose constant table may reference it.
+RavClosure *new_closure(VM *vm, RavFunction *function);
 
 void print_object(Value value);
 

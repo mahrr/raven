@@ -82,6 +82,13 @@ RavFunction *new_function(VM *vm) {
     return function;
 }
 
+RavClosure *new_closure(VM *vm, RavFunction *function) {
+    RavClosure *closure = Alloc_Object(vm, RavClosure, OBJ_CLOSURE);
+
+    closure->function = function;
+    return closure;
+}
+
 static void print_function(RavFunction *function) {
     if (function->name == NULL) {
         printf("<top-level>");
@@ -95,6 +102,7 @@ void print_object(Value value) {
     switch (Obj_Type(value)) {
     case OBJ_STRING:   printf("'%s'", As_CString(value)); break;
     case OBJ_FUNCTION: print_function(As_Function(value)); break;
+    case OBJ_CLOSURE:  print_function(As_Closure(value)->function); break;
     default:
         assert(!"invalid object type");
     }    
@@ -114,6 +122,11 @@ static void free_object(Object *object) {
         // TODO: manually free the name or leave it to the GC?
         free_chunk(&function->chunk);
         Free(RavFunction, function);
+        break;
+    }
+
+    case OBJ_CLOSURE: {
+        Free(RavClosure, object);
         break;
     }
 

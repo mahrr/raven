@@ -1,7 +1,7 @@
 #ifndef raven_value_h
 #define raven_value_h
 
-// Raven value representation
+// Raven Value Representation
 
 #include "common.h"
 
@@ -10,6 +10,7 @@
 typedef struct Object Object;
 typedef struct RavString RavString;
 typedef struct RavFunction RavFunction;
+typedef struct RavClosure RavClosure;
 
 #ifdef NAN_TAGGING
 
