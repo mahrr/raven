@@ -31,7 +31,7 @@ typedef struct Local {
 typedef struct Context {
     struct Context *enclosing;
     
-    ObjFunction *function; // Current output chunk, bytecode stream
+    RavFunction *function; // Current output chunk, bytecode stream
     bool toplevel;
     
     Local locals[LOCALS_LIMIT];
@@ -226,12 +226,12 @@ static inline void emit_constant(Parser *parser, Value value) {
 
 // Register a global variable name, and returns its index at the globals
 // buffer (vm->global_buffer[]).
-static inline uint8_t register_identifier(Parser *parser, Token *name) {
+static uint8_t register_identifier(Parser *parser, Token *name) {
     const char *start = name->lexeme;
     int length = name->length;
     VM *vm = parser->vm;
     
-    ObjString *ident = new_string(vm, start, length);
+    RavString *ident = new_string(vm, start, length);
     Value index_value;
 
     // Already registered?
@@ -285,7 +285,7 @@ static inline bool match(Parser *parser, TokenType type) {
     return true;
 }
 
-static inline void add_local(Parser *parser, Token name) {
+static void add_local(Parser *parser, Token name) {
     Context *context = parser->context;
 
     if (context->local_count == LOCALS_LIMIT) {
@@ -320,7 +320,7 @@ static void unwind_stack(Parser *parser, int depth) {
     }
 }
 
-static inline void end_scope(Parser *parser, bool loading) {
+static void end_scope(Parser *parser, bool loading) {
     unwind_stack(parser, parser->context->scope_depth);
     
     // Push the value of the last expression in the block.
@@ -410,12 +410,12 @@ static inline void init_context(Context *context, Parser *parser,
     }
 }
 
-static inline ObjFunction *end_context(Parser *parser, bool toplevel) {
-    ObjFunction *function = parser->context->function;
+static inline RavFunction *end_context(Parser *parser, bool toplevel) {
+    RavFunction *function = parser->context->function;
     emit_byte(parser, toplevel ? OP_EXIT : OP_RETURN);
         
 #ifdef DEBUG_DUMP_CODE
-    ObjString *name = function->name;
+    RavString *name = function->name;
     disassemble_chunk(parser_chunk(parser),
                       name ? name->chars : "top-level");
     putchar('\n');
@@ -806,7 +806,7 @@ static void string(Parser *parser) {
     Debug_Log(parser);
 
     // +1 and -2 for the literal string quotes
-    ObjString *string = new_string(parser->vm,
+    RavString *string = new_string(parser->vm,
                                    parser->previous.lexeme + 1,
                                    parser->previous.length - 2);
     emit_constant(parser, Obj_Value(string));
@@ -1001,7 +1001,7 @@ static void parameters(Parser *parser) {
     consume(parser, TOKEN_LEFT_PAREN, "expect '(' after function name");
     if (match(parser, TOKEN_RIGHT_PAREN)) return;
 
-    ObjFunction *function = parser->context->function;
+    RavFunction *function = parser->context->function;
     
     do {
         function->arity++;
@@ -1025,7 +1025,7 @@ static void function(Parser *parser) {
     parameters(parser);
     block(parser);
 
-    ObjFunction *function = end_context(parser, false);
+    RavFunction *function = end_context(parser, false);
     uint8_t index = make_constant(parser, Obj_Value(function));
     emit_bytes(parser, OP_PUSH_CONST, index);
 }
@@ -1128,7 +1128,7 @@ static void declaration(Parser *parser) {
     Debug_Exit(parser);
 }
 
-ObjFunction *compile(VM *vm, const char *source, const char *file) {
+RavFunction *compile(VM *vm, const char *source, const char *file) {
     Lexer lexer;
     init_lexer(&lexer, source, file);
 
@@ -1142,6 +1142,6 @@ ObjFunction *compile(VM *vm, const char *source, const char *file) {
         declaration(&parser);
     }
 
-    ObjFunction *function = end_context(&parser, true);
+    RavFunction *function = end_context(&parser, true);
     return parser.had_error ? NULL : function;
 }

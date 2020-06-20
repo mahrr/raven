@@ -8,8 +8,8 @@
 // Forward declarations to avoid cyclic include
 // problem with 'object.h'.
 typedef struct Object Object;
-typedef struct ObjString ObjString;
-typedef struct ObjFunction ObjFunction;
+typedef struct RavString RavString;
+typedef struct RavFunction RavFunction;
 
 #ifdef NAN_TAGGING
 

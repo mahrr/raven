@@ -20,16 +20,16 @@ struct Object {
     struct Object *next;
 };
 
-struct ObjString {
+struct RavString {
     Object header;
     int length;
     uint32_t hash;
     char *chars;
 };
 
-struct ObjFunction {
+struct RavFunction {
     Object header;
-    ObjString *name;
+    RavString *name;
     int arity;
     Chunk chunk;
 };
@@ -39,9 +39,9 @@ struct ObjFunction {
 #define Is_String(value) (is_object_type(value, OBJ_STRING))
 #define Is_Function(value) (is_object_type(value, OBJ_FUNCTION))
 
-#define As_String(value)   ((ObjString *)As_Obj(value))
+#define As_String(value)   ((RavString *)As_Obj(value))
 #define As_CString(value)  ((As_String(value))->chars)
-#define As_Function(value) ((ObjFunction *)As_Obj(value))
+#define As_Function(value) ((RavFunction *)As_Obj(value))
 
 
 // Note the first parameter of constructing functions is a vm
@@ -51,15 +51,15 @@ struct ObjFunction {
 // would to store that list in some sort of an allocator state,
 // but I stick with the simple approach for the time being.
 
-// Construct an ObjString with a copy of the given string.
-ObjString *new_string(VM *vm, const char *chars, int length);
+// Construct an RavString with a copy of the given string.
+RavString *new_string(VM *vm, const char *chars, int length);
 
-// Construct an ObjString wrapping the given string.
+// Construct an RavString wrapping the given string.
 // The object will have an ownership of the chars memory.
-ObjString *box_string(VM *vm, char *chars, int length);
+RavString *box_string(VM *vm, char *chars, int length);
 
 // Construct an empty function object.
-ObjFunction *new_function(VM *vm);
+RavFunction *new_function(VM *vm);
 
 void print_object(Value value);
 

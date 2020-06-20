@@ -7,7 +7,7 @@
 #include "value.h"
 
 typedef struct {
-    ObjFunction *function;
+    RavFunction *function;
     uint8_t *ip;
     Value *slots;
 } CallFrame;

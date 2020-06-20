@@ -41,7 +41,7 @@ static void dump_stack_trace(VM *vm, FILE *out) {
     // TODO: an option to control the stack trace dumping order.
     for (int i = vm->frame_count - 1; i >= 0; i--) {
         CallFrame *frame = &vm->frames[i];
-        ObjFunction *function = frame->function;
+        RavFunction *function = frame->function;
 
         size_t offset = frame->ip - frame->function->chunk.opcodes - 1;
         int line = decode_line(&frame->function->chunk, offset);
@@ -92,7 +92,7 @@ static inline bool is_falsy(Value value) {
     return Is_Nil(value) || (Is_Bool(value) && !As_Bool(value));
 }
 
-static inline bool push_frame(VM *vm, ObjFunction *function, int count) {
+static inline bool push_frame(VM *vm, RavFunction *function, int count) {
     if (vm->frame_count == FRAMES_LIMIT) {
         runtime_error(vm, "call stack overflows");
         return false;
@@ -106,7 +106,7 @@ static inline bool push_frame(VM *vm, ObjFunction *function, int count) {
     return true;
 }
 
-static inline bool call_func(VM *vm, ObjFunction *function, int count) {
+static inline bool call_func(VM *vm, RavFunction *function, int count) {
     if (function->arity != count) {
         runtime_error(vm, "expect %d arguments, but got %d",
                       function->arity, count);
@@ -156,9 +156,9 @@ static InterpretResult run_vm(register VM *vm) {
             print_value(*value);                                         \
             printf(" ]");                                                \
         }                                                                \
-        printf(" X: ");                                                  \
+        printf("[ X: ");                                                 \
         print_value(vm->x);                                              \
-        putchar('\n');                                                   \
+        printf(" ]\n");                                                  \
                                                                          \
         int offset = (int) (frame.ip - frame.function->chunk.opcodes);   \
         disassemble_instruction(&frame.function->chunk, offset);         \
@@ -235,14 +235,16 @@ static InterpretResult run_vm(register VM *vm) {
       Case(OP_PUSH_NIL):   Push(Nil_Value);         Dispatch();
       Case(OP_PUSH_CONST): Push(Read_Constant());   Dispatch();
 
-      Case(OP_PUSH_X):
-        Push(vm->x);
-        vm->x = Nil_Value;
-        Dispatch();
+      Case(OP_PUSH_X): {
+            Push(vm->x);
+            vm->x = Nil_Value;
+            Dispatch();
+        }
             
-      Case(OP_SAVE_X):
-        vm->x = Pop();
-        Dispatch();
+      Case(OP_SAVE_X): {
+            vm->x = Pop();
+            Dispatch();
+        }
 
       Case(OP_POP): Pop(); Dispatch();
       Case(OP_POPN): {
@@ -332,14 +334,12 @@ static InterpretResult run_vm(register VM *vm) {
         }
 
       Case(OP_SET_LOCAL): {
-            uint8_t slot = Read_Byte();
-            frame.slots[slot] = Peek(0);
+            frame.slots[Read_Byte()] = Peek(0);
             Dispatch();
         }
             
       Case(OP_GET_LOCAL): {
-            uint8_t slot = Read_Byte();
-            Push(frame.slots[slot]);
+            Push(frame.slots[Read_Byte()]);
             Dispatch();
         }
             
@@ -425,7 +425,7 @@ static InterpretResult run_vm(register VM *vm) {
 }
 
 InterpretResult interpret(VM *vm, const char *source, const char *path) {
-    ObjFunction *function = compile(vm, source, path);
+    RavFunction *function = compile(vm, source, path);
     if (function == NULL) return INTERPRET_COMPILE_ERROR;
 
     // The compiler already reserve this slot for the function.

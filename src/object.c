@@ -21,9 +21,9 @@ static Object *alloc_object(VM *vm, ObjectType type, size_t size) {
     return object;
 }
 
-static ObjString *alloc_string(VM *vm, int length, uint32_t hash,
+static RavString *alloc_string(VM *vm, int length, uint32_t hash,
                                char *chars) {
-    ObjString *string = Alloc_Object(vm, ObjString, OBJ_STRING);
+    RavString *string = Alloc_Object(vm, RavString, OBJ_STRING);
     string->length = length;
     string->hash = hash;
     string->chars = chars;
@@ -43,9 +43,9 @@ static uint32_t hash_string(const char *key, int length) {
     return hash;
 }
 
-ObjString *new_string(VM *vm, const char *chars, int length) {
+RavString *new_string(VM *vm, const char *chars, int length) {
     uint32_t hash = hash_string(chars, length);
-    ObjString *interned = table_interned(&vm->strings, chars,
+    RavString *interned = table_interned(&vm->strings, chars,
                                          hash, length);
 
     if (interned != NULL) return interned;
@@ -57,9 +57,9 @@ ObjString *new_string(VM *vm, const char *chars, int length) {
     return alloc_string(vm, length, hash, copy);
 }
 
-ObjString *box_string(VM *vm, char *chars, int length) {
+RavString *box_string(VM *vm, char *chars, int length) {
     uint32_t hash = hash_string(chars, length);
-    ObjString *interned = table_interned(&vm->strings, chars,
+    RavString *interned = table_interned(&vm->strings, chars,
                                          hash, length);
 
     // box_string takes ownership of chars memory, so if
@@ -73,8 +73,8 @@ ObjString *box_string(VM *vm, char *chars, int length) {
     return alloc_string(vm, length, hash, chars);
 }
 
-ObjFunction *new_function(VM *vm) {
-    ObjFunction *function = Alloc_Object(vm, ObjFunction, OBJ_FUNCTION);
+RavFunction *new_function(VM *vm) {
+    RavFunction *function = Alloc_Object(vm, RavFunction, OBJ_FUNCTION);
 
     function->name = NULL;
     function->arity = 0;
@@ -82,7 +82,7 @@ ObjFunction *new_function(VM *vm) {
     return function;
 }
 
-static void print_function(ObjFunction *function) {
+static void print_function(RavFunction *function) {
     if (function->name == NULL) {
         printf("<top-level>");
         return;
@@ -93,7 +93,7 @@ static void print_function(ObjFunction *function) {
 
 void print_object(Value value) {
     switch (Obj_Type(value)) {
-    case OBJ_STRING:   printf("%s", As_CString(value)); break;
+    case OBJ_STRING:   printf("'%s'", As_CString(value)); break;
     case OBJ_FUNCTION: print_function(As_Function(value)); break;
     default:
         assert(!"invalid object type");
@@ -103,17 +103,17 @@ void print_object(Value value) {
 static void free_object(Object *object) {
     switch (object->type) {
     case OBJ_STRING: {
-        ObjString *string = (ObjString *)object;
+        RavString *string = (RavString *)object;
         Free_Array(char, string->chars, string->length + 1);
-        Free(ObjString, string);
+        Free(RavString, string);
         break;
     }
 
     case OBJ_FUNCTION: {
-        ObjFunction *function = (ObjFunction *)object;
+        RavFunction *function = (RavFunction *)object;
         // TODO: manually free the name or leave it to the GC?
         free_chunk(&function->chunk);
-        Free(ObjFunction, function);
+        Free(RavFunction, function);
         break;
     }
 

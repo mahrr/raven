@@ -7,6 +7,6 @@
 // Compile a given source code to bytecode instructions,
 // Return a function object containing the output chunk,
 // or NULL on compilation error.
-ObjFunction *compile(VM *vm, const char *source, const char *file);
+RavFunction *compile(VM *vm, const char *source, const char *file);
 
 #endif

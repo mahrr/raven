@@ -20,7 +20,7 @@ void free_table(Table *table) {
     init_table(table);
 }
 
-static Entry *find_entry(Entry *entries, ObjString *key, int hash_mask) {
+static Entry *find_entry(Entry *entries, RavString *key, int hash_mask) {
     uint32_t index = key->hash & hash_mask;
     Entry *tombstone = NULL;
 
@@ -65,7 +65,7 @@ static void adjust_capacity(Table *table, int hash_mask) {
     table->hash_mask = hash_mask;
 }
 
-bool table_get(Table *table, ObjString *key, Value *value) {
+bool table_get(Table *table, RavString *key, Value *value) {
     if (table->count == 0) return false;
 
     Entry *entry = find_entry(table->entries, key, table->hash_mask);
@@ -75,7 +75,7 @@ bool table_get(Table *table, ObjString *key, Value *value) {
     return true;
 }
 
-bool table_set(Table *table, ObjString *key, Value value) {
+bool table_set(Table *table, RavString *key, Value value) {
     int capacity = table->hash_mask + 1;
     
     if (table->count >= capacity * TABLE_MAX_LOAD) {
@@ -93,7 +93,7 @@ bool table_set(Table *table, ObjString *key, Value value) {
     return is_new_key;
 }
 
-bool table_remove(Table *table, ObjString *key) {
+bool table_remove(Table *table, RavString *key) {
     if (table->count == 0) return false;
 
     Entry *entry = find_entry(table->entries, key, table->hash_mask);
@@ -115,7 +115,7 @@ void table_copy(Table *from, Table *to) {
     }
 }
 
-ObjString *table_interned(Table *table, const char *chars,
+RavString *table_interned(Table *table, const char *chars,
                           uint32_t hash, int length) {
     if (table->count == 0) return NULL;
 
@@ -125,7 +125,7 @@ ObjString *table_interned(Table *table, const char *chars,
 
         if (entry->key == NULL && Is_Nil(entry->value)) return NULL;
 
-        ObjString *key = entry->key;
+        RavString *key = entry->key;
 
         if (key->length == length &&
             key->hash == hash &&
