@@ -1,0 +1,27 @@
+# Implementing linked list with just closures (List From The Void)
+
+fn cons(head, tail)
+   fn pick(which)
+      cond:
+        which == 0 -> head,
+        which == 1 -> tail
+      end
+   end
+
+   pick
+end
+
+fn head(list) list(0) end
+fn tail(list) list(1) end
+
+# Example
+
+let primes = cons(2, cons(3, cons(5, cons(7, cons(11, nil)))));
+let sum = 0;
+
+while primes do
+    sum = sum + head(primes)
+    primes = tail(primes)
+end
+
+sum

@@ -1,10 +1,10 @@
 
 fn fib(number)
-  if number < 2 do
-    number
-  else
-    fib(number - 1) + fib(number - 2)
-  end
+    if number < 2 do
+        number
+    else
+        fib(number - 1) + fib(number - 2)
+    end
 end
 
 fib(35)
