@@ -7,7 +7,7 @@
 #include "value.h"
 
 typedef struct {
-    RavFunction *function;
+    RavClosure *closure;
     uint8_t *ip;
     Value *slots;
 } CallFrame;
@@ -30,6 +30,10 @@ typedef struct {
             
     Table strings;    // Interned strings (All strings on the system).
     Object *objects;  // Intrusive linked list of all allocated objects.
+
+    // Intrusive linked list of all available open opvalues.
+    // TODO: experiment with using a hash table instead.
+    RavUpvalue *open_upvalues;
     
     const char *path; // Name of the file being executed.
 } VM;

@@ -8,7 +8,7 @@
 
 // Debugging flags
 #ifdef DEBUG
-# define DEBUG_TRACE_PARSING
+//# define DEBUG_TRACE_PARSING
 # define DEBUG_TRACE_EXECUTION
 # define DEBUG_TRACE_GC
 # define DEBUG_DUMP_CODE
@@ -38,6 +38,9 @@
 
 // The limit of number of locals per function.
 #define LOCALS_LIMIT UINT8_MAX + 1
+
+// The limit of number of variables a closure can capture.
+#define UPVALUES_LIMIT UINT8_MAX + 1
 
 // The limit of number of globals per script.
 #define GLOBALS_LIMIT UINT8_MAX + 1

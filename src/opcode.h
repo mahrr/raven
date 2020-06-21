@@ -33,11 +33,13 @@ Opcode(OP_GTQ)
 Opcode(OP_NOT)
 
 // Variables
-Opcode(OP_DEF_GLOBAL)     // 1-byte name index
-Opcode(OP_SET_GLOBAL)     // 1-byte name index
-Opcode(OP_GET_GLOBAL)     // 1-byte name index
-Opcode(OP_SET_LOCAL)      // 1-byte slot index
-Opcode(OP_GET_LOCAL)      // 1-byte slot index
+Opcode(OP_DEF_GLOBAL)     // 1-byte global buffer index
+Opcode(OP_SET_GLOBAL)     // 1-byte global buffer index
+Opcode(OP_GET_GLOBAL)     // 1-byte global buffer index
+Opcode(OP_SET_LOCAL)      // 1-byte stack slot index
+Opcode(OP_GET_LOCAL)      // 1-byte stack slot index
+Opcode(OP_SET_UPVALUE)    // 1-byte upvalue list index
+Opcode(OP_GET_UPVALUE)    // 1-byte upvalue list index
 
 // Branching
 Opcode(OP_CALL)           // 1-byte arguments count
@@ -45,6 +47,10 @@ Opcode(OP_JMP)            // 2-bytes offset
 Opcode(OP_JMP_BACK)       // 2-bytes offset
 Opcode(OP_JMP_FALSE)      // 2-bytes offset
 Opcode(OP_JMP_POP_FALSE)  // 2-bytes offset
+
+// Closure
+Opcode(OP_CLOSURE)        // 1-byte function index
+Opcode(OP_CLOSE_UPVALUE)
 
 Opcode(OP_RETURN)
 Opcode(OP_EXIT)

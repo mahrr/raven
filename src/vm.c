@@ -21,6 +21,7 @@ void init_vm(VM *vm) {
     vm->x = Nil_Value;
     vm->frame_count = 0;
     vm->objects = NULL;
+    vm->open_upvalues = NULL;
     
     init_table(&vm->globals);
     init_table(&vm->strings);
@@ -41,10 +42,10 @@ static void dump_stack_trace(VM *vm, FILE *out) {
     // TODO: an option to control the stack trace dumping order.
     for (int i = vm->frame_count - 1; i >= 0; i--) {
         CallFrame *frame = &vm->frames[i];
-        RavFunction *function = frame->function;
+        RavFunction *function = frame->closure->function;
 
-        size_t offset = frame->ip - frame->function->chunk.opcodes - 1;
-        int line = decode_line(&frame->function->chunk, offset);
+        size_t offset = frame->ip - function->chunk.opcodes - 1;
+        int line = decode_line(&function->chunk, offset);
         
         fprintf(out, "\t%s | line:%d in ", vm->path, line);
 
@@ -61,10 +62,11 @@ static void runtime_error(VM *vm, const char *format, ...) {
     va_start(arguments, format);
 
     CallFrame *frame = &vm->frames[vm->frame_count - 1];
-
+    RavFunction *function = frame->closure->function;
+    
     // -1 because ip is sitting on the next instruction to be executed.
-    size_t offset = frame->ip - frame->function->chunk.opcodes - 1;
-    int line = decode_line(&frame->function->chunk, offset);
+    size_t offset = frame->ip - function->chunk.opcodes - 1;
+    int line = decode_line(&function->chunk, offset);
     fprintf(stderr, "[%s | line: %d] ", vm->path, line);
     
     vfprintf(stderr, format, arguments);
@@ -92,37 +94,72 @@ static inline bool is_falsy(Value value) {
     return Is_Nil(value) || (Is_Bool(value) && !As_Bool(value));
 }
 
-static inline bool push_frame(VM *vm, RavFunction *function, int count) {
+static inline bool push_frame(VM *vm, RavClosure *closure, int count) {
     if (vm->frame_count == FRAMES_LIMIT) {
         runtime_error(vm, "call stack overflows");
         return false;
     }
     
     CallFrame *frame = &vm->frames[vm->frame_count++];
-    frame->function = function;
-    frame->ip = function->chunk.opcodes;
+    frame->closure = closure;
+    frame->ip = closure->function->chunk.opcodes;
     frame->slots = vm->stack_top - count - 1;
 
     return true;
 }
 
-static inline bool call_func(VM *vm, RavFunction *function, int count) {
+static bool call_closure(VM *vm, RavClosure *closure, int count) {
+    RavFunction *function = closure->function;
+    
     if (function->arity != count) {
         runtime_error(vm, "expect %d arguments, but got %d",
                       function->arity, count);
         return false;
     }
 
-    return push_frame(vm, function, count);
+    return push_frame(vm, closure, count);
 }
 
 static inline bool call_value(VM *vm, Value value, int count) {
-    if (Is_Function(value)) {
-        return call_func(vm, As_Function(value), count);
+    if (Is_Closure(value)) {
+        return call_closure(vm, As_Closure(value), count);
     }
 
     runtime_error(vm, "call to a non-callable");
     return false;
+}
+
+static RavUpvalue *capture_upvalue(VM *vm, Value *location) {
+    RavUpvalue *previous = NULL;
+    RavUpvalue *current = vm->open_upvalues;
+
+    while (current != NULL && current->location > location) {
+        previous = current;
+        current = current->next;
+    }
+
+    if (current && current->location == location) return current;
+
+    RavUpvalue *upvalue = new_upvalue(vm, location);
+    upvalue->next = current;
+
+    if (previous == NULL) {
+        vm->open_upvalues = upvalue;
+    } else {
+        previous->next = upvalue;
+    }
+    
+    return upvalue;
+}
+
+static void close_upvalues(VM *vm, Value *slot) {
+    while (vm->open_upvalues != NULL &&
+           vm->open_upvalues->location >= slot) {
+        RavUpvalue *upvalue = vm->open_upvalues;
+        upvalue->captured = *upvalue->location;
+        upvalue->location = &upvalue->captured;
+        vm->open_upvalues = upvalue->next;
+    }
 }
 
 // Returns the name of a registered global at a given index.
@@ -160,8 +197,9 @@ static InterpretResult run_vm(register VM *vm) {
         print_value(vm->x);                                              \
         printf(" ]\n");                                                  \
                                                                          \
-        int offset = (int) (frame.ip - frame.function->chunk.opcodes);   \
-        disassemble_instruction(&frame.function->chunk, offset);         \
+        RavFunction *function = frame.closure->function;                 \
+        int offset = (int)(frame.ip - function->chunk.opcodes);          \
+        disassemble_instruction(&function->chunk, offset);               \
     } while (false)
 #else
 #define Log_Execution()
@@ -198,7 +236,7 @@ static InterpretResult run_vm(register VM *vm) {
 #define Read_Offset()                                                   \
     (frame.ip += 2, (uint16_t)(frame.ip[-2] << 8 | frame.ip[-1]))
 #define Read_Constant()                                                 \
-    (frame.function->chunk.constants[Read_Byte()])
+    (frame.closure->function->chunk.constants[Read_Byte()])
 #define Read_String() (As_String(Read_Constant()))
 
     // Stack Operations
@@ -342,6 +380,16 @@ static InterpretResult run_vm(register VM *vm) {
             Push(frame.slots[Read_Byte()]);
             Dispatch();
         }
+
+      Case(OP_SET_UPVALUE): {
+            *frame.closure->upvalues[Read_Byte()]->location = Peek(0);
+            Dispatch();
+        }
+
+      Case(OP_GET_UPVALUE): {
+            Push(*frame.closure->upvalues[Read_Byte()]->location);
+            Dispatch();
+        }
             
       Case(OP_CALL): {
             int argument_count = Read_Byte();
@@ -382,8 +430,32 @@ static InterpretResult run_vm(register VM *vm) {
             Dispatch();
         }
 
+      Case(OP_CLOSURE): {
+            RavFunction *function = As_Function(Read_Constant());
+            RavClosure *closure = new_closure(vm, function);
+            Push(Obj_Value(closure));
+
+            for (int i = 0; i < closure->upvalue_count; i++) {
+                uint8_t is_local = Read_Byte();
+                uint8_t index = Read_Byte();
+
+                closure->upvalues[i] = is_local ?
+                    capture_upvalue(vm, frame.slots + index) :
+                    frame.closure->upvalues[index];
+            }
+            
+            Dispatch();
+        }
+
+      Case(OP_CLOSE_UPVALUE): {
+            close_upvalues(vm, vm->stack_top - 1);
+            Pop();
+            Dispatch();
+        }
+        
       Case(OP_RETURN): {
             Value result = Pop();
+            close_upvalues(vm, frame.slots);
 
             // Rewind the stack.
             vm->frame_count--;
@@ -429,11 +501,20 @@ InterpretResult interpret(VM *vm, const char *source, const char *path) {
     if (function == NULL) return INTERPRET_COMPILE_ERROR;
 
     // The compiler already reserve this slot for the function.
+    // Push the function, so the GC doesn't free its memory
+    // when allocating the closure object.
     push(vm, Obj_Value(function));
 
+    // TODO: maybe a better solution is to flag the GC, to not collect
+    // since this is a recurring pattern.
+
+    RavClosure *closure = new_closure(vm, function);
+    pop(vm);
+    push(vm, Obj_Value(closure));
+        
     // Top-level code is wrapped in a function for convenience,
-    // to run the code, we simply call the wapping function.
-    push_frame(vm, function, 0);
+    // to run the code, we simply call the wrapping function.
+    push_frame(vm, closure, 0);
 
     vm->path = path;
     return run_vm(vm);

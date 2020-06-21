@@ -2,6 +2,7 @@
 
 #include "chunk.h"
 #include "debug.h"
+#include "object.h"
 
 static int basic_instruction(const char *tag, int offset) {
     printf("%s\n", tag);
@@ -29,6 +30,26 @@ static int jump_instruction(const char *tag, Chunk *chunk, int sign,
 
     printf("%-16s %4d -> %d\n", tag, offset, offset + 3 + sign * jump);
     return offset + 3;
+}
+
+static int closure_instruction(Chunk *chunk, int offset) {
+    offset++;
+    uint8_t index = chunk->opcodes[offset++];
+    Value value = chunk->constants[index];
+    
+    printf("%-16s %4d ", "CLOSURE", index);
+    print_value(value);
+    putchar('\n');
+    
+    RavFunction *function = As_Function(value);
+    for (int i = 0; i < function->upvalue_count; i++) {
+        uint8_t is_local = chunk->opcodes[offset++];
+        uint8_t index = chunk->opcodes[offset++];
+        printf("%04d     |                     %s %d\n",
+               offset - 2, is_local ? "local" : "upvalue", index);
+    }
+    
+    return offset;
 }
 
 int disassemble_instruction(Chunk *chunk, int offset) {
@@ -122,6 +143,12 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     case OP_GET_LOCAL:
         return byte_instruction("GET_LOCAL", chunk, offset);
 
+    case OP_SET_UPVALUE:
+        return byte_instruction("SET_UPVALUE", chunk, offset);
+
+    case OP_GET_UPVALUE:
+        return byte_instruction("GET_UPVALUE", chunk, offset);
+
     case OP_CALL:
         return byte_instruction("CALL", chunk, offset);
 
@@ -136,6 +163,12 @@ int disassemble_instruction(Chunk *chunk, int offset) {
 
     case OP_JMP_POP_FALSE:
         return jump_instruction("JMP_POP_FALSE", chunk, 1, offset);
+
+    case OP_CLOSURE:
+        return closure_instruction(chunk, offset);
+
+    case OP_CLOSE_UPVALUE:
+        return basic_instruction("CLOSE_UPVALUE", offset);
         
     case OP_RETURN:
         return basic_instruction("RETURN", offset);

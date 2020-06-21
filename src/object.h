@@ -11,6 +11,7 @@
 typedef enum {
     OBJ_STRING,
     OBJ_FUNCTION,
+    OBJ_UPVALUE,
     OBJ_CLOSURE,
 } ObjectType;
 
@@ -32,12 +33,22 @@ struct RavFunction {
     Object header;
     RavString *name;
     int arity;
+    int upvalue_count;
     Chunk chunk;
+};
+
+struct RavUpvalue {
+    Object header;
+    Value *location;
+    Value captured;
+    struct RavUpvalue *next;
 };
 
 struct RavClosure {
     Object header;
     RavFunction *function;
+    RavUpvalue **upvalues;
+    int upvalue_count;
 };
 
 #define Obj_Type(value) (As_Obj(value)->type)
@@ -68,6 +79,9 @@ RavString *box_string(VM *vm, char *chars, int length);
 
 // Construct an empty function object.
 RavFunction *new_function(VM *vm);
+
+// Construct an upvalue object, with a reference to the captured value.
+RavUpvalue *new_upvalue(VM *vm, Value *location);
 
 // Construct a closure object. The closure object doesn't own
 // the function object memory, since multiple closures may be

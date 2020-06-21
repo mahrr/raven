@@ -78,14 +78,31 @@ RavFunction *new_function(VM *vm) {
 
     function->name = NULL;
     function->arity = 0;
+    function->upvalue_count = 0;
+    
     init_chunk(&function->chunk);
     return function;
 }
 
-RavClosure *new_closure(VM *vm, RavFunction *function) {
-    RavClosure *closure = Alloc_Object(vm, RavClosure, OBJ_CLOSURE);
+RavUpvalue *new_upvalue(VM *vm, Value *location) {
+    RavUpvalue *upvalue = Alloc_Object(vm, RavUpvalue, OBJ_UPVALUE);
+    upvalue->location = location;
+    upvalue->captured = Void_Value;
+    upvalue->next = NULL;
+    return upvalue;
+}
 
+RavClosure *new_closure(VM *vm, RavFunction *function) {
+    RavUpvalue **upvalues = Alloc(RavUpvalue*, function->upvalue_count);
+    for (int i = 0; i < function->upvalue_count; i++) {
+        upvalues[i] = NULL;
+    }
+    
+    RavClosure *closure = Alloc_Object(vm, RavClosure, OBJ_CLOSURE);
     closure->function = function;
+    closure->upvalues = upvalues;
+    closure->upvalue_count = function->upvalue_count;
+    
     return closure;
 }
 
@@ -100,9 +117,22 @@ static void print_function(RavFunction *function) {
 
 void print_object(Value value) {
     switch (Obj_Type(value)) {
-    case OBJ_STRING:   printf("'%s'", As_CString(value)); break;
-    case OBJ_FUNCTION: print_function(As_Function(value)); break;
-    case OBJ_CLOSURE:  print_function(As_Closure(value)->function); break;
+    case OBJ_STRING:
+        printf("'%s'", As_CString(value));
+        break;
+        
+    case OBJ_FUNCTION:
+        print_function(As_Function(value));
+        break;
+        
+    case OBJ_UPVALUE:
+        printf("<upvalue>");
+        break;
+        
+    case OBJ_CLOSURE:
+        print_function(As_Closure(value)->function);
+        break;
+        
     default:
         assert(!"invalid object type");
     }    
@@ -125,7 +155,16 @@ static void free_object(Object *object) {
         break;
     }
 
+    case OBJ_UPVALUE: {
+        Free(RavUpvalue, object);
+        break;
+    }
+
     case OBJ_CLOSURE: {
+        RavClosure *closure = (RavClosure *)object;
+        Free_Array(RavClosure*,
+                   closure->upvalues,
+                   closure->upvalue_count);
         Free(RavClosure, object);
         break;
     }

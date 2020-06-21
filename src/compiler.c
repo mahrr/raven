@@ -22,10 +22,23 @@
  * parsing infix function for each token type.
 */
 
-typedef struct Local {
+typedef struct {
     Token name;
-    int depth;  // -1 indicates uninitialized state
+    int depth;         // -1 indicates uninitialized state
+    bool is_captured;  // captured by a closure?
 } Local;
+
+typedef struct {
+    // Local at the surrounding function, or it's another existing
+    // upvalue captured by the surrounding function.
+    bool is_local;
+    
+    // If it's local, this field stores the stack slot index of the
+    // captured variable in the surround function frame, otherwise
+    // it stores the index of the captured variable in the surrounding
+    // function upvalues list.
+    uint8_t index;
+} Upvalue;
 
 // Function Lexical Block State
 typedef struct Context {
@@ -36,6 +49,9 @@ typedef struct Context {
     
     Local locals[LOCALS_LIMIT];
     int local_count;       // Number of locals in the current scope
+
+    Upvalue upvalues[UPVALUES_LIMIT];
+    
     int scope_depth;       // Number of the surrounding blocks
 } Context;
 
@@ -296,6 +312,7 @@ static void add_local(Parser *parser, Token name) {
     Local *local = &context->locals[context->local_count++];
     local->name = name;
     local->depth = -1; // Uninitialized
+    local->is_captured = false;
 }
 
 static inline void begin_scope(Parser *parser) {
@@ -305,17 +322,27 @@ static inline void begin_scope(Parser *parser) {
 static void unwind_stack(Parser *parser, int depth) {
     Context *context = parser->context;
     int local_count = 0;
+    bool do_closing = false;
     
     for (int i = context->local_count - 1; i >= 0; i--) {
         if (context->locals[i].depth < depth) {
             break;
         }
 
+        if (context->locals[i].is_captured) {
+            emit_byte(parser, OP_CLOSE_UPVALUE);
+            do_closing = true;
+        } else {
+            emit_byte(parser, OP_POP);
+        }
+
         local_count++;
     }
-
     context->local_count -= local_count;
-    if (local_count != 0) {
+
+    // If no closing occurs, optimize the consecutive pop instructions.
+    if (!do_closing && local_count != 0) {
+        parser_chunk(parser)->count -= local_count;
         emit_bytes(parser, OP_POPN, (uint8_t)local_count);
     }
 }
@@ -342,7 +369,6 @@ static inline bool same_identifier(Token *a, Token *b) {
     return memcmp(a->lexeme, b->lexeme, a->length) == 0;
 }
 
-// TODO: consider using a hash map for faster lookup.
 static inline int resolve_local(Context *context, Token *name) {
     for (int i = context->local_count - 1; i >= 0; i--) {
         Local *local = &context->locals[i];
@@ -365,6 +391,79 @@ static inline int resolve_local(Context *context, Token *name) {
     }
 
     // Not Found
+    return -1;
+}
+
+static int add_upvalue(Parser *parser, Context *context, uint8_t index,
+                       bool is_local) {
+    int upvalue_count = context->function->upvalue_count;
+
+    // Check first if the upvalue is already captured.
+    for (int i = 0; i < upvalue_count; i++) {
+        Upvalue *upvalue = &context->upvalues[i];
+
+        if (upvalue->index == index && upvalue->is_local == is_local) {
+            return i;
+        }
+    }
+
+    if (upvalue_count == UPVALUES_LIMIT) {
+        error_current(parser,
+                      "number of captured variables exceeds the limit");
+        return 0;
+    }
+    
+    context->upvalues[upvalue_count].is_local = is_local;
+    context->upvalues[upvalue_count].index = index;
+
+    return context->function->upvalue_count++;
+}
+
+//
+// Example:
+//
+//   fn outer(x)
+//     fn middle()
+//       fn inner() x end
+//       inner
+//     end
+//     middle
+//   end
+//
+// Stack Trace of Resolving 'x' in 'inner':
+//
+// [inner] resolve_upvalue
+//       /
+//       [middle] resolve_local : Not found, see enclosing upvalues.
+//       [middle] resolve_upvalue
+//              /
+//              [outer] resolve_local : Found it, return local stack slot.
+//              /
+//       [middle] add_upvalue : Add upvalue, capturing 'outer' local.
+//       /
+// [inner] add_upvalue : Add upvalue, capturing 'middle' upvalue.
+//
+// Note:
+//  This method is first invented by the Lua development team, a detailed
+//  explaination of how this method work could be found in their amazing
+//  paper 'Closures in Lua'.
+//
+
+static int resolve_upvalue(Parser *parser, Context *context,
+                           Token *name) {
+    if (context->enclosing == NULL) return -1;
+
+    int local = resolve_local(context->enclosing, name);
+    if (local != -1) {
+        context->enclosing->locals[local].is_captured = true;
+        return add_upvalue(parser, context, (uint8_t)local, true);
+    }
+
+    int upvalue = resolve_upvalue(parser, context->enclosing, name);
+    if (upvalue != -1) {
+        return add_upvalue(parser, context, (uint8_t)upvalue, false);
+    }
+    
     return -1;
 }
 
@@ -402,6 +501,7 @@ static inline void init_context(Context *context, Parser *parser,
     local->depth = 0;
     local->name.lexeme = "";
     local->name.length = 0;
+    local->is_captured = false;
 
     if (!toplevel) {
         context->function->name = new_string(parser->vm,
@@ -437,22 +537,27 @@ static void assignment(Parser *parser) {
     Debug_Log(parser);
     
     Chunk *chunk = parser_chunk(parser);
-
-    // Check if the left hand side was an identifier, it's kind of a hack.
-    // TODO: experiemnt with alternative approaches.
-    if (chunk->count < 2 ||
-        (chunk->opcodes[chunk->count-2] != OP_GET_GLOBAL &&
-         chunk->opcodes[chunk->count-2] != OP_GET_LOCAL)) {
+    if (chunk->count < 2) {
         error_previous(parser, "invalid assignment target");
         return;
     }
 
-    // Get the name, or slot index and extract the corresponding
-    // set instruction, and then discard the get instruction.
-    uint8_t index = chunk->opcodes[chunk->count-1];
-    uint8_t set_op = chunk->opcodes[chunk->count-2] - 1;
-    chunk->count -= 2;
+    // Check if the left hand side was an identifier, it's kind of a hack.
+    // If it's an identifier, the last written opcode should be one of
+    // these getters opcodes.
+    uint8_t opcode = chunk->opcodes[chunk->count - 2];
+    if (opcode != OP_GET_GLOBAL &&
+        opcode != OP_GET_LOCAL &&
+        opcode != OP_GET_UPVALUE) {
+        error_previous(parser, "invalid assignment target");
+        return;
+    }
 
+    // Get slot index of the variable and extract the corresponding
+    // set instruction, and then discard the get instruction.
+    uint8_t index = chunk->opcodes[chunk->count - 1];
+    uint8_t set_op = opcode - 1;
+    chunk->count -= 2;
     
     // Not PREC_ASSIGNMENT + 1, sicne assignment is right associated.
     parse_precedence(parser, PREC_ASSIGNMENT);
@@ -779,13 +884,22 @@ static void identifier(Parser *parser) {
     Debug_Log(parser);
 
     uint8_t get_op;
-    int index = resolve_local(parser->context, &parser->previous);
+    Token *name = &parser->previous;
+    int index = resolve_local(parser->context, name);
 
+    // Local?
     if (index != -1) {
         get_op = OP_GET_LOCAL;
     } else {
-        index = register_identifier(parser, &parser->previous);
-        get_op = OP_GET_GLOBAL;
+        index = resolve_upvalue(parser, parser->context, name);
+
+        // Upvalue?
+        if (index != -1) {
+            get_op = OP_GET_UPVALUE;
+        } else {
+            index = register_identifier(parser, &parser->previous);
+            get_op = OP_GET_GLOBAL;
+        }
     }
     
     emit_bytes(parser, get_op, index);
@@ -1027,7 +1141,12 @@ static void function(Parser *parser) {
 
     RavFunction *function = end_context(parser, false);
     uint8_t index = make_constant(parser, Obj_Value(function));
-    emit_bytes(parser, OP_PUSH_CONST, index);
+    emit_bytes(parser, OP_CLOSURE, index);
+    
+    for (int i = 0; i < function->upvalue_count; i++) {
+        emit_byte(parser, context.upvalues[i].is_local ? 1 : 0);
+        emit_byte(parser, context.upvalues[i].index);
+    }
 }
 
 static void fn_declaration(Parser *parser) {
