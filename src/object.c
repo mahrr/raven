@@ -177,6 +177,11 @@ static void free_object(Object *object) {
         break;
     }
 
+    case OBJ_PAIR: {
+        Free(RavPair, object);
+        break;
+    }
+
     case OBJ_FUNCTION: {
         RavFunction *function = (RavFunction *)object;
         // TODO: manually free the name or leave it to the GC?

@@ -8,7 +8,7 @@
 
 // Debugging flags
 #ifdef DEBUG
-//# define DEBUG_TRACE_PARSING
+# define DEBUG_TRACE_PARSING
 # define DEBUG_TRACE_EXECUTION
 # define DEBUG_TRACE_GC
 # define DEBUG_DUMP_CODE

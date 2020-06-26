@@ -32,6 +32,9 @@ Opcode(OP_GTQ)
 
 Opcode(OP_NOT)
 
+// List
+Opcode(OP_CONS)
+
 // Variables
 Opcode(OP_DEF_GLOBAL)     // 1-byte global buffer index
 Opcode(OP_SET_GLOBAL)     // 1-byte global buffer index

@@ -128,6 +128,9 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     case OP_NOT:
         return basic_instruction("NOT", offset);
 
+    case OP_CONS:
+        return basic_instruction("CONS", offset);
+
     case OP_DEF_GLOBAL:
         return byte_instruction("DEF_GLOBAL", chunk, offset);
 

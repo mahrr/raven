@@ -338,6 +338,14 @@ static InterpretResult run_vm(register VM *vm) {
       Case(OP_GTQ): Binary_OP(Bool_Value, >=); Dispatch();
         
       Case(OP_NOT): Push(Bool_Value(is_falsy(Pop()))); Dispatch();
+
+      Case(OP_CONS): {
+            Value tail = Pop();
+            Value head = Pop();
+
+            Push(Obj_Value(new_pair(vm, head, tail)));
+            Dispatch();
+        }
         
       Case(OP_DEF_GLOBAL): {
             vm->global_buffer[Read_Byte()] = Pop();

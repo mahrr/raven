@@ -13,6 +13,7 @@ OBJS = raven.o vm.o chunk.o table.o object.o value.o compiler.o \
 	   lexer.o debug.o mem.o
 
 dev: bin/raven
+re: clean dev
 release: clean bin/raven
 profile: clean bin/raven
 release_symbols: clean bin/raven

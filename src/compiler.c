@@ -559,9 +559,19 @@ static void assignment(Parser *parser) {
     uint8_t set_op = opcode - 1;
     chunk->count -= 2;
     
-    // Not PREC_ASSIGNMENT + 1, sicne assignment is right associated.
+    // Not PREC_ASSIGNMENT + 1, since assignment is right associated.
     parse_precedence(parser, PREC_ASSIGNMENT);
     emit_bytes(parser, set_op, index);
+
+    Debug_Exit(parser);
+}
+
+static void cons(Parser *parser) {
+    Debug_Log(parser);
+
+    // Not PREC_CONS + 1, since cons is right associated operator.
+    parse_precedence(parser, PREC_CONS);
+    emit_byte(parser, OP_CONS);
 
     Debug_Exit(parser);
 }
@@ -989,7 +999,7 @@ static ParseRule rules[] = {
     { NULL,       and_,       PREC_AND },          // TOKEN_AND
     { NULL,       or_,        PREC_OR  },          // TOKEN_OR
     { NULL,       NULL,       PREC_NONE },         // TOKEN_AT
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_COLON_COLON
+    { NULL,       cons,       PREC_CONS },         // TOKEN_COLON_COLON
     { NULL,       binary,     PREC_COMPARISON },   // TOKEN_LESS
     { NULL,       binary,     PREC_COMPARISON },   // TOKEN_LESS_EQUAL
     { NULL,       binary,     PREC_COMPARISON },   // TOKEN_GREATER
