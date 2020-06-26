@@ -10,6 +10,7 @@
 
 typedef enum {
     OBJ_STRING,
+    OBJ_PAIR,
     OBJ_FUNCTION,
     OBJ_UPVALUE,
     OBJ_CLOSURE,
@@ -27,6 +28,12 @@ struct RavString {
     int length;
     uint32_t hash;
     char *chars;
+};
+
+struct RavPair {
+    Object header;
+    Value head;
+    Value tail;
 };
 
 struct RavFunction {
@@ -54,10 +61,12 @@ struct RavClosure {
 #define Obj_Type(value) (As_Obj(value)->type)
 
 #define Is_String(value)   is_object_type(value, OBJ_STRING)
+#define Is_Pair(value)     is_object_type(value, OBJ_PAIR)
 #define Is_Function(value) is_object_type(value, OBJ_FUNCTION)
 #define Is_Closure(value)  is_object_type(value, OBJ_CLOSURE)
 
 #define As_String(value)   ((RavString *)As_Obj(value))
+#define As_Pair(value)     ((RavPair *)As_Obj(value))
 #define As_CString(value)  ((As_String(value))->chars)
 #define As_Function(value) ((RavFunction *)As_Obj(value))
 #define As_Closure(value)  ((RavClosure *)As_Obj(value))
@@ -70,12 +79,15 @@ struct RavClosure {
 // would to store that list in some sort of an allocator state,
 // but I stick with the simple approach for the time being.
 
-// Construct an RavString with a copy of the given string.
+// Construct a RavString with a copy of the given string.
 RavString *new_string(VM *vm, const char *chars, int length);
 
-// Construct an RavString wrapping the given string.
+// Construct a RavString wrapping the given string.
 // The object will have an ownership of the chars memory.
 RavString *box_string(VM *vm, char *chars, int length);
+
+// Construct a RavPair with the given head and tail.
+RavPair *new_pair(VM *vm, Value head, Value tail);
 
 // Construct an empty function object.
 RavFunction *new_function(VM *vm);

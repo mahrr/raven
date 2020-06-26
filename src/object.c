@@ -73,6 +73,15 @@ RavString *box_string(VM *vm, char *chars, int length) {
     return alloc_string(vm, length, hash, chars);
 }
 
+RavPair *new_pair(VM *vm, Value head, Value tail) {
+    RavPair *pair = Alloc_Object(vm, RavPair, OBJ_PAIR);
+
+    pair->head = head;
+    pair->tail = tail;
+
+    return pair;
+}
+
 RavFunction *new_function(VM *vm) {
     RavFunction *function = Alloc_Object(vm, RavFunction, OBJ_FUNCTION);
 
@@ -106,6 +115,21 @@ RavClosure *new_closure(VM *vm, RavFunction *function) {
     return closure;
 }
 
+static void print_pair(RavPair *pair) {
+    print_value(pair->head);
+
+    // end of a proper list?
+    if (Is_Nil(pair->tail)) return;
+
+    if (Is_Pair(pair->tail)) {
+        printf(", ");
+        print_pair(As_Pair(pair->tail));
+    } else {
+        printf(" | ");
+        print_value(pair->tail);
+    }
+}
+
 static void print_function(RavFunction *function) {
     if (function->name == NULL) {
         printf("<top-level>");
@@ -119,6 +143,12 @@ void print_object(Value value) {
     switch (Obj_Type(value)) {
     case OBJ_STRING:
         printf("'%s'", As_CString(value));
+        break;
+
+    case OBJ_PAIR:
+        putchar('[');
+        print_pair(As_Pair(value));
+        putchar(']');
         break;
         
     case OBJ_FUNCTION:

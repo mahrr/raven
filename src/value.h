@@ -9,6 +9,7 @@
 // problem with 'object.h'.
 typedef struct Object Object;
 typedef struct RavString RavString;
+typedef struct RavPair RavPair;
 typedef struct RavFunction RavFunction;
 typedef struct RavUpvalue RavUpvalue;
 typedef struct RavClosure RavClosure;
@@ -16,6 +17,8 @@ typedef struct RavClosure RavClosure;
 #ifdef NAN_TAGGING
 
 #include <string.h>
+
+// TODO: short strings optimization
 
 //
 // IEEE 754 64-bit double-precision IEEE floating-point representation:
