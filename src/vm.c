@@ -346,6 +346,16 @@ static InterpretResult run_vm(register VM *vm) {
             Push(Obj_Value(new_pair(vm, head, tail)));
             Dispatch();
         }
+
+      Case(OP_LIST): {
+            uint8_t count = Read_Byte();
+            RavPair *list = new_list(vm, vm->stack_top - count, count);
+            
+            vm->stack_top -= count;
+            Push(Obj_Value(list));
+            
+            Dispatch();
+        }
         
       Case(OP_DEF_GLOBAL): {
             vm->global_buffer[Read_Byte()] = Pop();

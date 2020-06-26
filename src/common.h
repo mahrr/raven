@@ -48,6 +48,12 @@
 // The limit of number of constants per function.
 #define CONST_LIMIT UINT8_MAX + 1
 
+// The limie of number of parameters a function can have.
+#define PARAMS_LIMIT UINT8_MAX + 1
+
+// The limit of number of elements in a list literal.
+#define LIST_LIMIT UINT8_MAX + 1
+
 // The limit of cond cases.
 #define COND_LIMIT 256
 

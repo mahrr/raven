@@ -131,6 +131,9 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     case OP_CONS:
         return basic_instruction("CONS", offset);
 
+    case OP_LIST:
+        return byte_instruction("LIST", chunk, offset);
+
     case OP_DEF_GLOBAL:
         return byte_instruction("DEF_GLOBAL", chunk, offset);
 

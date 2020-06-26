@@ -89,6 +89,9 @@ RavString *box_string(VM *vm, char *chars, int length);
 // Construct a RavPair with the given head and tail.
 RavPair *new_pair(VM *vm, Value head, Value tail);
 
+// Construct a RavPair (cons list) from the provieded array.
+RavPair *new_list(VM *vm, Value *array, int count);
+
 // Construct an empty function object.
 RavFunction *new_function(VM *vm);
 

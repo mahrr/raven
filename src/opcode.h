@@ -34,6 +34,7 @@ Opcode(OP_NOT)
 
 // List
 Opcode(OP_CONS)
+Opcode(OP_LIST)           // 1-byte number of elements
 
 // Variables
 Opcode(OP_DEF_GLOBAL)     // 1-byte global buffer index

@@ -152,9 +152,9 @@ static void debug_log(Parser *parser, const char *fmt, ...) {
 
 /** Error Reporting **/
 
-static void error(Parser *parser, Token *where, const char *message) {
-    if (parser->panic_mode) return;
+static void error_header(Parser *parser, Token *where) {
     parser->panic_mode = true;
+    parser->had_error = true;
 
     fprintf(stderr, "[%s: %d] SyntaxError",
             parser->lexer->file, where->line);
@@ -165,8 +165,21 @@ static void error(Parser *parser, Token *where, const char *message) {
         fprintf(stderr, " at '%.*s'", where->length, where->lexeme);
     }
 
-    fprintf(stderr, ": %s\n", message);
-    parser->had_error = true;
+    fprintf(stderr, ": ");
+}
+
+static void error(Parser *parser, Token *where, const char *message) {
+    if (parser->panic_mode) return;
+
+    error_header(parser, where);
+    fprintf(stderr, "%s\n", message);
+}
+
+static void error_limit(Parser *parser, const char *thing, int limit) {
+    if (parser->panic_mode) return;
+
+    error_header(parser, &parser->current);
+    fprintf(stderr, "%s exceeds the allowed limit (%d)\n", thing, limit);
 }
 
 static inline void error_previous(Parser *parser, const char *message) {
@@ -228,7 +241,7 @@ static inline uint8_t make_constant(Parser *parser, Value value) {
     int constant_index = write_constant(parser_chunk(parser), value);
 
     if (constant_index >= CONST_LIMIT) {
-        error_current(parser, "exceeds allowed number of constants");
+        error_limit(parser, "constants", CONST_LIMIT);
         parser_chunk(parser)->constants_count = 0;
         return 0;
     }
@@ -257,7 +270,7 @@ static uint8_t register_identifier(Parser *parser, Token *name) {
 
     // Exceeds the global limit?
     if (vm->globals.count >= GLOBALS_LIMIT) {
-        error_current(parser, "exceeds the allowed number of globals");
+        error_limit(parser, "globals", GLOBALS_LIMIT);
         return 0;
     }
 
@@ -305,7 +318,7 @@ static void add_local(Parser *parser, Token name) {
     Context *context = parser->context;
 
     if (context->local_count == LOCALS_LIMIT) {
-        error_previous(parser, "function locals limit is exceeded");
+        error_limit(parser, "function locals", LOCALS_LIMIT);
         return;
     }
     
@@ -408,8 +421,7 @@ static int add_upvalue(Parser *parser, Context *context, uint8_t index,
     }
 
     if (upvalue_count == UPVALUES_LIMIT) {
-        error_current(parser,
-                      "number of captured variables exceeds the limit");
+        error_limit(parser, "captured variables", UPVALUES_LIMIT);
         return 0;
     }
     
@@ -515,10 +527,12 @@ static inline RavFunction *end_context(Parser *parser, bool toplevel) {
     emit_byte(parser, toplevel ? OP_EXIT : OP_RETURN);
         
 #ifdef DEBUG_DUMP_CODE
-    RavString *name = function->name;
-    disassemble_chunk(parser_chunk(parser),
-                      name ? name->chars : "top-level");
-    putchar('\n');
+    if (parser->had_error == false) {
+        RavString *name = function->name;
+        disassemble_chunk(parser_chunk(parser),
+                          name ? name->chars : "top-level");
+        putchar('\n');
+    }
 #endif
 
     // Pop the current scope.
@@ -747,7 +761,7 @@ static void cond(Parser *parser) {
 
     do {
         if (cases_count == COND_LIMIT) {
-            error_previous(parser, "cond cases exceeds the allowd limit");
+            error_limit(parser, "cond cases", COND_LIMIT);
             break;
         }
         
@@ -861,19 +875,20 @@ static void while_(Parser *parser) {
 static uint8_t arguments(Parser *parser) {
     if (match(parser, TOKEN_RIGHT_PAREN)) return 0;
     
-    uint8_t count = 0;
+    int count = 0;
     do {
         expression(parser);
 
-        if (count == UINT8_MAX) {
-            error_current(parser, "exceeds arguments limit (255)");
+        if (count == PARAMS_LIMIT) {
+            error_limit(parser, "function arguments", PARAMS_LIMIT);
+            break;
         }
         
         count++;
     } while (match(parser, TOKEN_COMMA));
 
     consume(parser, TOKEN_RIGHT_PAREN, "expect ')' after arguments");
-    return count;
+    return (uint8_t)count;
 }
 
 static void call(Parser *parser) {
@@ -955,6 +970,35 @@ static void nil(Parser *parser) {
     Debug_Exit(parser);
 }
 
+static void list(Parser *parser) {
+    Debug_Log(parser);
+
+    // An empty list?
+    if (match(parser, TOKEN_RIGHT_BRACKET)) {
+        // Empty list is nil value.
+        emit_byte(parser, OP_PUSH_NIL);
+        Debug_Exit(parser);
+        return;
+    }
+
+    int count = 0;
+    do {
+        expression(parser);
+        
+        if (count == LIST_LIMIT) {
+            error_limit(parser, "list literal elements", LIST_LIMIT);
+            break;
+        }
+        
+        count++;
+    } while (match(parser, TOKEN_COMMA));
+    
+    emit_bytes(parser, OP_LIST, (uint8_t)count);
+    consume(parser, TOKEN_RIGHT_BRACKET, "expect ']' after elements");
+    
+    Debug_Exit(parser);
+}
+
 static void unary(Parser *parser) {
     Debug_Log(parser);
     
@@ -1018,7 +1062,7 @@ static ParseRule rules[] = {
     { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_PAREN
     { NULL,       NULL,       PREC_NONE },         // TOKEN_LEFT_BRACE
     { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_BRACE
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_LEFT_BRACKET
+    { list,       NULL,       PREC_NONE },         // TOKEN_LEFT_BRACKET
     { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_BRACKET
     { identifier, NULL,       PREC_NONE },         // TOKEN_IDENTIFIER
     { number,     NULL,       PREC_NONE },         // TOKEN_NUMBER

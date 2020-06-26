@@ -82,6 +82,26 @@ RavPair *new_pair(VM *vm, Value head, Value tail) {
     return pair;
 }
 
+RavPair *new_list(VM *vm, Value *array, int count) {
+    assert(count != 0);
+    
+    RavPair *list = Alloc_Object(vm, RavPair, OBJ_PAIR);
+    RavPair *pair = list;
+    for (int i = 0; i < count - 1; i++) {
+        RavPair *tail = Alloc_Object(vm, RavPair, OBJ_PAIR);
+
+        pair->head = array[i];
+        pair->tail = Obj_Value(tail);
+        
+        pair = tail;
+    }
+
+    pair->head = array[count - 1];
+    pair->tail = Nil_Value;
+
+    return list;
+}
+
 RavFunction *new_function(VM *vm) {
     RavFunction *function = Alloc_Object(vm, RavFunction, OBJ_FUNCTION);
 
@@ -125,7 +145,7 @@ static void print_pair(RavPair *pair) {
         printf(", ");
         print_pair(As_Pair(pair->tail));
     } else {
-        printf(" | ");
+        printf(" . ");
         print_value(pair->tail);
     }
 }
