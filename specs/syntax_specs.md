@@ -74,7 +74,7 @@ match_expression ::= "match" expression ":"
 identifier_expression ::= name;
 
 literal_expression ::= lambda_literal
-                     | list_literal
+                     | array_literal
                      | hash_literal
                      | INTEGER
                      | FLOAT
@@ -85,7 +85,7 @@ literal_expression ::= lambda_literal
                      
 lambda_literal ::= "|" parameter_list "|" "->" expression;
 
-list_literal ::= "[" [expression_list] "]";
+array_literal ::= "[" [expression_list] "]";
 
 hash_literal ::= "{" [hash_field {"," hash_field}] "}";
 
@@ -96,7 +96,7 @@ pattern ::= constant_pattern
           | identifier_pattern
           | type_pattern
           | pair_pattern
-          | list_pattern
+          | array_pattern
           | hash_pattern
           | "(" pattern ")";
 
@@ -113,7 +113,7 @@ type_pattern ::= name ["(" pattern_list ")"];
 
 pair_pattern ::= pattern "::" pattern;
 
-list_pattern ::= "[" [pattern_list] "]";
+array_pattern ::= "[" [pattern_list] "]";
 
 hash_pattern ::= "{" [pattern_field {"," pattern_field}] "}";
 
