@@ -182,7 +182,8 @@ static inline const char *global_name_at(VM *vm, uint8_t index) {
 
 // VM Dispatch Loop
 static InterpretResult run_vm(register VM *vm) {
-    register CallFrame frame = vm->frames[vm->frame_count - 1];
+    CallFrame frame = vm->frames[vm->frame_count - 1];
+    uint8_t instruction;
 
 #ifdef DEBUG_TRACE_EXECUTION
 #define Log_Execution()                                                  \
@@ -233,7 +234,7 @@ static InterpretResult run_vm(register VM *vm) {
 
     // Reading Operations
 #define Read_Byte() (*frame.ip++)
-#define Read_Offset()                                                   \
+#define Read_Short()                                                   \
     (frame.ip += 2, (uint16_t)(frame.ip[-2] << 8 | frame.ip[-1]))
 #define Read_Constant()                                                 \
     (frame.closure->function->chunk.constants[Read_Byte()])
@@ -266,7 +267,6 @@ static InterpretResult run_vm(register VM *vm) {
         Push(value_type(x op y));                            \
     } while (false)
     
-    register uint8_t instruction;
     Start() {
       Case(OP_PUSH_TRUE):  Push(Bool_Value(true));  Dispatch();
       Case(OP_PUSH_FALSE): Push(Bool_Value(false)); Dispatch();
@@ -347,12 +347,22 @@ static InterpretResult run_vm(register VM *vm) {
             Dispatch();
         }
 
-      Case(OP_LIST): {
-            uint8_t count = Read_Byte();
-            RavPair *list = new_list(vm, vm->stack_top - count, count);
+      Case(OP_ARRAY_8): {
+            size_t count = (size_t)Read_Byte();
+            RavArray *array = new_array(vm, vm->stack_top - count, count);
             
             vm->stack_top -= count;
-            Push(Obj_Value(list));
+            Push(Obj_Value(array));
+            
+            Dispatch();
+        }
+        
+      Case(OP_ARRAY_16): {
+            size_t count = (size_t)Read_Short();
+            RavArray *array = new_array(vm, vm->stack_top - count, count);
+            
+            vm->stack_top -= count;
+            Push(Obj_Value(array));
             
             Dispatch();
         }
@@ -425,25 +435,25 @@ static InterpretResult run_vm(register VM *vm) {
         }
 
       Case(OP_JMP): {
-            uint16_t offset = Read_Offset();
+            uint16_t offset = Read_Short();
             frame.ip += offset;
             Dispatch();
         }
 
       Case(OP_JMP_BACK): {
-            uint16_t offset = Read_Offset();
+            uint16_t offset = Read_Short();
             frame.ip -= offset;
             Dispatch();
         }
 
       Case(OP_JMP_FALSE): {
-            uint16_t offset = Read_Offset();
+            uint16_t offset = Read_Short();
             if (is_falsy(Peek(0))) frame.ip += offset;
             Dispatch();
         }
 
       Case(OP_JMP_POP_FALSE): {
-            uint16_t offset = Read_Offset();
+            uint16_t offset = Read_Short();
             if (is_falsy(Pop())) frame.ip += offset;
             Dispatch();
         }
@@ -504,7 +514,7 @@ static InterpretResult run_vm(register VM *vm) {
 #undef Peek
 #undef Pop
 #undef Push
-#undef Read_Offset
+#undef Read_Short
 #undef Read_String
 #undef Read_Constant
 #undef Read_Byte

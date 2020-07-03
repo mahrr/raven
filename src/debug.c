@@ -23,6 +23,14 @@ static int byte_instruction(const char *tag, Chunk *chunk, int offset) {
     return offset + 2;
 }
 
+static int short_instruction(const char *tag, Chunk *chunk, int offset) {
+    uint16_t count = (uint16_t)(chunk->opcodes[offset + 1] << 8 |
+                                chunk->opcodes[offset + 2]);
+
+    printf("%-16s %4d\n", tag, count);
+    return offset + 3;
+}
+
 static int jump_instruction(const char *tag, Chunk *chunk, int sign,
                             int offset) {
     uint16_t jump = (uint16_t)(chunk->opcodes[offset + 1] << 8 |
@@ -131,8 +139,11 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     case OP_CONS:
         return basic_instruction("CONS", offset);
 
-    case OP_LIST:
-        return byte_instruction("LIST", chunk, offset);
+    case OP_ARRAY_8:
+        return byte_instruction("ARRAY_8", chunk, offset);
+
+    case OP_ARRAY_16:
+        return short_instruction("ARRAY_16", chunk, offset);
 
     case OP_DEF_GLOBAL:
         return byte_instruction("DEF_GLOBAL", chunk, offset);

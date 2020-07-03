@@ -10,6 +10,7 @@
 typedef struct Object Object;
 typedef struct RavString RavString;
 typedef struct RavPair RavPair;
+typedef struct RavArray RavArray;
 typedef struct RavFunction RavFunction;
 typedef struct RavUpvalue RavUpvalue;
 typedef struct RavClosure RavClosure;
@@ -113,21 +114,6 @@ typedef struct {
     ((Value){ VALUE_OBJ, { .object = (Object *)value }})
 
 #endif // NAN_TAGGING
-    
-typedef struct {
-    int count;
-    int capacity;
-    Value *values;
-} ValueArray;
-
-// Initialize the values array state.
-void init_value_array(ValueArray *array);
-
-// Free the memory used by values array.
-void free_value_array(ValueArray *array);
-
-// Add a value element to the values array.
-void push_value(ValueArray *array, Value value);
 
 void print_value(Value value);
 

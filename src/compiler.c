@@ -970,30 +970,28 @@ static void nil(Parser *parser) {
     Debug_Exit(parser);
 }
 
-static void list(Parser *parser) {
+static void array(Parser *parser) {
     Debug_Log(parser);
 
-    // An empty list?
-    if (match(parser, TOKEN_RIGHT_BRACKET)) {
-        // Empty list is nil value.
-        emit_byte(parser, OP_PUSH_NIL);
-        Debug_Exit(parser);
-        return;
-    }
-
-    int count = 0;
+    size_t count = 0;
     do {
         expression(parser);
         
-        if (count == LIST_LIMIT) {
-            error_limit(parser, "list literal elements", LIST_LIMIT);
+        if (count == ARRAY_LIMIT) {
+            error_limit(parser, "array literal elements", ARRAY_LIMIT);
             break;
         }
         
         count++;
     } while (match(parser, TOKEN_COMMA));
     
-    emit_bytes(parser, OP_LIST, (uint8_t)count);
+    if (count > UINT8_MAX) {
+        emit_byte(parser, OP_ARRAY_16);
+        emit_bytes(parser, (count >> 8) & 0xff, count & 0xff);
+    } else {
+        emit_bytes(parser, OP_ARRAY_8, (uint8_t)count);
+    }
+    
     consume(parser, TOKEN_RIGHT_BRACKET, "expect ']' after elements");
     
     Debug_Exit(parser);
@@ -1062,7 +1060,7 @@ static ParseRule rules[] = {
     { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_PAREN
     { NULL,       NULL,       PREC_NONE },         // TOKEN_LEFT_BRACE
     { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_BRACE
-    { list,       NULL,       PREC_NONE },         // TOKEN_LEFT_BRACKET
+    { array,      NULL,       PREC_NONE },         // TOKEN_LEFT_BRACKET
     { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_BRACKET
     { identifier, NULL,       PREC_NONE },         // TOKEN_IDENTIFIER
     { number,     NULL,       PREC_NONE },         // TOKEN_NUMBER

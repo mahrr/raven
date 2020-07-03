@@ -7,7 +7,7 @@
 #include "vm.h"
 
 static void usage() {
-    fputs("Usage: raven [file-path]\n", stdout);
+    fputs("Usage: raven [path]\n", stdout);
     exit(EXIT_FAILURE);
 }
 

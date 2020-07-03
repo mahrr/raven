@@ -52,7 +52,7 @@
 #define PARAMS_LIMIT UINT8_MAX + 1
 
 // The limit of number of elements in a list literal.
-#define LIST_LIMIT UINT8_MAX + 1
+#define ARRAY_LIMIT UINT16_MAX + 1
 
 // The limit of cond cases.
 #define COND_LIMIT 256

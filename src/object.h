@@ -11,6 +11,7 @@
 typedef enum {
     OBJ_STRING,
     OBJ_PAIR,
+    OBJ_ARRAY,
     OBJ_FUNCTION,
     OBJ_UPVALUE,
     OBJ_CLOSURE,
@@ -34,6 +35,13 @@ struct RavPair {
     Object header;
     Value head;
     Value tail;
+};
+
+struct RavArray {
+    Object header;
+    Value *values;
+    size_t count;
+    size_t capacity;
 };
 
 struct RavFunction {
@@ -62,11 +70,13 @@ struct RavClosure {
 
 #define Is_String(value)   is_object_type(value, OBJ_STRING)
 #define Is_Pair(value)     is_object_type(value, OBJ_PAIR)
+#define Is_Array(value)    is_object_type(value, OBJ_ARRAY)
 #define Is_Function(value) is_object_type(value, OBJ_FUNCTION)
 #define Is_Closure(value)  is_object_type(value, OBJ_CLOSURE)
 
 #define As_String(value)   ((RavString *)As_Obj(value))
 #define As_Pair(value)     ((RavPair *)As_Obj(value))
+#define As_Array(value)    ((RavArray *)As_Obj(value))
 #define As_CString(value)  ((As_String(value))->chars)
 #define As_Function(value) ((RavFunction *)As_Obj(value))
 #define As_Closure(value)  ((RavClosure *)As_Obj(value))
@@ -89,8 +99,8 @@ RavString *box_string(VM *vm, char *chars, int length);
 // Construct a RavPair with the given head and tail.
 RavPair *new_pair(VM *vm, Value head, Value tail);
 
-// Construct a RavPair (cons list) from the provieded array.
-RavPair *new_list(VM *vm, Value *array, int count);
+// Construct a RavArray from the provieded sized array.
+RavArray *new_array(VM *vm, Value *array, size_t count);
 
 // Construct an empty function object.
 RavFunction *new_function(VM *vm);

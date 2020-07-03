@@ -82,24 +82,15 @@ RavPair *new_pair(VM *vm, Value head, Value tail) {
     return pair;
 }
 
-RavPair *new_list(VM *vm, Value *array, int count) {
-    assert(count != 0);
+RavArray *new_array(VM *vm, Value *values, size_t count) {
+    RavArray *array = Alloc_Object(vm, RavArray, OBJ_ARRAY);
     
-    RavPair *list = Alloc_Object(vm, RavPair, OBJ_PAIR);
-    RavPair *pair = list;
-    for (int i = 0; i < count - 1; i++) {
-        RavPair *tail = Alloc_Object(vm, RavPair, OBJ_PAIR);
+    array->values = Alloc(Value, count);
+    array->count = count;
+    array->capacity = count;
 
-        pair->head = array[i];
-        pair->tail = Obj_Value(tail);
-        
-        pair = tail;
-    }
-
-    pair->head = array[count - 1];
-    pair->tail = Nil_Value;
-
-    return list;
+    memcpy(array->values, values, count * sizeof (Value));
+    return array;
 }
 
 RavFunction *new_function(VM *vm) {
@@ -150,6 +141,21 @@ static void print_pair(RavPair *pair) {
     }
 }
 
+static void print_array(RavArray *array) {
+    putchar('[');
+
+    for (size_t i = 0; i < array->count - 1; i++) {
+        print_value(array->values[i]);
+        printf(", ");
+    }
+
+    if (array->count > 0) {
+        print_value(array->values[array->count - 1]);
+    }
+    
+    putchar(']');
+}
+
 static void print_function(RavFunction *function) {
     if (function->name == NULL) {
         printf("<top-level>");
@@ -166,9 +172,13 @@ void print_object(Value value) {
         break;
 
     case OBJ_PAIR:
-        putchar('[');
+        putchar('(');
         print_pair(As_Pair(value));
-        putchar(']');
+        putchar(')');
+        break;
+
+    case OBJ_ARRAY:
+        print_array(As_Array(value));
         break;
         
     case OBJ_FUNCTION:
@@ -199,6 +209,13 @@ static void free_object(Object *object) {
 
     case OBJ_PAIR: {
         Free(RavPair, object);
+        break;
+    }
+
+    case OBJ_ARRAY: {
+        RavArray *array = (RavArray *)object;
+        Free_Array(Value, array->values, array->capacity);
+        Free(RavArray, array);
         break;
     }
 
