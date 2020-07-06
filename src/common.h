@@ -51,7 +51,7 @@
 // The limie of number of parameters a function can have.
 #define PARAMS_LIMIT UINT8_MAX + 1
 
-// The limit of number of elements in a list literal.
+// The limit of number of elements in an array literal.
 #define ARRAY_LIMIT UINT16_MAX + 1
 
 // The limit of cond cases.

@@ -14,11 +14,12 @@
 #endif
 
 static inline void reset_stack(VM *vm) {
+    vm->x = Nil_Value;
     vm->stack_top = vm->stack;
+    vm->frame_count = 0;
 }
 
 void init_vm(VM *vm) {
-    vm->x = Nil_Value;
     vm->frame_count = 0;
     vm->objects = NULL;
     vm->open_upvalues = NULL;
@@ -364,6 +365,59 @@ static InterpretResult run_vm(register VM *vm) {
             vm->stack_top -= count;
             Push(Obj_Value(array));
             
+            Dispatch();
+        }
+
+      Case(OP_INDEX_SET): {
+            Value value = Pop();
+            Value offset = Pop();
+            Value collection = Pop();
+
+            if (!Is_Array(collection)) {
+                Runtime_Error("index a non-collection type");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+
+            RavArray *array = As_Array(collection);
+            if (!Is_Num(offset)) {
+                Runtime_Error("index an array with non-numeric type");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+
+            size_t index = (size_t)As_Num(offset);
+            if (index >= array->count) {
+                Runtime_Error("index out of bound %d > %d",
+                              index, array->count);
+                return INTERPRET_RUNTIME_ERROR;
+            }
+
+            Push(array->values[index] = value);
+            Dispatch();
+        }
+
+      Case(OP_INDEX_GET): {
+            Value offset = Pop();
+            Value collection = Pop();
+
+            if (!Is_Array(collection)) {
+                Runtime_Error("index a non-collection type");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+
+            RavArray *array = As_Array(collection);
+            if (!Is_Num(offset)) {
+                Runtime_Error("index an array with non-numeric type");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+
+            size_t index = (size_t)As_Num(offset);
+            if (index >= array->count) {
+                Runtime_Error("index out of bound %d > %d",
+                              index, array->count);
+                return INTERPRET_RUNTIME_ERROR;
+            }
+
+            Push(array->values[index]);
             Dispatch();
         }
         

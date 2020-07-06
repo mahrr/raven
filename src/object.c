@@ -141,6 +141,7 @@ static void print_pair(RavPair *pair) {
     }
 }
 
+// TODO: handling cyclic references
 static void print_array(RavArray *array) {
     putchar('[');
 

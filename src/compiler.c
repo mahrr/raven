@@ -556,6 +556,14 @@ static void assignment(Parser *parser) {
         return;
     }
 
+    // Special case of indexing
+    if (chunk->opcodes[chunk->count - 1] == OP_INDEX_GET) {
+        chunk->count--;
+        parse_precedence(parser, PREC_ASSIGNMENT);
+        emit_byte(parser, OP_INDEX_SET);
+        return;
+    }
+
     // Check if the left hand side was an identifier, it's kind of a hack.
     // If it's an identifier, the last written opcode should be one of
     // these getters opcodes.
@@ -586,6 +594,17 @@ static void cons(Parser *parser) {
     // Not PREC_CONS + 1, since cons is right associated operator.
     parse_precedence(parser, PREC_CONS);
     emit_byte(parser, OP_CONS);
+
+    Debug_Exit(parser);
+}
+
+static void indexing(Parser *parser) {
+    Debug_Log(parser);
+
+    expression(parser);
+    consume(parser, TOKEN_RIGHT_BRACKET, "expect ']' after index");
+
+    emit_byte(parser, OP_INDEX_GET);
 
     Debug_Exit(parser);
 }
@@ -1060,7 +1079,7 @@ static ParseRule rules[] = {
     { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_PAREN
     { NULL,       NULL,       PREC_NONE },         // TOKEN_LEFT_BRACE
     { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_BRACE
-    { array,      NULL,       PREC_NONE },         // TOKEN_LEFT_BRACKET
+    { array,      indexing,   PREC_HIGHEST },      // TOKEN_LEFT_BRACKET
     { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_BRACKET
     { identifier, NULL,       PREC_NONE },         // TOKEN_IDENTIFIER
     { number,     NULL,       PREC_NONE },         // TOKEN_NUMBER
