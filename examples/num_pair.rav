@@ -1,0 +1,34 @@
+# Implementing pairs (cons list) of positive numbers with just numbers
+
+fn square(x) x * x end
+
+fn pow(x, exp)
+   cond:
+     exp == 0     -> 1,
+     exp % 2 == 0 -> square(pow(x, exp / 2)),
+     true         -> x * pow(x, exp - 1)
+   end
+end
+
+fn cons(head, tail)
+   pow(2, head) * pow(3, tail)
+end
+
+fn head(pair)
+   cond:
+     pair % 2 != 0 -> 0,
+     true          -> 1 + head(pair / 2)
+   end
+end
+
+fn tail(pair)
+   cond:
+     pair % 3 != 0 -> 0,
+     true          -> 1 + tail(pair / 3)
+   end
+end
+
+
+let pair = cons(1, 2);
+
+head(pair) + tail(pair)  # => 3

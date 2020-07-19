@@ -552,8 +552,7 @@ static InterpretResult run_vm(register VM *vm) {
             print_value(vm->x);
             putchar('\n');
             Pop(); // Top-level Wrapping Function
-            vm->frame_count = 0;
-            vm->x = Nil_Value;
+            reset_stack(vm);
             return INTERPRET_OK;
         }
     }
