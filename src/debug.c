@@ -192,6 +192,9 @@ int disassemble_instruction(Chunk *chunk, int offset) {
 
     case OP_CLOSE_UPVALUE:
         return basic_instruction("CLOSE_UPVALUE", offset);
+
+    case OP_ASSERT:
+        return basic_instruction("ASSERT", offset);
         
     case OP_RETURN:
         return basic_instruction("RETURN", offset);

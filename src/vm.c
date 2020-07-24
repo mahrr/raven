@@ -235,7 +235,7 @@ static InterpretResult run_vm(register VM *vm) {
 
     // Reading Operations
 #define Read_Byte() (*frame.ip++)
-#define Read_Short()                                                   \
+#define Read_Short()                                                    \
     (frame.ip += 2, (uint16_t)(frame.ip[-2] << 8 | frame.ip[-1]))
 #define Read_Constant()                                                 \
     (frame.closure->function->chunk.constants[Read_Byte()])
@@ -532,6 +532,18 @@ static InterpretResult run_vm(register VM *vm) {
       Case(OP_CLOSE_UPVALUE): {
             close_upvalues(vm, vm->stack_top - 1);
             Pop();
+            Dispatch();
+        }
+
+      Case(OP_ASSERT): {
+            Value value = Pop();
+
+            if (is_falsy(value)) {
+                Runtime_Error("assertion failed");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+
+            vm->x = Nil_Value;
             Dispatch();
         }
         

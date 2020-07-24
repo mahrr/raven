@@ -19,10 +19,13 @@ type_declaration ::= "type" name ":" type_variant [{"|" type_variant}] "end";
 
 type_variant ::= name "("[name {"," name} ]")";
 
-statement ::= expression_statement
+statement ::= assert_statement
+            | expression_statement
             | return_statement
             | "break" delimiter;
             
+assert_statement ::= "assert" expression delimiter;
+
 expression_statement ::= expression delimiter;
 
 return_statement ::= "return" [expression] delimiter;

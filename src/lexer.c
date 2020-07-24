@@ -91,7 +91,6 @@ static TokenType identifier_type(Lexer *lexer) {
     is_keyword(lexer, start, sizeof(rest) - 1, rest, type)
 
     switch (lexer->start[0]) {
-    case 'a': return Is_Keyword(1, "nd",    TOKEN_AND);
     case 'b': return Is_Keyword(1, "reak",  TOKEN_BREAK);
     case 'd': return Is_Keyword(1, "o",     TOKEN_DO);
     case 'l': return Is_Keyword(1, "et",    TOKEN_LET);
@@ -99,6 +98,15 @@ static TokenType identifier_type(Lexer *lexer) {
     case 'o': return Is_Keyword(1, "r",     TOKEN_OR);
     case 'r': return Is_Keyword(1, "eturn", TOKEN_RETURN);
     case 'w': return Is_Keyword(1, "hile",  TOKEN_WHILE);
+
+    case 'a':
+        if (lexer->current - lexer->start < 3) break;
+
+        switch (lexer->start[1]) {
+        case 'n': return Is_Keyword(2, "d",    TOKEN_AND);
+        case 's': return Is_Keyword(2, "sert", TOKEN_ASSERT);
+        }
+        break;
 
     case 'c':
         if (lexer->current - lexer->start < 4) break;

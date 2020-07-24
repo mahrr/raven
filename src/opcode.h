@@ -59,5 +59,6 @@ Opcode(OP_JMP_POP_FALSE)  // 2-bytes offset
 Opcode(OP_CLOSURE)        // 1-byte function index
 Opcode(OP_CLOSE_UPVALUE)
 
+Opcode(OP_ASSERT)
 Opcode(OP_RETURN)
 Opcode(OP_EXIT)
