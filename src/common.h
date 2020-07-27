@@ -8,15 +8,16 @@
 
 // Debugging flags
 #ifdef DEBUG
-# define DEBUG_TRACE_PARSING
-# define DEBUG_TRACE_EXECUTION
-# define DEBUG_TRACE_GC
-# define DEBUG_DUMP_CODE
+# define DEBUG_TRACE_PARSING   // Dump the parsing functions call stack
+# define DEBUG_TRACE_EXECUTION // Dump the vm state on every instruction
+# define DEBUG_TRACE_MEMORY    // Dump the memory info on GC/Alloc/Free
+# define DEBUG_STRESS_GC       // Trigger the GC on every allocation
+# define DEBUG_DUMP_CODE       // Dump the functions compiled chunk
 #endif
 
 // If using GCC or Clang, use computed-goto for the virtual machine
 // dispatch loop, otherwise fallback to the standatd switch statement.
-#if (defined(__GNUC__) || defined(__CLANG__)) && !defined(__cplusplus)
+#if (defined(__GNUC__) || defined(__CLANG__))
 # define THREADED_CODE
 #endif
 

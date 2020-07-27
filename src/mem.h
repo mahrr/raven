@@ -1,23 +1,32 @@
 #ifndef raven_mem_h
 #define raven_mem_h
 
-#define Alloc(type, size)                               \
-    (type *)allocate(NULL, 0, (size) * sizeof (type))
+#include "value.h"
+#include "table.h"
 
-#define Free(type, pointer)                     \
-    (void)allocate((pointer), sizeof (type), 0)
+// Raven Objects Allocator
+typedef struct {
+    Table strings;   // Table of all interned strings in a vm image.
+    Object *objects; // Intrusive linked list of all allocated objects.
+} Allocator;
+
+#define Alloc(allocator, type, size)                                \
+    (type *)allocate(allocator, NULL, 0, (size) * sizeof (type))
+
+#define Free(allocator, type, pointer)                      \
+    (void)allocate(allocator, (pointer), sizeof (type), 0)
 
 #define Grow_Capacity(capacity)                 \
     ((capacity) < 8 ? 8 : (capacity) * 2)
 
-#define Grow_Array(array, type, old_size, new_size)     \
-    (type *)allocate((array),                           \
-                     sizeof(type) * (old_size),         \
+#define Grow_Array(allocator, array, type, old_size, new_size)  \
+    (type *)allocate(allocator, (array),                        \
+                     sizeof(type) * (old_size),                 \
                      sizeof(type) * (new_size))
 
 
-#define Free_Array(type, array, size)                   \
-    (void)allocate((array), sizeof(type) * (size), 0)
+#define Free_Array(allocator, type, array, size)                    \
+    (void)allocate(allocator, (array), sizeof(type) * (size), 0)
 
 //
 // The main entry point for most of the system allocation, freeing
@@ -31,6 +40,13 @@
 // | P         | -         | 0        | free P memory                  |
 //  -------------------------------------------------------------------
 //
-void *allocate(void *previous, size_t old_size, size_t new_size);
+void *allocate(Allocator *allocator, void *previous, size_t old_size,
+               size_t new_size);
+
+void run_gc(Allocator *allocator);
+
+void init_allocator(Allocator *allocator);
+
+void free_allocator(Allocator *allocator);
 
 #endif

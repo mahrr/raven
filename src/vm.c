@@ -21,18 +21,16 @@ static inline void reset_stack(VM *vm) {
 
 void init_vm(VM *vm) {
     vm->frame_count = 0;
-    vm->objects = NULL;
     vm->open_upvalues = NULL;
-    
+
+    init_allocator(&vm->allocator);
     init_table(&vm->globals);
-    init_table(&vm->strings);
     reset_stack(vm);
 }
 
 void free_vm(VM *vm) {
     free_table(&vm->globals);
-    free_table(&vm->strings);
-    free_objects(vm->objects);
+    free_allocator(&vm->allocator);
 
     init_vm(vm);
 }
@@ -141,7 +139,7 @@ static RavUpvalue *capture_upvalue(VM *vm, Value *location) {
 
     if (current && current->location == location) return current;
 
-    RavUpvalue *upvalue = new_upvalue(vm, location);
+    RavUpvalue *upvalue = new_upvalue(&vm->allocator, location);
     upvalue->next = current;
 
     if (previous == NULL) {
@@ -344,14 +342,14 @@ static InterpretResult run_vm(register VM *vm) {
             Value tail = Pop();
             Value head = Pop();
 
-            Push(Obj_Value(new_pair(vm, head, tail)));
+            Push(Obj_Value(new_pair(&vm->allocator, head, tail)));
             Dispatch();
         }
 
       Case(OP_ARRAY_8): {
             size_t count = (size_t)Read_Byte();
-            RavArray *array = new_array(vm, vm->stack_top - count, count);
-            
+            RavArray *array = new_array(&vm->allocator,
+                                        vm->stack_top - count, count);
             vm->stack_top -= count;
             Push(Obj_Value(array));
             
@@ -360,8 +358,8 @@ static InterpretResult run_vm(register VM *vm) {
         
       Case(OP_ARRAY_16): {
             size_t count = (size_t)Read_Short();
-            RavArray *array = new_array(vm, vm->stack_top - count, count);
-            
+            RavArray *array = new_array(&vm->allocator,
+                                        vm->stack_top - count, count);
             vm->stack_top -= count;
             Push(Obj_Value(array));
             
@@ -514,7 +512,7 @@ static InterpretResult run_vm(register VM *vm) {
 
       Case(OP_CLOSURE): {
             RavFunction *function = As_Function(Read_Constant());
-            RavClosure *closure = new_closure(vm, function);
+            RavClosure *closure = new_closure(&vm->allocator, function);
             Push(Obj_Value(closure));
 
             for (int i = 0; i < closure->upvalue_count; i++) {
@@ -601,7 +599,7 @@ InterpretResult interpret(VM *vm, const char *source, const char *path) {
     // TODO: maybe a better solution is to flag the GC, to not collect
     // since this is a recurring pattern.
 
-    RavClosure *closure = new_closure(vm, function);
+    RavClosure *closure = new_closure(&vm->allocator, function);
     pop(vm);
     push(vm, Obj_Value(closure));
         

@@ -10,13 +10,13 @@
 #define TABLE_MAX_LOAD 0.75
 
 void init_table(Table *table) {
+    table->entries = NULL;
     table->count = 0;
     table->hash_mask = -1;
-    table->entries = NULL;
 }
 
 void free_table(Table *table) {
-    Free_Array(Entry, table->entries, table->hash_mask + 1);
+    Free_Array(NULL, Entry, table->entries, table->hash_mask + 1);
     init_table(table);
 }
 
@@ -42,7 +42,7 @@ static Entry *find_entry(Entry *entries, RavString *key, int hash_mask) {
 }
 
 static void adjust_capacity(Table *table, int hash_mask) {
-    Entry *entries = Alloc(Entry, hash_mask + 1);
+    Entry *entries = Alloc(NULL, Entry, hash_mask + 1);
 
     for (int i = 0; i <= hash_mask; i++) {
         entries[i].key = NULL;
@@ -60,7 +60,7 @@ static void adjust_capacity(Table *table, int hash_mask) {
         table->count++;
     }
 
-    Free_Array(Entry, table->entries, table->hash_mask + 1);
+    Free_Array(NULL, Entry, table->entries, table->hash_mask + 1);
     table->entries = entries;
     table->hash_mask = hash_mask;
 }

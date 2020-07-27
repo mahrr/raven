@@ -3,6 +3,7 @@
 
 #include "common.h"
 #include "chunk.h"
+#include "mem.h"
 #include "table.h"
 #include "value.h"
 
@@ -12,6 +13,7 @@ typedef struct {
     Value *slots;
 } CallFrame;
 
+// Virtual Machine Image
 typedef struct {
     Value x;  // Register to store last evaluated expression.
     Value stack[STACK_SIZE];
@@ -27,15 +29,13 @@ typedef struct {
 
     // Used to obtain globals variables at runtime.
     Value global_buffer[GLOBALS_LIMIT];
-            
-    Table strings;    // Interned strings (All strings on the system).
-    Object *objects;  // Intrusive linked list of all allocated objects.
 
     // Intrusive linked list of all available open opvalues.
     // TODO: experiment with using a hash table instead.
     RavUpvalue *open_upvalues;
-    
+
     const char *path; // Name of the file being executed.
+    Allocator allocator;
 } VM;
 
 typedef enum {

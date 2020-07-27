@@ -260,7 +260,7 @@ static uint8_t register_identifier(Parser *parser, Token *name) {
     int length = name->length;
     VM *vm = parser->vm;
     
-    RavString *ident = new_string(vm, start, length);
+    RavString *ident = new_string(&vm->allocator, start, length);
     Value index_value;
 
     // Already registered?
@@ -506,7 +506,7 @@ static inline void init_context(Context *context, Parser *parser,
     
     context->local_count = 0;
     context->scope_depth = 0;
-    context->function = new_function(parser->vm);
+    context->function = new_function(&parser->vm->allocator);
 
     // Reserve the first slot of the stack for the function itself.
     Local *local = &context->locals[context->local_count++];
@@ -516,7 +516,7 @@ static inline void init_context(Context *context, Parser *parser,
     local->is_captured = false;
 
     if (!toplevel) {
-        context->function->name = new_string(parser->vm,
+        context->function->name = new_string(&parser->vm->allocator,
                                              parser->previous.lexeme,
                                              parser->previous.length);
     }
@@ -964,7 +964,7 @@ static void string(Parser *parser) {
     Debug_Log(parser);
 
     // +1 and -2 for the literal string quotes
-    RavString *string = new_string(parser->vm,
+    RavString *string = new_string(&parser->vm->allocator,
                                    parser->previous.lexeme + 1,
                                    parser->previous.length - 2);
     emit_constant(parser, Obj_Value(string));

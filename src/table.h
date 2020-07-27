@@ -12,9 +12,9 @@ typedef struct {
 } Entry;
 
 typedef struct {
+    Entry *entries;
     int count;
     int hash_mask;
-    Entry *entries;
 } Table;
 
 // Initialize table state.

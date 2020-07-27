@@ -5,6 +5,7 @@
 
 #include "common.h"
 #include "chunk.h"
+#include "mem.h"
 #include "value.h"
 #include "vm.h"
 
@@ -59,6 +60,10 @@ struct RavUpvalue {
     struct RavUpvalue *next;
 };
 
+// The closure object doesn't own the function object memory,
+// since multiple closures may be reference the same function
+// object, besides the surrounding functions whose constant
+// table may reference it.
 struct RavClosure {
     Object header;
     RavFunction *function;
@@ -81,43 +86,31 @@ struct RavClosure {
 #define As_Function(value) ((RavFunction *)As_Obj(value))
 #define As_Closure(value)  ((RavClosure *)As_Obj(value))
 
-
-// Note the first parameter of constructing functions is a vm
-// instance, that's because all the system allocated objects
-// are chained together with intrusive linked list, and the
-// head of that list is stored in a vm state. A better approach
-// would to store that list in some sort of an allocator state,
-// but I stick with the simple approach for the time being.
-
 // Construct a RavString with a copy of the given string.
-RavString *new_string(VM *vm, const char *chars, int length);
+RavString *new_string(Allocator *allocator, const char *chars,
+                      int length);
 
 // Construct a RavString wrapping the given string.
 // The object will have an ownership of the chars memory.
-RavString *box_string(VM *vm, char *chars, int length);
+RavString *box_string(Allocator *allocator, char *chars, int length);
 
 // Construct a RavPair with the given head and tail.
-RavPair *new_pair(VM *vm, Value head, Value tail);
+RavPair *new_pair(Allocator *allocator, Value head, Value tail);
 
 // Construct a RavArray from the provieded sized array.
-RavArray *new_array(VM *vm, Value *array, size_t count);
+RavArray *new_array(Allocator *allocator, Value *array, size_t count);
 
 // Construct an empty function object.
-RavFunction *new_function(VM *vm);
+RavFunction *new_function(Allocator *allocator);
 
 // Construct an upvalue object, with a reference to the captured value.
-RavUpvalue *new_upvalue(VM *vm, Value *location);
+RavUpvalue *new_upvalue(Allocator *allocator, Value *location);
 
-// Construct a closure object. The closure object doesn't own
-// the function object memory, since multiple closures may be
-// reference the same function object, besides the surrounding
-// functions whose constant table may reference it.
-RavClosure *new_closure(VM *vm, RavFunction *function);
+// Construct a closure object.
+RavClosure *new_closure(Allocator *allocator, RavFunction *function);
 
+// Pretty print a raven object.
 void print_object(Value value);
-
-// Free an intrusive linked list of objects.
-void free_objects(Object *objects);
 
 // Check if a given raven value is an object with specified type.
 static inline bool is_object_type(Value value, ObjectType type) {
