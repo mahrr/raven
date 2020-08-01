@@ -135,3 +135,13 @@ RavString *table_interned(Table *table, const char *chars,
         index = (index + 1) & table->hash_mask;
     }
 }
+
+void table_remove_weak(Table *table) {
+    for (int i = 0; i <= table->hash_mask; i++) {
+        Entry *entry = &table->entries[i];
+
+        if (entry->key != NULL && !entry->key->header.marked) {
+            table_remove(table, entry->key);
+        }
+    }
+}

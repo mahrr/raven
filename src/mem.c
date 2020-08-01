@@ -9,6 +9,81 @@
 #include "debug.h"
 #endif
 
+void init_allocator(Allocator *allocator) {
+    allocator->objects = NULL;
+    allocator->gray_stack = NULL;
+    allocator->gray_count = 0;
+    allocator->gray_capacity = 0;
+    allocator->gc_off = false;
+    init_table(&allocator->strings);
+}
+
+static void free_object(Allocator *allocator, Object *object) {
+#ifdef DEUBG_TRACE_MEMORY
+    printf("[Memory] %p : free type %d\n", object, object->type);
+#endif
+
+    switch (object->type) {
+    case OBJ_STRING: {
+        RavString *string = (RavString *)object;
+        Free_Array(allocator, char, string->chars, string->length + 1);
+        Free(allocator, RavString, string);
+        break;
+    }
+
+    case OBJ_PAIR: {
+        Free(allocator, RavPair, object);
+        break;
+    }
+
+    case OBJ_ARRAY: {
+        RavArray *array = (RavArray *)object;
+        Free_Array(allocator, Value, array->values, array->capacity);
+        Free(allocator, RavArray, array);
+        break;
+    }
+
+    case OBJ_FUNCTION: {
+        RavFunction *function = (RavFunction *)object;
+        free_chunk(&function->chunk);
+        Free(allocator, RavFunction, function);
+        break;
+    }
+
+    case OBJ_UPVALUE: {
+        Free(allocator, RavUpvalue, object);
+        break;
+    }
+
+    case OBJ_CLOSURE: {
+        RavClosure *closure = (RavClosure *)object;
+        Free_Array(allocator,
+                   RavClosure*,
+                   closure->upvalues,
+                   closure->upvalue_count);
+        Free(allocator, RavClosure, object);
+        break;
+    }
+
+    default:
+        assert(!"invalid object type");
+    }
+}
+
+void free_allocator(Allocator *allocator) {
+    free_table(&allocator->strings);
+    free(allocator->gray_stack);
+
+    Object *objects = allocator->objects;
+    while (objects) {
+        Object *next = objects->next;
+        free_object(allocator, objects);
+        objects = next;
+    }
+
+    init_allocator(allocator);
+}
+
 void *allocate(Allocator *allocator, void *previous, size_t old_size,
                size_t new_size) {
     if (!allocator->gc_off && new_size > old_size) {
@@ -146,90 +221,40 @@ static void trace_references(Allocator *allocator) {
     }
 }
 
+static void sweep(Allocator *allocator) {
+    Object **link = &allocator->objects;
+
+    while (*link != NULL) {
+        if ((*link)->marked) {
+            (*link)->marked = false;
+            link = &(*link)->next;
+        } else {
+            Object *dead = *link;
+            *link = (*link)->next;
+
+            free_object(allocator, dead);
+        }
+    }
+}
+
 void run_gc(Allocator *allocator) {
 #ifdef DEBUG_TRACE_MEMORY
     puts("[Memory] --- GC Round Start ---");
 #endif
 
+    // Mark all root objects, on stacks, globals ..etc.
     mark_roots(allocator);
+
+    // Mark all reachable objects through the root objects.
     trace_references(allocator);
+
+    // Remove the weak references of the interned strings table.
+    table_remove_weak(&allocator->strings);
+
+    // Free the memory of the unreachable objects.
+    sweep(allocator);
     
 #ifdef DEBUG_TRACE_MEMORY
     puts("[Memory] --- GC Round End ---");
 #endif
-}
-
-void init_allocator(Allocator *allocator) {
-    allocator->objects = NULL;
-    allocator->gray_stack = NULL;
-    allocator->gray_count = 0;
-    allocator->gray_capacity = 0;
-    allocator->gc_off = false;
-    init_table(&allocator->strings);
-}
-
-static void free_object(Allocator *allocator, Object *object) {
-#ifdef DEUBG_TRACE_MEMORY
-    printf("[Memory] %p : free type %d\n", object, object->type);
-#endif
-
-    switch (object->type) {
-    case OBJ_STRING: {
-        RavString *string = (RavString *)object;
-        Free_Array(allocator, char, string->chars, string->length + 1);
-        Free(allocator, RavString, string);
-        break;
-    }
-
-    case OBJ_PAIR: {
-        Free(allocator, RavPair, object);
-        break;
-    }
-
-    case OBJ_ARRAY: {
-        RavArray *array = (RavArray *)object;
-        Free_Array(allocator, Value, array->values, array->capacity);
-        Free(allocator, RavArray, array);
-        break;
-    }
-
-    case OBJ_FUNCTION: {
-        RavFunction *function = (RavFunction *)object;
-        free_chunk(&function->chunk);
-        Free(allocator, RavFunction, function);
-        break;
-    }
-
-    case OBJ_UPVALUE: {
-        Free(allocator, RavUpvalue, object);
-        break;
-    }
-
-    case OBJ_CLOSURE: {
-        RavClosure *closure = (RavClosure *)object;
-        Free_Array(allocator,
-                   RavClosure*,
-                   closure->upvalues,
-                   closure->upvalue_count);
-        Free(allocator, RavClosure, object);
-        break;
-    }
-
-    default:
-        assert(!"invalid object type");
-    }    
-}
-
-void free_allocator(Allocator *allocator) {
-    free_table(&allocator->strings);
-    free(allocator->gray_stack);
-    
-    Object *objects = allocator->objects;
-    while (objects) {
-        Object *next = objects->next;
-        free_object(allocator, objects);
-        objects = next;
-    }
-
-    init_allocator(allocator);
 }

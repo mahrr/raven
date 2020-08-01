@@ -44,4 +44,7 @@ void table_copy(Table *from, Table *to);
 RavString *table_interned(Table *table, const char *chars,
                           uint32_t hash, int length);
 
+// Remove the weak referenced strings objects (unreachable white objects).
+void table_remove_weak(Table *table);
+
 #endif
