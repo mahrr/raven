@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 #include "chunk.h"
 #include "common.h"
 #include "mem.h"
@@ -16,8 +18,8 @@ void init_chunk(Chunk *chunk) {
 }
 
 void free_chunk(Chunk *chunk) {
-    Free_Array(NULL, uint8_t, chunk->opcodes, chunk->capacity);
-    Free_Array(NULL, Line, chunk->lines, chunk->lines_capacity);
+    free(chunk->opcodes);
+    free(chunk->lines);
 
     init_chunk(chunk);
 }
@@ -27,10 +29,9 @@ static void write_line(Chunk *chunk, int line) {
         chunk->lines[chunk->lines_count - 1].line == line) return;
 
     if (chunk->lines_count == chunk->lines_capacity) {
-        int old_capacity = chunk->lines_capacity;
-        chunk->lines_capacity = Grow_Capacity(old_capacity);
-        chunk->lines = Grow_Array(NULL, chunk->lines, Line,
-                                  old_capacity, chunk->lines_capacity);
+        chunk->lines_capacity = Grow_Capacity(chunk->lines_capacity);
+        chunk->lines = realloc(chunk->lines,
+                               chunk->lines_capacity * sizeof (Line));
     }
 
     Line *line_encoding = &chunk->lines[chunk->lines_count++];
@@ -40,10 +41,8 @@ static void write_line(Chunk *chunk, int line) {
 
 void write_byte(Chunk *chunk, uint8_t byte, int line) {
     if (chunk->count == chunk->capacity) {
-        int old_capacity = chunk->capacity;
-        chunk->capacity = Grow_Capacity(old_capacity);
-        chunk->opcodes = Grow_Array(NULL, chunk->opcodes, uint8_t,
-                                    old_capacity, chunk->capacity);
+        chunk->capacity = Grow_Capacity(chunk->capacity);
+        chunk->opcodes = realloc(chunk->opcodes, chunk->capacity);
     }
 
     chunk->opcodes[chunk->count++] = byte;

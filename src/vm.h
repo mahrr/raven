@@ -15,6 +15,9 @@ typedef struct {
 
 // Virtual Machine Image
 typedef struct {
+    Allocator allocator;
+    const char *path; // Name of the file being executed.
+
     Value x;  // Register to store last evaluated expression.
     Value stack[STACK_SIZE];
     Value *stack_top;
@@ -33,9 +36,6 @@ typedef struct {
     // Intrusive linked list of all available open opvalues.
     // TODO: experiment with using a hash table instead.
     RavUpvalue *open_upvalues;
-
-    const char *path; // Name of the file being executed.
-    Allocator allocator;
 } VM;
 
 typedef enum {

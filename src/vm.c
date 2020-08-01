@@ -588,19 +588,16 @@ static InterpretResult run_vm(register VM *vm) {
 }
 
 InterpretResult interpret(VM *vm, const char *source, const char *path) {
+    // Disable the GC while compiling.
+    vm->allocator.gc_off = true;
+
     RavFunction *function = compile(vm, source, path);
     if (function == NULL) return INTERPRET_COMPILE_ERROR;
 
     // The compiler already reserve this slot for the function.
     // Push the function, so the GC doesn't free its memory
     // when allocating the closure object.
-    push(vm, Obj_Value(function));
-
-    // TODO: maybe a better solution is to flag the GC, to not collect
-    // since this is a recurring pattern.
-
     RavClosure *closure = new_closure(&vm->allocator, function);
-    pop(vm);
     push(vm, Obj_Value(closure));
         
     // Top-level code is wrapped in a function for convenience,
@@ -608,5 +605,6 @@ InterpretResult interpret(VM *vm, const char *source, const char *path) {
     push_frame(vm, closure, 0);
 
     vm->path = path;
+    vm->allocator.gc_off = false;
     return run_vm(vm);
 }

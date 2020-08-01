@@ -3,7 +3,6 @@
 
 #include "common.h"
 #include "object.h"
-#include "mem.h"
 #include "table.h"
 #include "value.h"
 
@@ -16,7 +15,7 @@ void init_table(Table *table) {
 }
 
 void free_table(Table *table) {
-    Free_Array(NULL, Entry, table->entries, table->hash_mask + 1);
+    free(table->entries);
     init_table(table);
 }
 
@@ -42,7 +41,7 @@ static Entry *find_entry(Entry *entries, RavString *key, int hash_mask) {
 }
 
 static void adjust_capacity(Table *table, int hash_mask) {
-    Entry *entries = Alloc(NULL, Entry, hash_mask + 1);
+    Entry *entries = malloc((hash_mask + 1) * sizeof (Entry));
 
     for (int i = 0; i <= hash_mask; i++) {
         entries[i].key = NULL;
@@ -60,7 +59,7 @@ static void adjust_capacity(Table *table, int hash_mask) {
         table->count++;
     }
 
-    Free_Array(NULL, Entry, table->entries, table->hash_mask + 1);
+    free(table->entries);
     table->entries = entries;
     table->hash_mask = hash_mask;
 }

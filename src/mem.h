@@ -4,19 +4,45 @@
 #include "value.h"
 #include "table.h"
 
+//
+// tri-color state of an object:
+// -----------------------------
+//   white -> not processed yet
+//            marked field is false
+//
+//   gray  -> reachable, marked field is true
+//            the gc didn't trace through its references yet
+//            present in the gray stack
+//
+//   black -> reachable, marked field is true
+//            the gc traced through its references
+//            not present in the gray stack
+//
+
 // Raven Objects Allocator
 typedef struct {
-    Table strings;   // Table of all interned strings in a vm image.
-    Object *objects; // Intrusive linked list of all allocated objects.
+    // Table of all interned strings in a vm image.
+    Table strings;
+
+    // Intrusive linked list of all allocated objects.
+    Object *objects;
+
+    // Array of currently marked, but not processed, objects.
+    Object **gray_stack;
+    int gray_capacity;
+    int gray_count;
+
+    // Flag to disable the Garbage Collector.
+    bool gc_off;
 } Allocator;
 
 #define Alloc(allocator, type, size)                                \
     (type *)allocate(allocator, NULL, 0, (size) * sizeof (type))
 
-#define Free(allocator, type, pointer)                      \
+#define Free(allocator, type, pointer)                              \
     (void)allocate(allocator, (pointer), sizeof (type), 0)
 
-#define Grow_Capacity(capacity)                 \
+#define Grow_Capacity(capacity)                                     \
     ((capacity) < 8 ? 8 : (capacity) * 2)
 
 #define Grow_Array(allocator, array, type, old_size, new_size)  \
@@ -29,8 +55,8 @@ typedef struct {
     (void)allocate(allocator, (array), sizeof(type) * (size), 0)
 
 //
-// The main entry point for most of the system allocation, freeing
-// and reallocation.
+// The main entry point for most of the runtime raven objects allocation
+// freeing and reallocation.
 //
 //  -------------------------------------------------------------------
 // |previous   | old_size  | new_size | action                         |

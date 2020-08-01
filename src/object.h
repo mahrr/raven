@@ -22,6 +22,7 @@ typedef enum {
 // TODO: consider using pointer tagging.
 struct Object {
     ObjectType type;
+    bool marked;
     struct Object *next;
 };
 

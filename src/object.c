@@ -18,6 +18,7 @@ static Object *alloc_object(Allocator *allocator, ObjectType type,
                             size_t size) {
     Object *object = (Object *)allocate(allocator, NULL, 0, size);
     object->type = type;
+    object->marked = false;
     object->next = allocator->objects;
 
 #ifdef DEBUG_TRACE_MEMORY
