@@ -501,9 +501,7 @@ static inline void init_context(Context *context, Parser *parser,
     context->enclosing = parser->context; // Save the previous scope.
     parser->context = context;            // Push the new scope.
     
-    context->function = NULL; // For GC
     context->toplevel = toplevel;
-    
     context->local_count = 0;
     context->scope_depth = 0;
     context->function = new_function(&parser->vm->allocator);
