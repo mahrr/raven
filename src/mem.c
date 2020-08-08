@@ -14,6 +14,8 @@ void init_allocator(Allocator *allocator) {
     allocator->gray_stack = NULL;
     allocator->gray_count = 0;
     allocator->gray_capacity = 0;
+    allocator->bytes_allocated = 0;
+    allocator->next_gc = GC_INITIAL_NEXT;
     allocator->gc_off = false;
     init_table(&allocator->strings);
 }
@@ -86,9 +88,15 @@ void free_allocator(Allocator *allocator) {
 
 void *allocate(Allocator *allocator, void *previous, size_t old_size,
                size_t new_size) {
+    allocator->bytes_allocated += new_size - old_size;
+    
     if (!allocator->gc_off && new_size > old_size) {
 #ifdef DEBUG_STRESS_GC
         run_gc(allocator);
+#else
+        if (allocator->bytes_allocated >= allocator->next_gc) {
+            run_gc(allocator);
+        }
 #endif
     }
     
@@ -240,6 +248,7 @@ static void sweep(Allocator *allocator) {
 void run_gc(Allocator *allocator) {
 #ifdef DEBUG_TRACE_MEMORY
     puts("[Memory] --- GC Round Start ---");
+    size_t size_before = allocator->bytes_allocated;
 #endif
 
     // Mark all root objects, on stacks, globals ..etc.
@@ -253,8 +262,25 @@ void run_gc(Allocator *allocator) {
 
     // Free the memory of the unreachable objects.
     sweep(allocator);
+
+    // Adjust the threshold of the next GC round.
+    allocator->next_gc = allocator->bytes_allocated * GC_GROWTH_FACTOR;
     
 #ifdef DEBUG_TRACE_MEMORY
+    size_t size_current = allocator->bytes_allocated;
+    size_t size_diff = size_before - size_current;
+    size_t next_gc = allocator->next_gc;
+    
     puts("[Memory] --- GC Round End ---");
+    
+    printf("[Memory] size collected: %ld (%ldkb)\n",
+           size_diff, size_diff / 1000);
+    printf("[Memory] size before: %ld (%ldkb)\n",
+           size_before, size_before / 1000);
+    printf("[Memory] size current: %ld (%ldkb)\n",
+           size_current, size_current / 1000);
+
+    printf("[Memory] next GC: %ld (%ldkb)\n",
+           next_gc, next_gc / 1000);
 #endif
 }

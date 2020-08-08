@@ -32,9 +32,25 @@ typedef struct {
     int gray_capacity;
     int gray_count;
 
+    // Allocation stats
+    size_t bytes_allocated;
+    size_t next_gc;
+
     // Flag to disable the Garbage Collector.
     bool gc_off;
 } Allocator;
+
+
+// The basic variant of the raven GC is as the amount of live objects
+// increases, the GC runs less avoiding wasting time re-traversing
+// the high number of already live objects (optimize throughput), and
+// run more frequently as the amount of live objects decreases to not
+// wait too long on dead objects (decrease latency).
+
+// TODO: parameterize these factors with environment variables.
+
+#define GC_INITIAL_NEXT  1048576UL
+#define GC_GROWTH_FACTOR 2
 
 #define Alloc(allocator, type, size)                                \
     (type *)allocate(allocator, NULL, 0, (size) * sizeof (type))
