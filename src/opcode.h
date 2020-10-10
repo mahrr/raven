@@ -13,7 +13,7 @@ Opcode(OP_SAVE_X)
 
 Opcode(OP_POP)
 Opcode(OP_POPN)           // 1-byte count
-    
+
 // Arithmetics
 Opcode(OP_ADD)
 Opcode(OP_SUB)

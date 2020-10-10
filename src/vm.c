@@ -45,7 +45,7 @@ static void dump_stack_trace(VM *vm, FILE *out) {
 
         size_t offset = frame->ip - function->chunk.opcodes - 1;
         int line = decode_line(&function->chunk, offset);
-        
+
         fprintf(out, "\t%s | line:%d in ", vm->path, line);
 
         if (function->name == NULL) {
@@ -62,12 +62,12 @@ static void runtime_error(VM *vm, const char *format, ...) {
 
     CallFrame *frame = &vm->frames[vm->frame_count - 1];
     RavFunction *function = frame->closure->function;
-    
+
     // -1 because ip is sitting on the next instruction to be executed.
     size_t offset = frame->ip - function->chunk.opcodes - 1;
     int line = decode_line(&function->chunk, offset);
     fprintf(stderr, "[%s | line: %d] ", vm->path, line);
-    
+
     vfprintf(stderr, format, arguments);
     putc('\n', stderr);
 
@@ -98,7 +98,7 @@ static inline bool push_frame(VM *vm, RavClosure *closure, int count) {
         runtime_error(vm, "call stack overflows");
         return false;
     }
-    
+
     CallFrame *frame = &vm->frames[vm->frame_count++];
     frame->closure = closure;
     frame->ip = closure->function->chunk.opcodes;
@@ -109,7 +109,7 @@ static inline bool push_frame(VM *vm, RavClosure *closure, int count) {
 
 static bool call_closure(VM *vm, RavClosure *closure, int count) {
     RavFunction *function = closure->function;
-    
+
     if (function->arity != count) {
         runtime_error(vm, "expect %d arguments, but got %d",
                       function->arity, count);
@@ -147,7 +147,7 @@ static RavUpvalue *capture_upvalue(VM *vm, Value *location) {
     } else {
         previous->next = upvalue;
     }
-    
+
     return upvalue;
 }
 
@@ -166,7 +166,7 @@ static void close_upvalues(VM *vm, Value *slot) {
 // only gets called at runtime errors.
 static inline const char *global_name_at(VM *vm, uint8_t index) {
     Table *globals = &vm->globals;
-    
+
     for (int i = 0; i <= globals->hash_mask; i++) {
         if (globals->entries[i].key == NULL) continue;
 
@@ -204,21 +204,21 @@ static InterpretResult run_vm(register VM *vm) {
 #else
 #define Log_Execution()
 #endif  // DEBUG_TRACE_EXECUTION
-    
+
 #ifdef THREADED_CODE
-    
+
     static void *dispatch_table[] = {
 #define Opcode(opcode) &&label_##opcode,
 # include "opcode.h"
 #undef Opcode
     };
 
-#define Start() Dispatch();    
+#define Start() Dispatch();
 #define Case(opcode) label_##opcode
 #define Dispatch()                                  \
     Log_Execution();                                \
     goto *dispatch_table[instruction = Read_Byte()]
-    
+
 #else
 
 #define Start()                                 \
@@ -228,7 +228,7 @@ static InterpretResult run_vm(register VM *vm) {
 #define Dispatch()                              \
     Log_Execution();                            \
     goto vm_loop
-    
+
 #endif // THREADED_CODE
 
     // Reading Operations
@@ -251,7 +251,7 @@ static InterpretResult run_vm(register VM *vm) {
         Save_Frame();                           \
         runtime_error(vm, fmt, ##__VA_ARGS__);  \
     } while (false)
-    
+
     // Arithmetics Binary
 #define Binary_OP(value_type, op)                            \
     do {                                                     \
@@ -265,7 +265,7 @@ static InterpretResult run_vm(register VM *vm) {
                                                              \
         Push(value_type(x op y));                            \
     } while (false)
-    
+
     Start() {
       Case(OP_PUSH_TRUE):  Push(Bool_Value(true));  Dispatch();
       Case(OP_PUSH_FALSE): Push(Bool_Value(false)); Dispatch();
@@ -277,7 +277,7 @@ static InterpretResult run_vm(register VM *vm) {
             vm->x = Nil_Value;
             Dispatch();
         }
-            
+
       Case(OP_SAVE_X): {
             vm->x = Pop();
             Dispatch();
@@ -289,7 +289,7 @@ static InterpretResult run_vm(register VM *vm) {
             vm->stack_top -= count;
             Dispatch();
         }
-                        
+
       Case(OP_ADD): Binary_OP(Num_Value, +); Dispatch();
       Case(OP_SUB): Binary_OP(Num_Value, -); Dispatch();
       Case(OP_MUL): Binary_OP(Num_Value, *); Dispatch();
@@ -318,24 +318,24 @@ static InterpretResult run_vm(register VM *vm) {
       Case(OP_EQ): {
             Value y = Pop();
             Value x = Pop();
-                
+
             Push(Bool_Value(equal_values(x, y)));
             Dispatch();
         }
-            
+
       Case(OP_NEQ): {
             Value y = Pop();
             Value x = Pop();
-                
+
             Push(Bool_Value(!equal_values(x, y)));
             Dispatch();
         }
-            
+
       Case(OP_LT):  Binary_OP(Bool_Value, <);  Dispatch();
       Case(OP_LTQ): Binary_OP(Bool_Value, <=); Dispatch();
       Case(OP_GT):  Binary_OP(Bool_Value, >);  Dispatch();
       Case(OP_GTQ): Binary_OP(Bool_Value, >=); Dispatch();
-        
+
       Case(OP_NOT): Push(Bool_Value(is_falsy(Pop()))); Dispatch();
 
       Case(OP_CONS): {
@@ -352,17 +352,17 @@ static InterpretResult run_vm(register VM *vm) {
                                         vm->stack_top - count, count);
             vm->stack_top -= count;
             Push(Obj_Value(array));
-            
+
             Dispatch();
         }
-        
+
       Case(OP_ARRAY_16): {
             size_t count = (size_t)Read_Short();
             RavArray *array = new_array(&vm->allocator,
                                         vm->stack_top - count, count);
             vm->stack_top -= count;
             Push(Obj_Value(array));
-            
+
             Dispatch();
         }
 
@@ -418,35 +418,35 @@ static InterpretResult run_vm(register VM *vm) {
             Push(array->values[index]);
             Dispatch();
         }
-        
+
       Case(OP_DEF_GLOBAL): {
             vm->global_buffer[Read_Byte()] = Pop();
             Dispatch();
         }
-            
+
       Case(OP_SET_GLOBAL): {
             uint8_t index = Read_Byte();
-            
+
             if (Is_Void(vm->global_buffer[index])) {
                 Runtime_Error("unbound variable '%s'",
                               global_name_at(vm, index));
                 return INTERPRET_RUNTIME_ERROR;
             }
-            
+
             vm->global_buffer[index] = Peek(0);
             Dispatch();
         }
-            
+
       Case(OP_GET_GLOBAL): {
             uint8_t index = Read_Byte();
             Value value = vm->global_buffer[index];
-            
+
             if (Is_Void(value)) {
                 Runtime_Error("unbound variable '%s'",
                               global_name_at(vm, index));
                 return INTERPRET_RUNTIME_ERROR;
             }
-            
+
             Push(value);
             Dispatch();
         }
@@ -455,7 +455,7 @@ static InterpretResult run_vm(register VM *vm) {
             frame.slots[Read_Byte()] = Peek(0);
             Dispatch();
         }
-            
+
       Case(OP_GET_LOCAL): {
             Push(frame.slots[Read_Byte()]);
             Dispatch();
@@ -470,7 +470,7 @@ static InterpretResult run_vm(register VM *vm) {
             Push(*frame.closure->upvalues[Read_Byte()]->location);
             Dispatch();
         }
-            
+
       Case(OP_CALL): {
             int argument_count = Read_Byte();
             Value value = Peek(argument_count);
@@ -479,10 +479,10 @@ static InterpretResult run_vm(register VM *vm) {
             if (!call_value(vm, value, argument_count)) {
                 return INTERPRET_RUNTIME_ERROR;
             }
-                
+
             // Push the callee new call frame.
             frame = vm->frames[vm->frame_count - 1];
-                
+
             Dispatch();
         }
 
@@ -523,7 +523,7 @@ static InterpretResult run_vm(register VM *vm) {
                     capture_upvalue(vm, frame.slots + index) :
                     frame.closure->upvalues[index];
             }
-            
+
             Dispatch();
         }
 
@@ -544,7 +544,7 @@ static InterpretResult run_vm(register VM *vm) {
             vm->x = Nil_Value;
             Dispatch();
         }
-        
+
       Case(OP_RETURN): {
             Value result = Pop();
             close_upvalues(vm, frame.slots);
@@ -566,7 +566,7 @@ static InterpretResult run_vm(register VM *vm) {
             return INTERPRET_OK;
         }
     }
-              
+
     assert(!"invalid instruction");
     return INTERPRET_RUNTIME_ERROR; // For warnings
 
@@ -599,7 +599,7 @@ InterpretResult interpret(VM *vm, const char *source, const char *path) {
     // when allocating the closure object.
     RavClosure *closure = new_closure(&vm->allocator, function);
     push(vm, Obj_Value(closure));
-        
+
     // Top-level code is wrapped in a function for convenience,
     // to run the code, we simply call the wrapping function.
     push_frame(vm, closure, 0);

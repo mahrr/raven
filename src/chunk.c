@@ -61,7 +61,7 @@ int decode_line(Chunk *chunk, int offset) {
     for (;;) {
         int mid = (start + end) / 2;
         Line *line = &chunk->lines[mid];
-        
+
         if (offset < line->offset) {
             end = mid - 1;
         }  else if (mid == chunk->lines_count - 1 ||

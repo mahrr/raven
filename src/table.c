@@ -76,7 +76,7 @@ bool table_get(Table *table, RavString *key, Value *value) {
 
 bool table_set(Table *table, RavString *key, Value value) {
     int capacity = table->hash_mask + 1;
-    
+
     if (table->count >= capacity * TABLE_MAX_LOAD) {
         int new_capacity = Grow_Capacity(capacity);
         adjust_capacity(table, new_capacity - 1);

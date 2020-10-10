@@ -11,7 +11,7 @@ void print_value(Value value) {
         printf("%g", As_Num(value));
         return;
     }
-    
+
     if (Is_Bool(value)) {
         printf(As_Bool(value) ? "true" : "false");
         return;

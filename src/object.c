@@ -93,7 +93,7 @@ RavPair *new_pair(Allocator *allocator, Value head, Value tail) {
 
 RavArray *new_array(Allocator *allocator, Value *values, size_t count) {
     RavArray *array = Alloc_Object(allocator, RavArray, OBJ_ARRAY);
-    
+
     array->values = Alloc(allocator, Value, count);
     array->count = count;
     array->capacity = count;
@@ -128,17 +128,17 @@ RavUpvalue *new_upvalue(Allocator *allocator, Value *location) {
 RavClosure *new_closure(Allocator *allocator, RavFunction *function) {
     RavUpvalue **upvalues = Alloc(allocator, RavUpvalue*,
                                   function->upvalue_count);
-    
+
     for (int i = 0; i < function->upvalue_count; i++) {
         upvalues[i] = NULL;
     }
-    
+
     RavClosure *closure = Alloc_Object(allocator, RavClosure,
                                        OBJ_CLOSURE);
     closure->function = function;
     closure->upvalues = upvalues;
     closure->upvalue_count = function->upvalue_count;
-    
+
     return closure;
 }
 
@@ -169,7 +169,7 @@ static void print_array(RavArray *array) {
     if (array->count > 0) {
         print_value(array->values[array->count - 1]);
     }
-    
+
     putchar(']');
 }
 
@@ -197,20 +197,20 @@ void print_object(Value value) {
     case OBJ_ARRAY:
         print_array(As_Array(value));
         break;
-        
+
     case OBJ_FUNCTION:
         print_function(As_Function(value));
         break;
-        
+
     case OBJ_UPVALUE:
         printf("<upvalue>");
         break;
-        
+
     case OBJ_CLOSURE:
         print_function(As_Closure(value)->function);
         break;
-        
+
     default:
         assert(!"invalid object type");
-    }    
+    }
 }

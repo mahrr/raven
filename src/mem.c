@@ -89,7 +89,7 @@ void free_allocator(Allocator *allocator) {
 void *allocate(Allocator *allocator, void *previous, size_t old_size,
                size_t new_size) {
     allocator->bytes_allocated += new_size - old_size;
-    
+
     if (!allocator->gc_off && new_size > old_size) {
 #ifdef DEBUG_STRESS_GC
         run_gc(allocator);
@@ -99,7 +99,7 @@ void *allocate(Allocator *allocator, void *previous, size_t old_size,
         }
 #endif
     }
-    
+
     if (new_size == 0) {
         free(previous);
         return NULL;
@@ -127,7 +127,7 @@ static void mark_object(Allocator *allocator, Object *object) {
     if (allocator->gray_count == allocator->gray_capacity) {
         int new_capacity = Grow_Capacity(allocator->gray_capacity);
         size_t size = sizeof (Object*) * new_capacity;
- 
+
         allocator->gray_stack = realloc(allocator->gray_stack, size);
         allocator->gray_capacity = new_capacity;
     }
@@ -213,7 +213,7 @@ static void blacken_object(Allocator *allocator, Object *object) {
         for (int i = 0; i < closure->upvalue_count; i++) {
             mark_object(allocator, (Object *)closure->upvalues[i]);
         }
-        
+
         break;
     }
 
@@ -265,14 +265,14 @@ void run_gc(Allocator *allocator) {
 
     // Adjust the threshold of the next GC round.
     allocator->next_gc = allocator->bytes_allocated * GC_GROWTH_FACTOR;
-    
+
 #ifdef DEBUG_TRACE_MEMORY
     size_t size_current = allocator->bytes_allocated;
     size_t size_diff = size_before - size_current;
     size_t next_gc = allocator->next_gc;
-    
+
     puts("[Memory] --- GC Round End ---");
-    
+
     printf("[Memory] size collected: %ld (%ldkb)\n",
            size_diff, size_diff / 1000);
     printf("[Memory] size before: %ld (%ldkb)\n",

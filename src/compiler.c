@@ -32,7 +32,7 @@ typedef struct {
     // Local at the surrounding function, or it's another existing
     // upvalue captured by the surrounding function.
     bool is_local;
-    
+
     // If it's local, this field stores the stack slot index of the
     // captured variable in the surround function frame, otherwise
     // it stores the index of the captured variable in the surrounding
@@ -43,15 +43,15 @@ typedef struct {
 // Function Lexical Block State
 typedef struct Context {
     struct Context *enclosing;
-    
+
     RavFunction *function; // Current output chunk, bytecode stream
     bool toplevel;
-    
+
     Local locals[LOCALS_LIMIT];
     int local_count;       // Number of locals in the current scope
 
     Upvalue upvalues[UPVALUES_LIMIT];
-    
+
     int scope_depth;       // Number of the surrounding blocks
 } Context;
 
@@ -60,10 +60,10 @@ typedef struct {
     Lexer *lexer;     // The input, token stream
     Context *context; // The current scope state and output chunk
     VM *vm;           // For compile time object allocation
-    
+
     Token current;    // Current consumed token
     Token previous;   // Previously consumed token
-    
+
     bool had_error;   // Error flag to stop bytecode execution later
     bool panic_mode;  // If set, any parsing error will be ignored
 
@@ -225,7 +225,7 @@ static inline void emit_loop(Parser *parser, int start) {
 
 static inline void patch_jump(Parser *parser, int from) {
     Chunk *chunk = parser_chunk(parser);
-    
+
     // -2 because of the jmp instruction 2-bytes immediate argument
     int offset = chunk->count - from - 2;
 
@@ -259,7 +259,7 @@ static uint8_t register_identifier(Parser *parser, Token *name) {
     const char *start = name->lexeme;
     int length = name->length;
     VM *vm = parser->vm;
-    
+
     RavString *ident = new_string(&vm->allocator, start, length);
     Value index_value;
 
@@ -275,10 +275,10 @@ static uint8_t register_identifier(Parser *parser, Token *name) {
     }
 
     uint8_t index = vm->globals.count;
-    
+
     vm->global_buffer[index] = Void_Value;
     table_set(&vm->globals, ident, Num_Value((double)index));
-    
+
     return index;
 }
 
@@ -286,7 +286,7 @@ static uint8_t register_identifier(Parser *parser, Token *name) {
 
 static inline void advance(Parser *parser) {
     parser->previous = parser->current;
-    
+
     for (;;) {
         parser->current = next_token(parser->lexer);
 
@@ -321,7 +321,7 @@ static void add_local(Parser *parser, Token name) {
         error_limit(parser, "function locals", LOCALS_LIMIT);
         return;
     }
-    
+
     Local *local = &context->locals[context->local_count++];
     local->name = name;
     local->depth = -1; // Uninitialized
@@ -336,7 +336,7 @@ static void unwind_stack(Parser *parser, int depth) {
     Context *context = parser->context;
     int local_count = 0;
     bool do_closing = false;
-    
+
     for (int i = context->local_count - 1; i >= 0; i--) {
         if (context->locals[i].depth < depth) {
             break;
@@ -362,7 +362,7 @@ static void unwind_stack(Parser *parser, int depth) {
 
 static void end_scope(Parser *parser, bool loading) {
     unwind_stack(parser, parser->context->scope_depth);
-    
+
     // Push the value of the last expression in the block.
     if (loading) {
         Chunk *chunk = parser_chunk(parser);
@@ -385,7 +385,7 @@ static inline bool same_identifier(Token *a, Token *b) {
 static inline int resolve_local(Context *context, Token *name) {
     for (int i = context->local_count - 1; i >= 0; i--) {
         Local *local = &context->locals[i];
-        
+
         // Find an initialized local variable with this name.
         // The "local->depth != -1" test skips the edge case:
         //   let x = x;
@@ -424,7 +424,7 @@ static int add_upvalue(Parser *parser, Context *context, uint8_t index,
         error_limit(parser, "captured variables", UPVALUES_LIMIT);
         return 0;
     }
-    
+
     context->upvalues[upvalue_count].is_local = is_local;
     context->upvalues[upvalue_count].index = index;
 
@@ -475,7 +475,7 @@ static int resolve_upvalue(Parser *parser, Context *context,
     if (upvalue != -1) {
         return add_upvalue(parser, context, (uint8_t)upvalue, false);
     }
-    
+
     return -1;
 }
 
@@ -487,7 +487,7 @@ static inline void init_parser(Parser *parser, Lexer *lexer, VM *vm) {
     parser->panic_mode = false;
     parser->inner_loop_start = -1;
     parser->inner_loop_depth = -1;
-    
+
 #ifdef DEBUG_TRACE_PARSING
     parser->level = 0;
 #endif
@@ -500,7 +500,7 @@ static inline void init_context(Context *context, Parser *parser,
     // TODO: limit the amount of nesting function declaration.
     context->enclosing = parser->context; // Save the previous scope.
     parser->context = context;            // Push the new scope.
-    
+
     context->toplevel = toplevel;
     context->local_count = 0;
     context->scope_depth = 0;
@@ -523,7 +523,7 @@ static inline void init_context(Context *context, Parser *parser,
 static inline RavFunction *end_context(Parser *parser, bool toplevel) {
     RavFunction *function = parser->context->function;
     emit_byte(parser, toplevel ? OP_EXIT : OP_RETURN);
-        
+
 #ifdef DEBUG_DUMP_CODE
     if (parser->had_error == false) {
         RavString *name = function->name;
@@ -547,7 +547,7 @@ static inline ParseRule *token_rule(TokenType);
 
 static void assignment(Parser *parser) {
     Debug_Log(parser);
-    
+
     Chunk *chunk = parser_chunk(parser);
     if (chunk->count < 2) {
         error_previous(parser, "invalid assignment target");
@@ -578,7 +578,7 @@ static void assignment(Parser *parser) {
     uint8_t index = chunk->opcodes[chunk->count - 1];
     uint8_t set_op = opcode - 1;
     chunk->count -= 2;
-    
+
     // Not PREC_ASSIGNMENT + 1, since assignment is right associated.
     parse_precedence(parser, PREC_ASSIGNMENT);
     emit_bytes(parser, set_op, index);
@@ -609,7 +609,7 @@ static void indexing(Parser *parser) {
 
 static void binary(Parser *parser) {
     Debug_Log(parser);
-    
+
     TokenType operator = parser->previous.type;
 
     ParseRule *rule = token_rule(operator);
@@ -642,7 +642,7 @@ static void and_(Parser *parser) {
     // OP_POP            |
     // [Right Operand]   |
     // ....    <----------
-    
+
     Debug_Log(parser);
 
     int jump = emit_jump(parser, OP_JMP_FALSE);
@@ -665,7 +665,7 @@ static void or_(Parser *parser) {
     // OP_POP  <----------  |
     // [Right Operand]      |
     // ....    <-------------
-    
+
     Debug_Log(parser);
 
     // first operand is falsy
@@ -699,15 +699,15 @@ static void if_block(Parser *parser) {
     if (!match(parser, TOKEN_ELSE)) {
         consume(parser, TOKEN_END, "expect closing 'end' after if block");
     }
-    
+
     end_scope(parser, true);
-    
+
     Debug_Exit(parser);
 }
 
 static void loop_block(Parser *parser) {
     Debug_Log(parser);
-       
+
     begin_scope(parser);
 
     while (!check(parser, TOKEN_END) && !check(parser, TOKEN_EOF)) {
@@ -717,7 +717,7 @@ static void loop_block(Parser *parser) {
     consume(parser, TOKEN_END, "expect closing 'end' after loop block");
 
     end_scope(parser, false);
-    
+
     Debug_Exit(parser);
 }
 
@@ -731,9 +731,9 @@ static void block(Parser *parser) {
     }
 
     consume(parser, TOKEN_END, "expect closing 'end' after block");
-    
+
     end_scope(parser, true);
-    
+
     Debug_Exit(parser);
 }
 
@@ -781,7 +781,7 @@ static void cond(Parser *parser) {
             error_limit(parser, "cond cases", COND_LIMIT);
             break;
         }
-        
+
         // Condition
         expression(parser);
         consume(parser, TOKEN_ARROW, "expect '->' after expression");
@@ -790,19 +790,19 @@ static void cond(Parser *parser) {
         // Expression
         expression(parser);
         cases_exit[cases_count++] = emit_jump(parser, OP_JMP);
-        
+
         patch_jump(parser, next_case);
     } while (match(parser, TOKEN_COMMA));
 
     // If all conditions evaluate to false.
     emit_byte(parser, OP_PUSH_NIL);
-    
+
     for (int i = 0; i < cases_count; i++) {
         patch_jump(parser, cases_exit[i]);
     }
 
     consume(parser, TOKEN_END, "expect 'end' after cond cases");
-    
+
     Debug_Exit(parser);
 }
 
@@ -815,11 +815,11 @@ static void if_(Parser *parser) {
     // Then Block                 |
     // OP_JMP              -----------.
     //                            |   |
-    // Else Block | Nil    <-------   | 
+    // Else Block | Nil    <-------   |
     // ....                <-----------
-    
+
     Debug_Log(parser);
-    
+
     expression(parser); // Condition
     consume(parser, TOKEN_DO, "expect 'do' after if condition");
 
@@ -854,7 +854,7 @@ static void while_(Parser *parser) {
     // OP_JMP_BACK        ---------
     //                         |
     // ....            <--------
-    
+
     Debug_Log(parser);
 
     // Register the surrounding loop state.
@@ -885,13 +885,13 @@ static void while_(Parser *parser) {
     // Pop the current loop state.
     parser->inner_loop_start = previous_inner_loop_start;
     parser->inner_loop_depth = previous_inner_loop_depth;
-    
+
     Debug_Exit(parser);
 }
 
 static uint8_t arguments(Parser *parser) {
     if (match(parser, TOKEN_RIGHT_PAREN)) return 0;
-    
+
     int count = 0;
     do {
         expression(parser);
@@ -900,7 +900,7 @@ static uint8_t arguments(Parser *parser) {
             error_limit(parser, "function arguments", PARAMS_LIMIT);
             break;
         }
-        
+
         count++;
     } while (match(parser, TOKEN_COMMA));
 
@@ -914,7 +914,7 @@ static void call(Parser *parser) {
 
 static void grouping(Parser *parser) {
     Debug_Log(parser);
-    
+
     expression(parser);
     consume(parser, TOKEN_RIGHT_PAREN,
             "Expect closing ')' after group expression");
@@ -943,7 +943,7 @@ static void identifier(Parser *parser) {
             get_op = OP_GET_GLOBAL;
         }
     }
-    
+
     emit_bytes(parser, get_op, index);
 
     Debug_Exit(parser);
@@ -951,7 +951,7 @@ static void identifier(Parser *parser) {
 
 static void number(Parser *parser) {
     Debug_Log(parser);
-    
+
     Value value = Num_Value(strtod(parser->previous.lexeme, NULL));
     emit_constant(parser, value);
 
@@ -972,7 +972,7 @@ static void string(Parser *parser) {
 
 static void boolean(Parser *parser) {
     Debug_Log(parser);
-    
+
     TokenType type = parser->previous.type;
     emit_byte(parser, type == TOKEN_TRUE ? OP_PUSH_TRUE : OP_PUSH_FALSE);
 
@@ -981,7 +981,7 @@ static void boolean(Parser *parser) {
 
 static void nil(Parser *parser) {
     Debug_Log(parser);
-    
+
     emit_byte(parser, OP_PUSH_NIL);
 
     Debug_Exit(parser);
@@ -993,30 +993,30 @@ static void array(Parser *parser) {
     size_t count = 0;
     do {
         expression(parser);
-        
+
         if (count == ARRAY_LIMIT) {
             error_limit(parser, "array literal elements", ARRAY_LIMIT);
             break;
         }
-        
+
         count++;
     } while (match(parser, TOKEN_COMMA));
-    
+
     if (count > UINT8_MAX) {
         emit_byte(parser, OP_ARRAY_16);
         emit_bytes(parser, (count >> 8) & 0xff, count & 0xff);
     } else {
         emit_bytes(parser, OP_ARRAY_8, (uint8_t)count);
     }
-    
+
     consume(parser, TOKEN_RIGHT_BRACKET, "expect ']' after elements");
-    
+
     Debug_Exit(parser);
 }
 
 static void unary(Parser *parser) {
     Debug_Log(parser);
-    
+
     TokenType operator = parser->previous.type;
     parse_precedence(parser, PREC_UNARY);
 
@@ -1094,7 +1094,7 @@ static inline ParseRule *token_rule(TokenType type) {
 
 static void parse_precedence(Parser *parser, Precedence precedence) {
     Debug_Logf(parser, "expression(%s)", precedence_string[precedence]);
-    
+
     advance(parser);
 
     ParseFn prefix = token_rule(parser->previous.type)->prefix;
@@ -1132,7 +1132,7 @@ static void declare_variable(Parser *parser) {
             error_previous(parser, "name is already declared");
         }
     }
-    
+
     add_local(parser, *name);
 }
 
@@ -1150,7 +1150,7 @@ static void define_variable(Parser *parser, uint8_t name_index) {
         mark_initialized(parser->context);
         return;
     }
-    
+
     emit_bytes(parser, OP_DEF_GLOBAL, name_index);
 }
 
@@ -1159,15 +1159,15 @@ static uint8_t variable(Parser *parser, const char *error) {
 
     declare_variable(parser);
     if (parser->context->scope_depth > 0) return 0;
-    
-    return register_identifier(parser, &parser->previous); 
+
+    return register_identifier(parser, &parser->previous);
 }
 
 static void let_declaration(Parser *parser) {
     Debug_Log(parser);
 
     uint8_t index = variable(parser, "expect a variable name");
-    
+
     if (match(parser, TOKEN_EQUAL)) {
         expression(parser);
     } else {
@@ -1177,7 +1177,7 @@ static void let_declaration(Parser *parser) {
     consume(parser, TOKEN_SEMICOLON,
             "expect ';' or newline after let declaration");
     define_variable(parser, index);
-    
+
     Debug_Exit(parser);
 }
 
@@ -1186,10 +1186,10 @@ static void parameters(Parser *parser) {
     if (match(parser, TOKEN_RIGHT_PAREN)) return;
 
     RavFunction *function = parser->context->function;
-    
+
     do {
         function->arity++;
-        
+
         if (function->arity > UINT8_MAX) {
             error_current(parser, "exceeds parameters limit (255)");
         }
@@ -1212,7 +1212,7 @@ static void function(Parser *parser) {
     RavFunction *function = end_context(parser, false);
     uint8_t index = make_constant(parser, Obj_Value(function));
     emit_bytes(parser, OP_CLOSURE, index);
-    
+
     for (int i = 0; i < function->upvalue_count; i++) {
         emit_byte(parser, context.upvalues[i].is_local ? 1 : 0);
         emit_byte(parser, context.upvalues[i].index);
@@ -1221,14 +1221,14 @@ static void function(Parser *parser) {
 
 static void fn_declaration(Parser *parser) {
     Debug_Log(parser);
-    
+
     uint8_t index = variable(parser, "expect a function name");
 
     // TODO: write global scope predicate.
     if (parser->context->scope_depth > 0) {
         mark_initialized(parser->context);
     }
-    
+
     function(parser);
     define_variable(parser, index);
 
@@ -1237,16 +1237,16 @@ static void fn_declaration(Parser *parser) {
 
 static void return_statement(Parser *parser) {
     Debug_Log(parser);
-    
+
     if (parser->context->toplevel) {
         error_previous(parser, "cannot return in a top-level code");
     }
-    
+
     if (match(parser, TOKEN_SEMICOLON)) {
         emit_bytes(parser, OP_PUSH_NIL, OP_RETURN);
         return;
     }
-        
+
     expression(parser);
     emit_byte(parser, OP_RETURN);
 
@@ -1300,7 +1300,7 @@ static void recover(Parser *parser) {
         default:
             if (parser->previous.type == TOKEN_SEMICOLON) return;
         }
-        
+
         advance(parser);
     }
 }
@@ -1336,10 +1336,10 @@ RavFunction *compile(VM *vm, const char *source, const char *file) {
 
     Parser parser;
     init_parser(&parser, &lexer, vm);
-    
+
     Context context;
     init_context(&context, &parser, true);
-    
+
     while (!match(&parser, TOKEN_EOF)) {
         declaration(&parser);
     }

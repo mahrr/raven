@@ -21,7 +21,7 @@ static void repl() {
         if (!fgets(buf, 256, stdin) || feof(stdin)) break;
         interpret(&vm, buf, "stdin");
     }
-    
+
     free_vm(&vm);
 }
 
@@ -51,7 +51,7 @@ static char *scan_file(const char *path) {
     }
 
     fclose(file);
-    
+
     buf[size] = '\0';
     return buf;
 }
@@ -65,7 +65,7 @@ static void execute_file(const char *path) {
     free(source);
 
     free_vm(&vm);
-    
+
     if (result == INTERPRET_RUNTIME_ERROR) exit(EXIT_FAILURE);
     if (result == INTERPRET_COMPILE_ERROR) exit(EXIT_FAILURE);
 }
@@ -78,6 +78,6 @@ int main(int argc, char **argv) {
     } else {
         usage();
     }
-    
+
     return EXIT_SUCCESS;
 }

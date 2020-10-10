@@ -44,14 +44,14 @@ static inline Token new_token(Lexer *lexer, TokenType type) {
     token.line = lexer->line;
     token.lexeme = lexer->start;
     token.length = lexer->current - lexer->start;
-    
+
     return token;
 }
 
 static Token error_token(Lexer *lexer, const char *message) {
     fprintf(stderr, "[%s: %d] SyntaxError at '%.1s': %s\n",
             lexer->file, lexer->line, lexer->start, message);
-    
+
     Token token;
     token.type = TOKEN_ERROR;
     token.line = lexer->line;
@@ -118,10 +118,10 @@ static TokenType identifier_type(Lexer *lexer) {
         case 't': return Is_Keyword(4, "inue", TOKEN_CONTINUE);
         }
         break;
-        
+
     case 'e':
         if (lexer->current - lexer->start < 3) break;
-        
+
         switch (lexer->start[1]) {
         case 'n': return Is_Keyword(2, "d",  TOKEN_END);
         case 'l': return Is_Keyword(2, "se", TOKEN_ELSE);
@@ -130,7 +130,7 @@ static TokenType identifier_type(Lexer *lexer) {
 
     case 'f':
         if (lexer->current - lexer->start < 2) break;
-        
+
         switch (lexer->start[1]) {
         case 'a': return Is_Keyword(2, "lse", TOKEN_FALSE);
         case 'n': return Is_Keyword(2, "",    TOKEN_FN);
@@ -156,7 +156,7 @@ static TokenType identifier_type(Lexer *lexer) {
         case 'n': return TOKEN_IN;
         }
         break;
- 
+
 
     case 't':
         if (lexer->current - lexer->start < 4) break;
@@ -201,7 +201,7 @@ static Token number(Lexer *lexer) {
                 advance(lexer);
             }
             return new_token(lexer, TOKEN_NUMBER);
-            
+
         case 'b':
         case 'B':
             advance(lexer); // consume 'b'
@@ -248,9 +248,9 @@ static void skip_whitespace(Lexer *lexer) {
 
 Token next_token(Lexer *lexer) {
 #define New_Token(type) (new_token(lexer, type))
-    
+
     skip_whitespace(lexer);
-    
+
     lexer->start = lexer->current;
 
     if (at_end(lexer)) return New_Token(TOKEN_EOF);
@@ -278,7 +278,7 @@ Token next_token(Lexer *lexer) {
     case '-':
         if (match(lexer, '>')) return New_Token(TOKEN_ARROW);
         return New_Token(TOKEN_MINUS);
-        
+
     case '=':
         if (match(lexer, '=')) return New_Token(TOKEN_EQUAL_EQUAL);
         return New_Token(TOKEN_EQUAL);
@@ -290,7 +290,7 @@ Token next_token(Lexer *lexer) {
     case '>':
         if (match(lexer, '=')) return New_Token(TOKEN_GREATER_EQUAL);
         return New_Token(TOKEN_GREATER);
-        
+
     case ':':
         if (match(lexer, ':')) return New_Token(TOKEN_COLON_COLON);
         return New_Token(TOKEN_COLON);
@@ -308,5 +308,5 @@ Token next_token(Lexer *lexer) {
     }
 
     return error_token(lexer, "Unexpected symbol");
-#undef New_Token    
+#undef New_Token
 }

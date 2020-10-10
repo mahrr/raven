@@ -44,11 +44,11 @@ static int closure_instruction(Chunk *chunk, int offset) {
     offset++;
     uint8_t index = chunk->opcodes[offset++];
     Value value = chunk->constants[index];
-    
+
     printf("%-16s %4d ", "CLOSURE", index);
     print_value(value);
     putchar('\n');
-    
+
     RavFunction *function = As_Function(value);
     for (int i = 0; i < function->upvalue_count; i++) {
         uint8_t is_local = chunk->opcodes[offset++];
@@ -56,7 +56,7 @@ static int closure_instruction(Chunk *chunk, int offset) {
         printf("%04d     |                     %s %d\n",
                offset - 2, is_local ? "local" : "upvalue", index);
     }
-    
+
     return offset;
 }
 
@@ -65,29 +65,29 @@ int disassemble_instruction(Chunk *chunk, int offset) {
 
     int line = decode_line(chunk, offset);
     int instruction = chunk->opcodes[offset];
-        
+
     if (offset > 0 && line == decode_line(chunk, offset - 1)) {
         printf("   | ");
     } else {
         printf("%4d ", line);
     }
-    
+
     switch (instruction) {
     case OP_PUSH_TRUE:
         return basic_instruction("PUSH_TRUE", offset);
-        
+
     case OP_PUSH_FALSE:
         return basic_instruction("PUSH_FALSE", offset);
-        
+
     case OP_PUSH_NIL:
         return basic_instruction("PUSH_NIL", offset);
-        
+
     case OP_PUSH_CONST:
         return const_instruction("PUSH_CONST", chunk, offset);
 
     case OP_PUSH_X:
         return basic_instruction("PUSH_X", offset);
-        
+
     case OP_SAVE_X:
         return basic_instruction("SAVE_X", offset);
 
@@ -96,19 +96,19 @@ int disassemble_instruction(Chunk *chunk, int offset) {
 
     case OP_POPN:
         return byte_instruction("POPN", chunk, offset);
-        
+
     case OP_ADD:
         return basic_instruction("ADD", offset);
-        
+
     case OP_SUB:
         return basic_instruction("SUB", offset);
-        
+
     case OP_MUL:
         return basic_instruction("MUL", offset);
-        
+
     case OP_DIV:
         return basic_instruction("DIV", offset);
-        
+
     case OP_MOD:
         return basic_instruction("MOD", offset);
 
@@ -195,7 +195,7 @@ int disassemble_instruction(Chunk *chunk, int offset) {
 
     case OP_ASSERT:
         return basic_instruction("ASSERT", offset);
-        
+
     case OP_RETURN:
         return basic_instruction("RETURN", offset);
 
