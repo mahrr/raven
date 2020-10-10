@@ -273,6 +273,7 @@ Token next_token(Lexer *lexer) {
     case '{': return New_Token(TOKEN_LEFT_BRACE);
     case '}': return New_Token(TOKEN_RIGHT_BRACE);
     case ';': return New_Token(TOKEN_SEMICOLON);
+    case '\\': return New_Token(TOKEN_BACK_SLASH);
 
         // Possible Two-Charachter Tokens
     case '-':

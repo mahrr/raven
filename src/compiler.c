@@ -102,6 +102,14 @@ typedef struct {
     Precedence precedence;
 } ParseRule;
 
+// Functions Types (Syntactically)
+typedef enum {
+    FunctionToplevel,   // The implicit toplevel function
+    FunctionDeclaration,
+    FunctionLambda,
+    FunctionLambdaHeadless,
+} FunctionType;
+
 /** Parser Tracing **/
 
 // TODO: move this to the debug module.
@@ -496,12 +504,12 @@ static inline void init_parser(Parser *parser, Lexer *lexer, VM *vm) {
 }
 
 static inline void init_context(Context *context, Parser *parser,
-                                bool toplevel) {
+                                FunctionType type) {
     // TODO: limit the amount of nesting function declaration.
     context->enclosing = parser->context; // Save the previous scope.
     parser->context = context;            // Push the new scope.
 
-    context->toplevel = toplevel;
+    context->toplevel = type == FunctionToplevel;
     context->local_count = 0;
     context->scope_depth = 0;
     context->function = new_function(&parser->vm->allocator);
@@ -513,10 +521,13 @@ static inline void init_context(Context *context, Parser *parser,
     local->name.length = 0;
     local->is_captured = false;
 
-    if (!toplevel) {
+    if (type == FunctionDeclaration) {
         context->function->name = new_string(&parser->vm->allocator,
                                              parser->previous.lexeme,
                                              parser->previous.length);
+    } else if (type == FunctionLambda || type == FunctionLambdaHeadless) {
+        context->function->name = new_string(&parser->vm->allocator,
+                                             "\\lambda", sizeof "\\lambda");
     }
 }
 
@@ -543,6 +554,7 @@ static inline RavFunction *end_context(Parser *parser, bool toplevel) {
 static void parse_precedence(Parser*, Precedence);
 static void expression(Parser*);
 static void declaration(Parser*);
+static void function(Parser*, FunctionType);
 static inline ParseRule *token_rule(TokenType);
 
 static void assignment(Parser *parser) {
@@ -1014,6 +1026,19 @@ static void array(Parser *parser) {
     Debug_Exit(parser);
 }
 
+static void lambda(Parser *parser) {
+    Debug_Log(parser);
+
+    // Headless lambda (i.e -> <expression>)?
+    if (parser->previous.type == TOKEN_ARROW) {
+        function(parser, FunctionLambdaHeadless);
+    } else {
+        function(parser, FunctionLambda);
+    }
+
+    Debug_Exit(parser);
+}
+
 static void unary(Parser *parser) {
     Debug_Log(parser);
 
@@ -1070,7 +1095,7 @@ static ParseRule rules[] = {
     { block,      NULL,       PREC_NONE },         // TOKEN_DO
     { NULL,       NULL,       PREC_NONE },         // TOKEN_END
     { NULL,       NULL,       PREC_NONE },         // TOKEN_PIPE
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_ARROW
+    { lambda,     NULL,       PREC_NONE },         // TOKEN_ARROW
     { NULL,       NULL,       PREC_NONE },         // TOKEN_COMMA
     { NULL,       NULL,       PREC_NONE },         // TOKEN_SEMICOLON
     { NULL,       NULL,       PREC_NONE },         // TOKEN_COLON
@@ -1080,6 +1105,7 @@ static ParseRule rules[] = {
     { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_BRACE
     { array,      indexing,   PREC_HIGHEST },      // TOKEN_LEFT_BRACKET
     { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_BRACKET
+    { lambda,     NULL,       PREC_NONE },         // TOKEN_BACK_SLASH
     { identifier, NULL,       PREC_NONE },         // TOKEN_IDENTIFIER
     { number,     NULL,       PREC_NONE },         // TOKEN_NUMBER
     { string,     NULL,       PREC_NONE },         // TOKEN_STRING
@@ -1181,12 +1207,10 @@ static void let_declaration(Parser *parser) {
     Debug_Exit(parser);
 }
 
-static void parameters(Parser *parser) {
-    consume(parser, TOKEN_LEFT_PAREN, "expect '(' after function name");
-    if (match(parser, TOKEN_RIGHT_PAREN)) return;
+static void parameters(Parser *parser, TokenType closing_token) {
+    if (match(parser, closing_token)) return;
 
     RavFunction *function = parser->context->function;
-
     do {
         function->arity++;
 
@@ -1198,16 +1222,26 @@ static void parameters(Parser *parser) {
         define_variable(parser, index);
     } while (match(parser, TOKEN_COMMA));
 
-    consume(parser, TOKEN_RIGHT_PAREN, "expect ')' after pararmeters");
+    consume(parser, closing_token, "expect a closing pararmeters token");
 }
 
-static void function(Parser *parser) {
+static void function(Parser *parser, FunctionType type) {
     Context context;
-    init_context(&context, parser, false);
+    init_context(&context, parser, type);
     begin_scope(parser);
 
-    parameters(parser);
-    block(parser);
+    if (type == FunctionDeclaration) {
+        consume(parser, TOKEN_LEFT_PAREN, "expect '(' after name");
+        parameters(parser, TOKEN_RIGHT_PAREN);
+        block(parser);
+    } else if (type == FunctionLambda) {
+        parameters(parser, TOKEN_ARROW);
+        expression(parser);
+    } else if (type == FunctionLambdaHeadless) {
+        expression(parser);
+    } else {
+        assert(!"invalid function type");
+    }
 
     RavFunction *function = end_context(parser, false);
     uint8_t index = make_constant(parser, Obj_Value(function));
@@ -1224,12 +1258,11 @@ static void fn_declaration(Parser *parser) {
 
     uint8_t index = variable(parser, "expect a function name");
 
-    // TODO: write global scope predicate.
     if (parser->context->scope_depth > 0) {
         mark_initialized(parser->context);
     }
 
-    function(parser);
+    function(parser, FunctionDeclaration);
     define_variable(parser, index);
 
     Debug_Exit(parser);
@@ -1338,7 +1371,7 @@ RavFunction *compile(VM *vm, const char *source, const char *file) {
     init_parser(&parser, &lexer, vm);
 
     Context context;
-    init_context(&context, &parser, true);
+    init_context(&context, &parser, FunctionToplevel);
 
     while (!match(&parser, TOKEN_EOF)) {
         declaration(&parser);
