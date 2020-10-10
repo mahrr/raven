@@ -10,7 +10,7 @@ declaration ::= let_declaration
               | fn_declaration
               | type_declaration
               | statement;
-              
+
 let_declaration ::= "let" pattern "=" expression delimiter;
 
 fn_declaration ::= "fn" name "(" parameter_list ")" chunk "end";
@@ -23,7 +23,7 @@ statement ::= assert_statement
             | expression_statement
             | return_statement
             | "break" delimiter;
-            
+
 assert_statement ::= "assert" expression delimiter;
 
 expression_statement ::= expression delimiter;
@@ -44,7 +44,7 @@ expression ::= prefix_expression
              | match_exrepssion
              | identifier_expression
              | literal_expression;
-             
+
 prefix_expression ::= prefix_operator expression;
 
 infix_expression ::= expression infix_operator expression;
@@ -85,8 +85,8 @@ literal_expression ::= lambda_literal
                      | TRUE
                      | FALSE
                      | NIL;
-                     
-lambda_literal ::= "|" parameter_list "|" "->" expression;
+
+lambda_literal ::= ["\" parameter_list] "->" expression;
 
 array_literal ::= "[" [expression_list] "]";
 
