@@ -1,14 +1,11 @@
 # Implementing linked list with just closures (List From The Void)
 
 fn cons(head, tail)
-   fn pick(which)
+   \which ->
       cond:
         which == 0 -> head,
         which == 1 -> tail
       end
-   end
-
-   pick
 end
 
 fn head(list) list(0) end
