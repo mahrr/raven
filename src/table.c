@@ -122,14 +122,15 @@ RavString *table_interned(Table *table, const char *chars,
     for (;;) {
         Entry *entry = &table->entries[index];
 
-        if (entry->key == NULL && Is_Nil(entry->value)) return NULL;
-
-        RavString *key = entry->key;
-
-        if (key->length == length &&
-            key->hash == hash &&
-            memcmp(key->chars, chars, length) == 0) {
-            return key;
+        if (entry->key == NULL) {
+            if (Is_Nil(entry->value)) return NULL;
+        } else {
+            RavString *key = entry->key;
+            if (key->length == length &&
+                key->hash == hash &&
+                memcmp(key->chars, chars, length) == 0) {
+                return key;
+            }
         }
 
         index = (index + 1) & table->hash_mask;

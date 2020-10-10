@@ -164,6 +164,15 @@ void mark_roots(Allocator *allocator) {
         mark_value(allocator, vm->global_buffer[i]);
     }
 
+    // Globals Names
+    for (int i = 0; i <= vm->globals.hash_mask; i++) {
+        Entry *entry = &vm->globals.entries[i];
+
+        if (entry->key != NULL) {
+            mark_object(allocator, (Object *)entry->key);
+        }
+    }
+
     // Upvalues
     for (RavUpvalue *upvalue = vm->open_upvalues; upvalue != NULL; ) {
         mark_object(allocator, (Object *)upvalue);
