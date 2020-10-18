@@ -749,6 +749,28 @@ static void block(Parser *parser) {
     Debug_Exit(parser);
 }
 
+static void function_block(Parser *parser) {
+    Debug_Log(parser);
+
+    while (!check(parser, TOKEN_END) && !check(parser, TOKEN_EOF)) {
+        declaration(parser);
+    }
+
+    consume(parser, TOKEN_END, "expect closing 'end' after function block");
+
+    // Push the value of the last expression in the block.
+    Chunk *chunk = parser_chunk(parser);
+
+    // If possible optimize out OP_SAVE_X/OP_PUSH_X pattern.
+    if (chunk->opcodes[chunk->count - 1] == OP_SAVE_X) {
+        chunk->count--;
+    } else {
+        emit_byte(parser, OP_PUSH_X);
+    }
+
+    Debug_Exit(parser);
+}
+
 static void cond(Parser *parser) {
     // Cond Control Flow:
     //
@@ -1233,7 +1255,7 @@ static void function(Parser *parser, FunctionType type) {
     if (type == FunctionDeclaration) {
         consume(parser, TOKEN_LEFT_PAREN, "expect '(' after name");
         parameters(parser, TOKEN_RIGHT_PAREN);
-        block(parser);
+        function_block(parser);
     } else if (type == FunctionLambda) {
         parameters(parser, TOKEN_ARROW);
         expression(parser);
