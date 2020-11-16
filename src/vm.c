@@ -267,345 +267,344 @@ static InterpretResult run_vm(register VM *vm) {
     } while (false)
 
     Start() {
-      Case(OP_PUSH_TRUE):  Push(Bool_Value(true));  Dispatch();
-      Case(OP_PUSH_FALSE): Push(Bool_Value(false)); Dispatch();
-      Case(OP_PUSH_NIL):   Push(Nil_Value);         Dispatch();
-      Case(OP_PUSH_CONST): Push(Read_Constant());   Dispatch();
+    Case(OP_PUSH_TRUE):  Push(Bool_Value(true));  Dispatch();
+    Case(OP_PUSH_FALSE): Push(Bool_Value(false)); Dispatch();
+    Case(OP_PUSH_NIL):   Push(Nil_Value);         Dispatch();
+    Case(OP_PUSH_CONST): Push(Read_Constant());   Dispatch();
 
-      Case(OP_PUSH_X): {
-            Push(vm->x);
-            vm->x = Nil_Value;
-            Dispatch();
+    Case(OP_PUSH_X): {
+        Push(vm->x);
+        vm->x = Nil_Value;
+        Dispatch();
+    }
+
+    Case(OP_SAVE_X): {
+        vm->x = Pop();
+        Dispatch();
+    }
+
+    Case(OP_POP): Pop(); Dispatch();
+    Case(OP_POPN): {
+        uint8_t count = Read_Byte();
+        vm->stack_top -= count;
+        Dispatch();
+    }
+
+    Case(OP_ADD): Binary_OP(Num_Value, +); Dispatch();
+    Case(OP_SUB): Binary_OP(Num_Value, -); Dispatch();
+    Case(OP_MUL): Binary_OP(Num_Value, *); Dispatch();
+    Case(OP_DIV): Binary_OP(Num_Value, /); Dispatch();
+    Case(OP_MOD): {
+        if (!Is_Num(Peek(0)) && !Is_Num(Peek(1))) {
+            Runtime_Error("operands must be numeric");
+            return INTERPRET_RUNTIME_ERROR;
         }
 
-      Case(OP_SAVE_X): {
-            vm->x = Pop();
-            Dispatch();
+        double y = As_Num(Pop());
+        double x = As_Num(Pop());
+
+        Push(Num_Value(fmod(x, y)));
+        Dispatch();
+    }
+    Case(OP_NEG): {
+        if (!Is_Num(Peek(0))) {
+            Runtime_Error("negation operand must be numeric");
+            return INTERPRET_RUNTIME_ERROR;
+        }
+        Push(Num_Value(-As_Num(Pop())));
+        Dispatch();
+    }
+
+    Case(OP_EQ): {
+        Value y = Pop();
+        Value x = Pop();
+
+        Push(Bool_Value(equal_values(x, y)));
+        Dispatch();
+    }
+
+    Case(OP_NEQ): {
+        Value y = Pop();
+        Value x = Pop();
+
+        Push(Bool_Value(!equal_values(x, y)));
+        Dispatch();
+    }
+
+    Case(OP_LT):  Binary_OP(Bool_Value, <);  Dispatch();
+    Case(OP_LTQ): Binary_OP(Bool_Value, <=); Dispatch();
+    Case(OP_GT):  Binary_OP(Bool_Value, >);  Dispatch();
+    Case(OP_GTQ): Binary_OP(Bool_Value, >=); Dispatch();
+
+    Case(OP_NOT): Push(Bool_Value(is_falsy(Pop()))); Dispatch();
+
+    Case(OP_CONS): {
+        Value tail = Pop();
+        Value head = Pop();
+
+        Push(Obj_Value(new_pair(&vm->allocator, head, tail)));
+        Dispatch();
+    }
+
+    Case(OP_ARRAY_8): {
+        size_t count = (size_t)Read_Byte();
+        RavArray *array = new_array(&vm->allocator,
+                                    vm->stack_top - count, count);
+        vm->stack_top -= count;
+        Push(Obj_Value(array));
+
+        Dispatch();
+    }
+
+    Case(OP_ARRAY_16): {
+        size_t count = (size_t)Read_Short();
+        RavArray *array = new_array(&vm->allocator,
+                                    vm->stack_top - count, count);
+        vm->stack_top -= count;
+        Push(Obj_Value(array));
+
+        Dispatch();
+    }
+
+    Case(OP_INDEX_SET): {
+        Value value = Pop();
+        Value offset = Pop();
+        Value collection = Pop();
+
+        if (!Is_Array(collection)) {
+            Runtime_Error("index a non-collection type");
+            return INTERPRET_RUNTIME_ERROR;
         }
 
-      Case(OP_POP): Pop(); Dispatch();
-      Case(OP_POPN): {
-            uint8_t count = Read_Byte();
-            vm->stack_top -= count;
-            Dispatch();
+        RavArray *array = As_Array(collection);
+        if (!Is_Num(offset)) {
+            Runtime_Error("index an array with non-numeric type");
+            return INTERPRET_RUNTIME_ERROR;
         }
 
-      Case(OP_ADD): Binary_OP(Num_Value, +); Dispatch();
-      Case(OP_SUB): Binary_OP(Num_Value, -); Dispatch();
-      Case(OP_MUL): Binary_OP(Num_Value, *); Dispatch();
-      Case(OP_DIV): Binary_OP(Num_Value, /); Dispatch();
-      Case(OP_MOD): {
-            if (!Is_Num(Peek(0)) && !Is_Num(Peek(1))) {
-                Runtime_Error("operands must be numeric");
-                return INTERPRET_RUNTIME_ERROR;
-            }
-
-            double y = As_Num(Pop());
-            double x = As_Num(Pop());
-
-            Push(Num_Value(fmod(x, y)));
-            Dispatch();
-        }
-      Case(OP_NEG): {
-            if (!Is_Num(Peek(0))) {
-                Runtime_Error("negation operand must be numeric");
-                return INTERPRET_RUNTIME_ERROR;
-            }
-            Push(Num_Value(-As_Num(Pop())));
-            Dispatch();
+        size_t index = (size_t)As_Num(offset);
+        if (index >= array->count) {
+            Runtime_Error("index out of bound %d > %d",
+                            index, array->count);
+            return INTERPRET_RUNTIME_ERROR;
         }
 
-      Case(OP_EQ): {
-            Value y = Pop();
-            Value x = Pop();
+        Push(array->values[index] = value);
+        Dispatch();
+    }
 
-            Push(Bool_Value(equal_values(x, y)));
-            Dispatch();
+    Case(OP_INDEX_GET): {
+        Value offset = Pop();
+        Value collection = Pop();
+
+        if (!Is_Array(collection)) {
+            Runtime_Error("index a non-collection type");
+            return INTERPRET_RUNTIME_ERROR;
         }
 
-      Case(OP_NEQ): {
-            Value y = Pop();
-            Value x = Pop();
-
-            Push(Bool_Value(!equal_values(x, y)));
-            Dispatch();
+        RavArray *array = As_Array(collection);
+        if (!Is_Num(offset)) {
+            Runtime_Error("index an array with non-numeric type");
+            return INTERPRET_RUNTIME_ERROR;
         }
 
-      Case(OP_LT):  Binary_OP(Bool_Value, <);  Dispatch();
-      Case(OP_LTQ): Binary_OP(Bool_Value, <=); Dispatch();
-      Case(OP_GT):  Binary_OP(Bool_Value, >);  Dispatch();
-      Case(OP_GTQ): Binary_OP(Bool_Value, >=); Dispatch();
-
-      Case(OP_NOT): Push(Bool_Value(is_falsy(Pop()))); Dispatch();
-
-      Case(OP_CONS): {
-            Value tail = Pop();
-            Value head = Pop();
-
-            Push(Obj_Value(new_pair(&vm->allocator, head, tail)));
-            Dispatch();
+        size_t index = (size_t)As_Num(offset);
+        if (index >= array->count) {
+            Runtime_Error("index out of bound %d > %d",
+                            index, array->count);
+            return INTERPRET_RUNTIME_ERROR;
         }
 
-      Case(OP_ARRAY_8): {
-            size_t count = (size_t)Read_Byte();
-            RavArray *array = new_array(&vm->allocator,
-                                        vm->stack_top - count, count);
-            vm->stack_top -= count;
-            Push(Obj_Value(array));
+        Push(array->values[index]);
+        Dispatch();
+    }
 
-            Dispatch();
+    Case(OP_MAP_8): {
+        size_t count = (size_t)Read_Byte() * 2;
+        Value *offset = vm->stack_top - count;
+        RavMap *map = new_map(&vm->allocator);
+
+        for (size_t i = 0; i < count; i += 2) {
+            Value key = offset[i];
+            Value value = offset[i+1];
+
+            table_set(&map->table, As_String(key), value);
         }
 
-      Case(OP_ARRAY_16): {
-            size_t count = (size_t)Read_Short();
-            RavArray *array = new_array(&vm->allocator,
-                                        vm->stack_top - count, count);
-            vm->stack_top -= count;
-            Push(Obj_Value(array));
+        vm->stack_top -= count;
+        Push(Obj_Value(map));
 
-            Dispatch();
+        Dispatch();
+    }
+
+    Case(OP_MAP_16): {
+        size_t count = (size_t)Read_Short() * 2;
+        Value *offset = vm->stack_top - count;
+        RavMap *map = new_map(&vm->allocator);
+
+        for (size_t i = 0; i < count; i += 2) {
+            Value key = offset[i];
+            Value value = offset[i+1];
+
+            table_set(&map->table, As_String(key), value);
         }
 
-      Case(OP_INDEX_SET): {
-            Value value = Pop();
-            Value offset = Pop();
-            Value collection = Pop();
+        vm->stack_top -= count;
+        Push(Obj_Value(map));
 
-            if (!Is_Array(collection)) {
-                Runtime_Error("index a non-collection type");
-                return INTERPRET_RUNTIME_ERROR;
-            }
+        Dispatch();
+    }
 
-            RavArray *array = As_Array(collection);
-            if (!Is_Num(offset)) {
-                Runtime_Error("index an array with non-numeric type");
-                return INTERPRET_RUNTIME_ERROR;
-            }
+    Case(OP_DEF_GLOBAL): {
+        vm->global_buffer[Read_Byte()] = Pop();
+        Dispatch();
+    }
 
-            size_t index = (size_t)As_Num(offset);
-            if (index >= array->count) {
-                Runtime_Error("index out of bound %d > %d",
-                              index, array->count);
-                return INTERPRET_RUNTIME_ERROR;
-            }
+    Case(OP_SET_GLOBAL): {
+        uint8_t index = Read_Byte();
 
-            Push(array->values[index] = value);
-            Dispatch();
+        if (Is_Void(vm->global_buffer[index])) {
+            Runtime_Error("unbound variable '%s'",
+                            global_name_at(vm, index));
+            return INTERPRET_RUNTIME_ERROR;
         }
 
-      Case(OP_INDEX_GET): {
-            Value offset = Pop();
-            Value collection = Pop();
+        vm->global_buffer[index] = Peek(0);
+        Dispatch();
+    }
 
-            if (!Is_Array(collection)) {
-                Runtime_Error("index a non-collection type");
-                return INTERPRET_RUNTIME_ERROR;
-            }
+    Case(OP_GET_GLOBAL): {
+        uint8_t index = Read_Byte();
+        Value value = vm->global_buffer[index];
 
-            RavArray *array = As_Array(collection);
-            if (!Is_Num(offset)) {
-                Runtime_Error("index an array with non-numeric type");
-                return INTERPRET_RUNTIME_ERROR;
-            }
-
-            size_t index = (size_t)As_Num(offset);
-            if (index >= array->count) {
-                Runtime_Error("index out of bound %d > %d",
-                              index, array->count);
-                return INTERPRET_RUNTIME_ERROR;
-            }
-
-            Push(array->values[index]);
-            Dispatch();
+        if (Is_Void(value)) {
+            Runtime_Error("unbound variable '%s'",
+                            global_name_at(vm, index));
+            return INTERPRET_RUNTIME_ERROR;
         }
 
-      Case(OP_MAP_8): {
-          size_t count = (size_t)Read_Byte() * 2;
-          Value *offset = vm->stack_top - count;
-          RavMap *map = new_map(&vm->allocator);
+        Push(value);
+        Dispatch();
+    }
 
-          for (size_t i = 0; i < count; i += 2) {
-              Value key = offset[i];
-              Value value = offset[i+1];
+    Case(OP_SET_LOCAL): {
+        frame.slots[Read_Byte()] = Peek(0);
+        Dispatch();
+    }
 
-              table_set(&map->table, As_String(key), value);
-          }
+    Case(OP_GET_LOCAL): {
+        Push(frame.slots[Read_Byte()]);
+        Dispatch();
+    }
 
-          vm->stack_top -= count;
-          Push(Obj_Value(map));
+    Case(OP_SET_UPVALUE): {
+        *frame.closure->upvalues[Read_Byte()]->location = Peek(0);
+        Dispatch();
+    }
 
-          Dispatch();
+    Case(OP_GET_UPVALUE): {
+        Push(*frame.closure->upvalues[Read_Byte()]->location);
+        Dispatch();
+    }
+
+    Case(OP_CALL): {
+        int argument_count = Read_Byte();
+        Value value = Peek(argument_count);
+
+        Save_Frame();
+        if (!call_value(vm, value, argument_count)) {
+            return INTERPRET_RUNTIME_ERROR;
         }
 
-      Case(OP_MAP_16): {
-          size_t count = (size_t)Read_Short() * 2;
-          Value *offset = vm->stack_top - count;
-          RavMap *map = new_map(&vm->allocator);
+        // Push the callee new call frame.
+        frame = vm->frames[vm->frame_count - 1];
 
-          for (size_t i = 0; i < count; i += 2) {
-              Value key = offset[i];
-              Value value = offset[i+1];
+        Dispatch();
+    }
 
-              table_set(&map->table, As_String(key), value);
-          }
+    Case(OP_JMP): {
+        uint16_t offset = Read_Short();
+        frame.ip += offset;
+        Dispatch();
+    }
 
-          vm->stack_top -= count;
-          Push(Obj_Value(map));
+    Case(OP_JMP_BACK): {
+        uint16_t offset = Read_Short();
+        frame.ip -= offset;
+        Dispatch();
+    }
 
-          Dispatch();
-        }
+    Case(OP_JMP_FALSE): {
+        uint16_t offset = Read_Short();
+        if (is_falsy(Peek(0))) frame.ip += offset;
+        Dispatch();
+    }
 
-      Case(OP_DEF_GLOBAL): {
-            vm->global_buffer[Read_Byte()] = Pop();
-            Dispatch();
-        }
+    Case(OP_JMP_POP_FALSE): {
+        uint16_t offset = Read_Short();
+        if (is_falsy(Pop())) frame.ip += offset;
+        Dispatch();
+    }
 
-      Case(OP_SET_GLOBAL): {
+    Case(OP_CLOSURE): {
+        RavFunction *function = As_Function(Read_Constant());
+        RavClosure *closure = new_closure(&vm->allocator, function);
+        Push(Obj_Value(closure));
+
+        for (int i = 0; i < closure->upvalue_count; i++) {
+            uint8_t is_local = Read_Byte();
             uint8_t index = Read_Byte();
 
-            if (Is_Void(vm->global_buffer[index])) {
-                Runtime_Error("unbound variable '%s'",
-                              global_name_at(vm, index));
-                return INTERPRET_RUNTIME_ERROR;
-            }
-
-            vm->global_buffer[index] = Peek(0);
-            Dispatch();
+            closure->upvalues[i] = is_local ?
+                capture_upvalue(vm, frame.slots + index) :
+                frame.closure->upvalues[index];
         }
 
-      Case(OP_GET_GLOBAL): {
-            uint8_t index = Read_Byte();
-            Value value = vm->global_buffer[index];
+        Dispatch();
+    }
 
-            if (Is_Void(value)) {
-                Runtime_Error("unbound variable '%s'",
-                              global_name_at(vm, index));
-                return INTERPRET_RUNTIME_ERROR;
-            }
+    Case(OP_CLOSE_UPVALUE): {
+        close_upvalues(vm, vm->stack_top - 1);
+        Pop();
+        Dispatch();
+    }
 
-            Push(value);
-            Dispatch();
+    Case(OP_ASSERT): {
+        Value value = Pop();
+
+        if (is_falsy(value)) {
+            Runtime_Error("assertion failed");
+            return INTERPRET_RUNTIME_ERROR;
         }
 
-      Case(OP_SET_LOCAL): {
-            frame.slots[Read_Byte()] = Peek(0);
-            Dispatch();
-        }
+        vm->x = Nil_Value;
+        Dispatch();
+    }
 
-      Case(OP_GET_LOCAL): {
-            Push(frame.slots[Read_Byte()]);
-            Dispatch();
-        }
+    Case(OP_RETURN): {
+        Value result = Pop();
+        close_upvalues(vm, frame.slots);
 
-      Case(OP_SET_UPVALUE): {
-            *frame.closure->upvalues[Read_Byte()]->location = Peek(0);
-            Dispatch();
-        }
+        // Rewind the stack.
+        vm->frame_count--;
+        vm->stack_top = frame.slots;
+        Push(result);
 
-      Case(OP_GET_UPVALUE): {
-            Push(*frame.closure->upvalues[Read_Byte()]->location);
-            Dispatch();
-        }
+        frame = vm->frames[vm->frame_count - 1];
+        Dispatch();
+    }
 
-      Case(OP_CALL): {
-            int argument_count = Read_Byte();
-            Value value = Peek(argument_count);
-
-            Save_Frame();
-            if (!call_value(vm, value, argument_count)) {
-                return INTERPRET_RUNTIME_ERROR;
-            }
-
-            // Push the callee new call frame.
-            frame = vm->frames[vm->frame_count - 1];
-
-            Dispatch();
-        }
-
-      Case(OP_JMP): {
-            uint16_t offset = Read_Short();
-            frame.ip += offset;
-            Dispatch();
-        }
-
-      Case(OP_JMP_BACK): {
-            uint16_t offset = Read_Short();
-            frame.ip -= offset;
-            Dispatch();
-        }
-
-      Case(OP_JMP_FALSE): {
-            uint16_t offset = Read_Short();
-            if (is_falsy(Peek(0))) frame.ip += offset;
-            Dispatch();
-        }
-
-      Case(OP_JMP_POP_FALSE): {
-            uint16_t offset = Read_Short();
-            if (is_falsy(Pop())) frame.ip += offset;
-            Dispatch();
-        }
-
-      Case(OP_CLOSURE): {
-            RavFunction *function = As_Function(Read_Constant());
-            RavClosure *closure = new_closure(&vm->allocator, function);
-            Push(Obj_Value(closure));
-
-            for (int i = 0; i < closure->upvalue_count; i++) {
-                uint8_t is_local = Read_Byte();
-                uint8_t index = Read_Byte();
-
-                closure->upvalues[i] = is_local ?
-                    capture_upvalue(vm, frame.slots + index) :
-                    frame.closure->upvalues[index];
-            }
-
-            Dispatch();
-        }
-
-      Case(OP_CLOSE_UPVALUE): {
-            close_upvalues(vm, vm->stack_top - 1);
-            Pop();
-            Dispatch();
-        }
-
-      Case(OP_ASSERT): {
-            Value value = Pop();
-
-            if (is_falsy(value)) {
-                Runtime_Error("assertion failed");
-                return INTERPRET_RUNTIME_ERROR;
-            }
-
-            vm->x = Nil_Value;
-            Dispatch();
-        }
-
-      Case(OP_RETURN): {
-            Value result = Pop();
-            close_upvalues(vm, frame.slots);
-
-            // Rewind the stack.
-            vm->frame_count--;
-            vm->stack_top = frame.slots;
-            Push(result);
-
-            frame = vm->frames[vm->frame_count - 1];
-            Dispatch();
-        }
-
-      Case(OP_EXIT): {
-            print_value(vm->x);
-            putchar('\n');
-            Pop(); // Top-level Wrapping Function
-            reset_stack(vm);
-            return INTERPRET_OK;
-        }
+    Case(OP_EXIT): {
+        print_value(vm->x);
+        putchar('\n');
+        Pop(); // Top-level Wrapping Function
+        reset_stack(vm);
+        return INTERPRET_OK;
+    }
     }
 
     assert(!"invalid instruction");
     return INTERPRET_RUNTIME_ERROR; // For warnings
-
 
 #undef Binary_OP
 #undef Runtime_Error
