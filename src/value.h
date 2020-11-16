@@ -11,6 +11,7 @@ typedef struct Object Object;
 typedef struct RavString RavString;
 typedef struct RavPair RavPair;
 typedef struct RavArray RavArray;
+typedef struct RavMap RavMap;
 typedef struct RavFunction RavFunction;
 typedef struct RavUpvalue RavUpvalue;
 typedef struct RavClosure RavClosure;

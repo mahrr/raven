@@ -419,6 +419,42 @@ static InterpretResult run_vm(register VM *vm) {
             Dispatch();
         }
 
+      Case(OP_MAP_8): {
+          size_t count = (size_t)Read_Byte() * 2;
+          Value *offset = vm->stack_top - count;
+          RavMap *map = new_map(&vm->allocator);
+
+          for (size_t i = 0; i < count; i += 2) {
+              Value key = offset[i];
+              Value value = offset[i+1];
+
+              table_set(&map->table, As_String(key), value);
+          }
+
+          vm->stack_top -= count;
+          Push(Obj_Value(map));
+
+          Dispatch();
+        }
+
+      Case(OP_MAP_16): {
+          size_t count = (size_t)Read_Short() * 2;
+          Value *offset = vm->stack_top - count;
+          RavMap *map = new_map(&vm->allocator);
+
+          for (size_t i = 0; i < count; i += 2) {
+              Value key = offset[i];
+              Value value = offset[i+1];
+
+              table_set(&map->table, As_String(key), value);
+          }
+
+          vm->stack_top -= count;
+          Push(Obj_Value(map));
+
+          Dispatch();
+        }
+
       Case(OP_DEF_GLOBAL): {
             vm->global_buffer[Read_Byte()] = Pop();
             Dispatch();

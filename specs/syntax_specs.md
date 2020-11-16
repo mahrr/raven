@@ -78,7 +78,7 @@ identifier_expression ::= name;
 
 literal_expression ::= lambda_literal
                      | array_literal
-                     | hash_literal
+                     | map_literal
                      | INTEGER
                      | FLOAT
                      | STRING
@@ -90,9 +90,9 @@ lambda_literal ::= ["\" parameter_list] "->" expression;
 
 array_literal ::= "[" [expression_list] "]";
 
-hash_literal ::= "{" [hash_field {"," hash_field}] "}";
+map_literal ::= "{" [map_field {"," map_field}] "}";
 
-hash_field ::= hash_key ":" expression
+map_field ::= map_key ":" expression
              | name;
 
 pattern ::= constant_pattern
@@ -100,7 +100,7 @@ pattern ::= constant_pattern
           | type_pattern
           | pair_pattern
           | array_pattern
-          | hash_pattern
+          | map_pattern
           | "(" pattern ")";
 
 constant_pattern ::= INTEGER
@@ -118,12 +118,12 @@ pair_pattern ::= pattern "::" pattern;
 
 array_pattern ::= "[" [pattern_list] "]";
 
-hash_pattern ::= "{" [pattern_field {"," pattern_field}] "}";
+map_pattern ::= "{" [pattern_field {"," pattern_field}] "}";
 
-pattern_field ::= hash_key ":" pattern
+pattern_field ::= map_key ":" pattern
                 | name;
 
-hash_key ::= "[" expression "]"
+map_key ::= "[" expression "]"
            | name;
 
 parameter_list ::= [pattern_list];

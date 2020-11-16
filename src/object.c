@@ -94,12 +94,21 @@ RavPair *new_pair(Allocator *allocator, Value head, Value tail) {
 RavArray *new_array(Allocator *allocator, Value *values, size_t count) {
     RavArray *array = Alloc_Object(allocator, RavArray, OBJ_ARRAY);
 
+    array->header.marked = true; // for gc
     array->values = Alloc(allocator, Value, count);
+    array->header.marked = false;
     array->count = count;
     array->capacity = count;
 
     memcpy(array->values, values, count * sizeof (Value));
+
     return array;
+}
+
+RavMap *new_map(Allocator *allocator) {
+    RavMap *map = Alloc_Object(allocator, RavMap, OBJ_MAP);
+    init_table(&map->table);
+    return map;
 }
 
 RavFunction *new_function(Allocator *allocator) {
@@ -158,10 +167,11 @@ static void print_pair(RavPair *pair) {
 }
 
 // TODO: handling cyclic references
+
 static void print_array(RavArray *array) {
     putchar('[');
 
-    for (size_t i = 0; i < array->count - 1; i++) {
+    for (int i = 0; i < (int)array->count - 1; i++) {
         print_value(array->values[i]);
         printf(", ");
     }
@@ -171,6 +181,30 @@ static void print_array(RavArray *array) {
     }
 
     putchar(']');
+}
+
+static void print_map(RavMap *map) {
+    putchar('{');
+
+    Entry *entries = map->table.entries;
+    int last_index = map->table.hash_mask;
+
+    for (int i = 0; i < last_index; i++) {
+        if (entries[i].key == NULL) continue;
+
+        print_object(Obj_Value(entries[i].key));
+        printf(": ");
+        print_value(entries[i].value);
+        printf(", ");
+    }
+
+    if (last_index >= 0) {
+        print_object(Obj_Value(entries[last_index].key));
+        printf(": ");
+        print_value(entries[last_index].value);
+    }
+
+    putchar('}');
 }
 
 static void print_function(RavFunction *function) {
@@ -196,6 +230,10 @@ void print_object(Value value) {
 
     case OBJ_ARRAY:
         print_array(As_Array(value));
+        break;
+
+    case OBJ_MAP:
+        print_map(As_Map(value));
         break;
 
     case OBJ_FUNCTION:

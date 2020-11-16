@@ -45,6 +45,13 @@ static void free_object(Allocator *allocator, Object *object) {
         break;
     }
 
+    case OBJ_MAP: {
+        RavMap *map = (RavMap *)object;
+        free_table(&map->table);
+        Free(allocator, RavMap, map);
+        break;
+    }
+
     case OBJ_FUNCTION: {
         RavFunction *function = (RavFunction *)object;
         free_chunk(&function->chunk);
@@ -198,6 +205,21 @@ static void blacken_object(Allocator *allocator, Object *object) {
     case OBJ_ARRAY: {
         RavArray *array = (RavArray *)object;
         mark_array(allocator, array->values, array->count);
+        break;
+    }
+
+    case OBJ_MAP: {
+        RavMap *map = (RavMap *)object;
+
+        for (int i = 0; i <= map->table.hash_mask; i++) {
+            Entry *entry = &map->table.entries[i];
+
+            if (entry->key != NULL) {
+                mark_object(allocator, (Object *)entry->key);
+                mark_value(allocator, entry->value);
+            }
+        }
+
         break;
     }
 

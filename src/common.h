@@ -55,6 +55,9 @@
 // The limit of number of elements in an array literal.
 #define ARRAY_LIMIT UINT16_MAX + 1
 
+// The limit of number of elements in a map literal.
+#define MAP_LIMIT UINT16_MAX + 1
+
 // The limit of cond cases.
 #define COND_LIMIT 256
 

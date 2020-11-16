@@ -6,6 +6,7 @@
 #include "common.h"
 #include "chunk.h"
 #include "mem.h"
+#include "table.h"
 #include "value.h"
 #include "vm.h"
 
@@ -13,6 +14,7 @@ typedef enum {
     OBJ_STRING,
     OBJ_PAIR,
     OBJ_ARRAY,
+    OBJ_MAP,
     OBJ_FUNCTION,
     OBJ_UPVALUE,
     OBJ_CLOSURE,
@@ -46,6 +48,11 @@ struct RavArray {
     size_t capacity;
 };
 
+struct RavMap {
+    Object header;
+    Table table;
+};
+
 struct RavFunction {
     Object header;
     RavString *name;
@@ -77,12 +84,14 @@ struct RavClosure {
 #define Is_String(value)   is_object_type(value, OBJ_STRING)
 #define Is_Pair(value)     is_object_type(value, OBJ_PAIR)
 #define Is_Array(value)    is_object_type(value, OBJ_ARRAY)
+#define Is_Map(value)      is_object_type(value, OBJ_MAP)
 #define Is_Function(value) is_object_type(value, OBJ_FUNCTION)
 #define Is_Closure(value)  is_object_type(value, OBJ_CLOSURE)
 
 #define As_String(value)   ((RavString *)As_Obj(value))
 #define As_Pair(value)     ((RavPair *)As_Obj(value))
 #define As_Array(value)    ((RavArray *)As_Obj(value))
+#define As_Map(value)      ((RavMap *)As_Obj(value))
 #define As_CString(value)  ((As_String(value))->chars)
 #define As_Function(value) ((RavFunction *)As_Obj(value))
 #define As_Closure(value)  ((RavClosure *)As_Obj(value))
@@ -98,8 +107,11 @@ RavString *box_string(Allocator *allocator, char *chars, int length);
 // Construct a RavPair with the given head and tail.
 RavPair *new_pair(Allocator *allocator, Value head, Value tail);
 
-// Construct a RavArray from the provieded sized array.
+// Construct a RavArray from the provided sized array.
 RavArray *new_array(Allocator *allocator, Value *array, size_t count);
+
+// Construct an empty RavMap.
+RavMap *new_map(Allocator *allocator);
 
 // Construct an empty function object.
 RavFunction *new_function(Allocator *allocator);

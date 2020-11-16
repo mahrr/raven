@@ -1021,8 +1021,58 @@ static void nil(Parser *parser) {
     Debug_Exit(parser);
 }
 
+static void map(Parser* parser) {
+    Debug_Log(parser);
+
+    if (match(parser, TOKEN_RIGHT_BRACE)) {
+        emit_bytes(parser, OP_MAP_8, 0);
+        Debug_Exit(parser);
+        return;
+    }
+
+    size_t count = 0;
+    do {
+        consume(parser, TOKEN_IDENTIFIER, "expect a map key name");
+
+        // key
+        RavString *key = new_string(&parser->vm->allocator,
+                                   parser->previous.lexeme,
+                                   parser->previous.length);
+        emit_constant(parser, Obj_Value(key));
+
+        consume(parser, TOKEN_COLON, "expect ':' after map key");
+
+        if (count == MAP_LIMIT) {
+            error_limit(parser, "map literal elements", MAP_LIMIT);
+            break;
+        }
+
+        // value
+        expression(parser);
+
+        count++;
+    } while (match(parser, TOKEN_COMMA));
+
+    if (count > UINT8_MAX) {
+        emit_byte(parser, OP_MAP_16);
+        emit_bytes(parser, (count >> 8) & 0xff, count & 0xff);
+    } else {
+        emit_bytes(parser, OP_MAP_8, (uint8_t)count);
+    }
+
+    consume(parser, TOKEN_RIGHT_BRACE, "expect '}' after map elements");
+
+    Debug_Exit(parser);
+}
+
 static void array(Parser *parser) {
     Debug_Log(parser);
+
+    if (match(parser, TOKEN_RIGHT_BRACKET)) {
+        emit_bytes(parser, OP_ARRAY_8, 0);
+        Debug_Exit(parser);
+        return;
+    }
 
     size_t count = 0;
     do {
@@ -1043,7 +1093,7 @@ static void array(Parser *parser) {
         emit_bytes(parser, OP_ARRAY_8, (uint8_t)count);
     }
 
-    consume(parser, TOKEN_RIGHT_BRACKET, "expect ']' after elements");
+    consume(parser, TOKEN_RIGHT_BRACKET, "expect ']' after array elements");
 
     Debug_Exit(parser);
 }
@@ -1123,7 +1173,7 @@ static ParseRule rules[] = {
     { NULL,       NULL,       PREC_NONE },         // TOKEN_COLON
     { grouping,   call,       PREC_CALL },         // TOKEN_LEFT_PAREN
     { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_PAREN
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_LEFT_BRACE
+    { map,        NULL,       PREC_NONE },         // TOKEN_LEFT_BRACE
     { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_BRACE
     { array,      indexing,   PREC_HIGHEST },      // TOKEN_LEFT_BRACKET
     { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_BRACKET

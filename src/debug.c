@@ -145,6 +145,12 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     case OP_ARRAY_16:
         return short_instruction("ARRAY_16", chunk, offset);
 
+    case OP_MAP_8:
+        return byte_instruction("MAP_8", chunk, offset);
+
+    case OP_MAP_16:
+        return short_instruction("MAP_16", chunk, offset);
+
     case OP_INDEX_SET:
         return basic_instruction("INDEX_SET", offset);
 
