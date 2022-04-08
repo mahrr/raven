@@ -49,8 +49,7 @@ static inline Token new_token(Lexer *lexer, TokenType type) {
 }
 
 static Token error_token(Lexer *lexer, const char *message) {
-    fprintf(stderr, "[%s: %d] SyntaxError at '%.1s': %s\n",
-            lexer->file, lexer->line, lexer->start, message);
+    fprintf(stderr, "[%s: %d] SyntaxError at '%.1s': %s\n", lexer->file, lexer->line, lexer->start, message);
 
     Token token;
     token.type = TOKEN_ERROR;
@@ -76,8 +75,7 @@ static Token string(Lexer *lexer) {
     return new_token(lexer, TOKEN_STRING);
 }
 
-static inline TokenType is_keyword(Lexer *lexer, int start, int length,
-                                   const char *rest, TokenType type) {
+static inline TokenType is_keyword(Lexer *lexer, int start, int length, const char *rest, TokenType type) {
     if (lexer->current - lexer->start == start + length &&
         memcmp(lexer->start + start, rest, length) == 0) {
         return type;
@@ -174,8 +172,7 @@ static TokenType identifier_type(Lexer *lexer) {
 }
 
 static Token identifier(Lexer *lexer) {
-    while (!at_end(lexer) &&
-           (isalnum(peek(lexer)) || peek(lexer) == '_')) {
+    while (!at_end(lexer) && (isalnum(peek(lexer)) || peek(lexer) == '_')) {
         advance(lexer);
     }
 

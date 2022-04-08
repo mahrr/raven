@@ -24,17 +24,20 @@ static int byte_instruction(const char *tag, Chunk *chunk, int offset) {
 }
 
 static int short_instruction(const char *tag, Chunk *chunk, int offset) {
-    uint16_t count = (uint16_t)(chunk->opcodes[offset + 1] << 8 |
-                                chunk->opcodes[offset + 2]);
+    uint16_t count = (uint16_t)(
+        chunk->opcodes[offset + 1] << 8 |
+        chunk->opcodes[offset + 2]
+    );
 
     printf("%-16s %4d\n", tag, count);
     return offset + 3;
 }
 
-static int jump_instruction(const char *tag, Chunk *chunk, int sign,
-                            int offset) {
-    uint16_t jump = (uint16_t)(chunk->opcodes[offset + 1] << 8 |
-                               chunk->opcodes[offset + 2]);
+static int jump_instruction(const char *tag, Chunk *chunk, int sign, int offset) {
+    uint16_t jump = (uint16_t)(
+        chunk->opcodes[offset + 1] << 8 |
+        chunk->opcodes[offset + 2]
+    );
 
     printf("%-16s %4d -> %d\n", tag, offset, offset + 3 + sign * jump);
     return offset + 3;

@@ -65,10 +65,14 @@ static void adjust_capacity(Table *table, int hash_mask) {
 }
 
 bool table_get(Table *table, RavString *key, Value *value) {
-    if (table->count == 0) return false;
+    if (table->count == 0) {
+        return false;
+    }
 
     Entry *entry = find_entry(table->entries, key, table->hash_mask);
-    if (entry->key == NULL) return false;
+    if (entry->key == NULL) {
+        return false;
+    }
 
     *value = entry->value;
     return true;
@@ -85,7 +89,9 @@ bool table_set(Table *table, RavString *key, Value value) {
     Entry *entry = find_entry(table->entries, key, table->hash_mask);
 
     bool is_new_key = entry->key == NULL;
-    if (is_new_key && Is_Nil(entry->value)) table->count++;
+    if (is_new_key && Is_Nil(entry->value)) {
+        table->count++;
+    }
 
     entry->key = key;
     entry->value = value;
@@ -93,10 +99,14 @@ bool table_set(Table *table, RavString *key, Value value) {
 }
 
 bool table_remove(Table *table, RavString *key) {
-    if (table->count == 0) return false;
+    if (table->count == 0) {
+        return false;
+    }
 
     Entry *entry = find_entry(table->entries, key, table->hash_mask);
-    if (entry->key == NULL) return false;
+    if (entry->key == NULL) {
+        return false;
+    }
 
     entry->key = NULL;
     entry->value = Bool_Value(false); // Any non-nil value
@@ -114,16 +124,19 @@ void table_copy(Table *from, Table *to) {
     }
 }
 
-RavString *table_interned(Table *table, const char *chars,
-                          uint32_t hash, int length) {
-    if (table->count == 0) return NULL;
+RavString *table_interned(Table *table, const char *chars, uint32_t hash, int length) {
+    if (table->count == 0) {
+        return NULL;
+    }
 
     uint32_t index = hash & table->hash_mask;
     for (;;) {
         Entry *entry = &table->entries[index];
 
         if (entry->key == NULL) {
-            if (Is_Nil(entry->value)) return NULL;
+            if (Is_Nil(entry->value)) {
+                return NULL;
+            }
         } else {
             RavString *key = entry->key;
             if (key->length == length &&

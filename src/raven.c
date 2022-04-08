@@ -18,7 +18,9 @@ static void repl() {
     char buf[256];
     for (;;) {
         fputs("> ", stdout);
-        if (!fgets(buf, 256, stdin) || feof(stdin)) break;
+        if (!fgets(buf, 256, stdin) || feof(stdin)) {
+            break;
+        }
         interpret(&vm, buf, "stdin");
     }
 
@@ -45,8 +47,7 @@ static char *scan_file(const char *path) {
 
     size_t bytes_read = fread(buf, sizeof (char), size, file);
     if (bytes_read < size || ferror(file)) {
-        fprintf(stderr, "Fatal: error reading '%s' (%s)\n", path,
-                strerror(errno));
+        fprintf(stderr, "Fatal: error reading '%s' (%s)\n", path, strerror(errno));
         exit(EXIT_FAILURE);
     }
 

@@ -297,13 +297,11 @@ static inline void advance(Parser *parser) {
 
     for (;;) {
         parser->current = next_token(parser->lexer);
-
         if (parser->current.type != TOKEN_ERROR) break;
     }
 }
 
-static inline void consume(Parser *parser, TokenType type,
-                           const char *message) {
+static inline void consume(Parser *parser, TokenType type, const char *message) {
     if (parser->current.type == type) {
         advance(parser);
     } else {
@@ -316,7 +314,9 @@ static inline bool check(Parser *parser, TokenType type) {
 }
 
 static inline bool match(Parser *parser, TokenType type) {
-    if (!check(parser, type)) return false;
+    if (!check(parser, type)) {
+        return false;
+    }
 
     advance(parser);
     return true;
@@ -386,7 +386,9 @@ static void end_scope(Parser *parser, bool loading) {
 }
 
 static inline bool same_identifier(Token *a, Token *b) {
-    if (a->length != b->length) return false;
+    if (a->length != b->length) {
+        return false;
+    }
     return memcmp(a->lexeme, b->lexeme, a->length) == 0;
 }
 
@@ -415,8 +417,7 @@ static inline int resolve_local(Context *context, Token *name) {
     return -1;
 }
 
-static int add_upvalue(Parser *parser, Context *context, uint8_t index,
-                       bool is_local) {
+static int add_upvalue(Parser *parser, Context *context, uint8_t index, bool is_local) {
     int upvalue_count = context->function->upvalue_count;
 
     // Check first if the upvalue is already captured.
@@ -469,9 +470,10 @@ static int add_upvalue(Parser *parser, Context *context, uint8_t index,
 //  paper 'Closures in Lua'.
 //
 
-static int resolve_upvalue(Parser *parser, Context *context,
-                           Token *name) {
-    if (context->enclosing == NULL) return -1;
+static int resolve_upvalue(Parser *parser, Context *context, Token *name) {
+    if (context->enclosing == NULL) {
+        return -1;
+    }
 
     int local = resolve_local(context->enclosing, name);
     if (local != -1) {
@@ -503,8 +505,7 @@ static inline void init_parser(Parser *parser, Lexer *lexer, VM *vm) {
     advance(parser);
 }
 
-static inline void init_context(Context *context, Parser *parser,
-                                FunctionType type) {
+static inline void init_context(Context *context, Parser *parser, FunctionType type) {
     // TODO: limit the amount of nesting function declaration.
     context->enclosing = parser->context; // Save the previous scope.
     parser->context = context;            // Push the new scope.
@@ -522,12 +523,19 @@ static inline void init_context(Context *context, Parser *parser,
     local->is_captured = false;
 
     if (type == FunctionDeclaration) {
-        context->function->name = new_string(&parser->vm->allocator,
-                                             parser->previous.lexeme,
-                                             parser->previous.length);
+        context->function->name = new_string(
+            &parser->vm->allocator,
+            parser->previous.lexeme,
+            parser->previous.length
+        );
     } else if (type == FunctionLambda || type == FunctionLambdaHeadless) {
-        context->function->name = new_string(&parser->vm->allocator,
-                                             "\\lambda", sizeof "\\lambda");
+        static const char LAMBDA_NAME[] = "\\lambda";
+
+        context->function->name = new_string(
+            &parser->vm->allocator,
+            LAMBDA_NAME,
+            sizeof LAMBDA_NAME
+        );
     }
 }
 
@@ -538,8 +546,7 @@ static inline RavFunction *end_context(Parser *parser, bool toplevel) {
 #ifdef DEBUG_DUMP_CODE
     if (parser->had_error == false) {
         RavString *name = function->name;
-        disassemble_chunk(parser_chunk(parser),
-                          name ? name->chars : "top-level");
+        disassemble_chunk(parser_chunk(parser), name ? name->chars : "top-level");
         putchar('\n');
     }
 #endif
@@ -950,8 +957,7 @@ static void grouping(Parser *parser) {
     Debug_Log(parser);
 
     expression(parser);
-    consume(parser, TOKEN_RIGHT_PAREN,
-            "Expect closing ')' after group expression");
+    consume(parser, TOKEN_RIGHT_PAREN, "Expect closing ')' after group expression");
 
     Debug_Exit(parser);
 }
@@ -996,9 +1002,11 @@ static void string(Parser *parser) {
     Debug_Log(parser);
 
     // +1 and -2 for the literal string quotes
-    RavString *string = new_string(&parser->vm->allocator,
-                                   parser->previous.lexeme + 1,
-                                   parser->previous.length - 2);
+    RavString *string = new_string(
+        &parser->vm->allocator,
+        parser->previous.lexeme + 1,
+        parser->previous.length - 2
+    );
     emit_constant(parser, Obj_Value(string));
 
     Debug_Exit(parser);
@@ -1035,9 +1043,11 @@ static void map(Parser* parser) {
         consume(parser, TOKEN_IDENTIFIER, "expect a map key name");
 
         // key
-        RavString *key = new_string(&parser->vm->allocator,
-                                   parser->previous.lexeme,
-                                   parser->previous.length);
+        RavString *key = new_string(
+            &parser->vm->allocator,
+            parser->previous.lexeme,
+            parser->previous.length
+        );
         emit_constant(parser, Obj_Value(key));
 
         consume(parser, TOKEN_COLON, "expect ':' after map key");
@@ -1272,8 +1282,7 @@ static void let_declaration(Parser *parser) {
         emit_byte(parser, OP_PUSH_NIL);
     }
 
-    consume(parser, TOKEN_SEMICOLON,
-            "expect ';' or newline after let declaration");
+    consume(parser, TOKEN_SEMICOLON, "expect ';' or newline after let declaration");
     define_variable(parser, index);
 
     Debug_Exit(parser);
@@ -1287,7 +1296,7 @@ static void parameters(Parser *parser, TokenType closing_token) {
         function->arity++;
 
         if (function->arity > UINT8_MAX) {
-            error_current(parser, "exceeds parameters limit (255)");
+            error_limit(parser, "parameters", 255);
         }
 
         uint8_t index = variable(parser, "expect parameter name");

@@ -66,10 +66,7 @@ static void free_object(Allocator *allocator, Object *object) {
 
     case OBJ_CLOSURE: {
         RavClosure *closure = (RavClosure *)object;
-        Free_Array(allocator,
-                   RavClosure*,
-                   closure->upvalues,
-                   closure->upvalue_count);
+        Free_Array(allocator, RavClosure*, closure->upvalues, closure->upvalue_count);
         Free(allocator, RavClosure, object);
         break;
     }
@@ -93,8 +90,7 @@ void free_allocator(Allocator *allocator) {
     init_allocator(allocator);
 }
 
-void *allocate(Allocator *allocator, void *previous, size_t old_size,
-               size_t new_size) {
+void *allocate(Allocator *allocator, void *previous, size_t old_size, size_t new_size) {
     allocator->bytes_allocated += new_size - old_size;
 
     if (!allocator->gc_off && new_size > old_size) {
@@ -143,7 +139,9 @@ static void mark_object(Allocator *allocator, Object *object) {
 }
 
 static void mark_value(Allocator *allocator, Value value) {
-    if (!Is_Obj(value)) return;
+    if (!Is_Obj(value)) {
+        return;
+    }
     mark_object(allocator, As_Obj(value));
 }
 

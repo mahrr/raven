@@ -30,8 +30,7 @@ static void write_line(Chunk *chunk, int line) {
 
     if (chunk->lines_count == chunk->lines_capacity) {
         chunk->lines_capacity = Grow_Capacity(chunk->lines_capacity);
-        chunk->lines = realloc(chunk->lines,
-                               chunk->lines_capacity * sizeof (Line));
+        chunk->lines = realloc(chunk->lines, chunk->lines_capacity * sizeof (Line));
     }
 
     Line *line_encoding = &chunk->lines[chunk->lines_count++];
@@ -64,8 +63,7 @@ int decode_line(Chunk *chunk, int offset) {
 
         if (offset < line->offset) {
             end = mid - 1;
-        }  else if (mid == chunk->lines_count - 1 ||
-                    offset < chunk->lines[mid + 1].offset) {
+        }  else if (mid == chunk->lines_count - 1 || offset < chunk->lines[mid + 1].offset) {
             return line->line;
         } else {
             start = mid + 1;

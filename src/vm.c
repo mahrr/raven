@@ -348,8 +348,7 @@ static InterpretResult run_vm(register VM *vm) {
 
     Case(OP_ARRAY_8): {
         size_t count = (size_t)Read_Byte();
-        RavArray *array = new_array(&vm->allocator,
-                                    vm->stack_top - count, count);
+        RavArray *array = new_array(&vm->allocator, vm->stack_top - count, count);
         vm->stack_top -= count;
         Push(Obj_Value(array));
 
@@ -358,8 +357,7 @@ static InterpretResult run_vm(register VM *vm) {
 
     Case(OP_ARRAY_16): {
         size_t count = (size_t)Read_Short();
-        RavArray *array = new_array(&vm->allocator,
-                                    vm->stack_top - count, count);
+        RavArray *array = new_array(&vm->allocator, vm->stack_top - count, count);
         vm->stack_top -= count;
         Push(Obj_Value(array));
 
@@ -382,14 +380,18 @@ static InterpretResult run_vm(register VM *vm) {
             return INTERPRET_RUNTIME_ERROR;
         }
 
-        size_t index = (size_t)As_Num(offset);
-        if (index >= array->count) {
-            Runtime_Error("index out of bound %d > %d",
-                            index, array->count);
+        double index = As_Num(offset);
+        if (index != floor(index)) {
+            Runtime_Error("array index should not have fraction part (%f)", index);
             return INTERPRET_RUNTIME_ERROR;
         }
 
-        Push(array->values[index] = value);
+        if (index < 0.0f || index >= (double)array->count) {
+            Runtime_Error("index out of bound (index: %lld, count: %llu)", (int64_t)index, array->count);
+            return INTERPRET_RUNTIME_ERROR;
+        }
+
+        Push(array->values[(size_t)index] = value);
         Dispatch();
     }
 
@@ -408,14 +410,18 @@ static InterpretResult run_vm(register VM *vm) {
             return INTERPRET_RUNTIME_ERROR;
         }
 
-        size_t index = (size_t)As_Num(offset);
-        if (index >= array->count) {
-            Runtime_Error("index out of bound %d > %d",
-                            index, array->count);
+        double index = As_Num(offset);
+        if (index != floor(index)) {
+            Runtime_Error("array index should not have fraction part (%f)", index);
             return INTERPRET_RUNTIME_ERROR;
         }
 
-        Push(array->values[index]);
+        if (index < 0.0f || index >= (double)array->count) {
+            Runtime_Error("index out of bound (index: %lld, count: %llu)", (int64_t)index, array->count);
+            return INTERPRET_RUNTIME_ERROR;
+        }
+
+        Push(array->values[(size_t)index]);
         Dispatch();
     }
 
@@ -464,8 +470,7 @@ static InterpretResult run_vm(register VM *vm) {
         uint8_t index = Read_Byte();
 
         if (Is_Void(vm->global_buffer[index])) {
-            Runtime_Error("unbound variable '%s'",
-                            global_name_at(vm, index));
+            Runtime_Error("unbound variable '%s'", global_name_at(vm, index));
             return INTERPRET_RUNTIME_ERROR;
         }
 
@@ -478,8 +483,7 @@ static InterpretResult run_vm(register VM *vm) {
         Value value = vm->global_buffer[index];
 
         if (Is_Void(value)) {
-            Runtime_Error("unbound variable '%s'",
-                            global_name_at(vm, index));
+            Runtime_Error("unbound variable '%s'", global_name_at(vm, index));
             return INTERPRET_RUNTIME_ERROR;
         }
 
@@ -555,9 +559,11 @@ static InterpretResult run_vm(register VM *vm) {
             uint8_t is_local = Read_Byte();
             uint8_t index = Read_Byte();
 
-            closure->upvalues[i] = is_local ?
-                capture_upvalue(vm, frame.slots + index) :
-                frame.closure->upvalues[index];
+            if (is_local) {
+                closure->upvalues[i] = capture_upvalue(vm, frame.slots + index);
+            } else {
+                closure->upvalues[i] = frame.closure->upvalues[index];
+            }
         }
 
         Dispatch();

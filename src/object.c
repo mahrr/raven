@@ -29,8 +29,7 @@ static Object *alloc_object(Allocator *allocator, ObjectType type,
     return object;
 }
 
-static RavString *alloc_string(Allocator *allocator, int length,
-                               uint32_t hash, char *chars) {
+static RavString *alloc_string(Allocator *allocator, int length, uint32_t hash, char *chars) {
     RavString *string = Alloc_Object(allocator, RavString, OBJ_STRING);
     string->length = length;
     string->hash = hash;
@@ -51,11 +50,9 @@ static uint32_t hash_string(const char *key, int length) {
     return hash;
 }
 
-RavString *new_string(Allocator *allocator, const char *chars,
-                      int length) {
+RavString *new_string(Allocator *allocator, const char *chars, int length) {
     uint32_t hash = hash_string(chars, length);
-    RavString *interned = table_interned(&allocator->strings, chars,
-                                         hash, length);
+    RavString *interned = table_interned(&allocator->strings, chars, hash, length);
 
     if (interned != NULL) return interned;
 
@@ -68,8 +65,7 @@ RavString *new_string(Allocator *allocator, const char *chars,
 
 RavString *box_string(Allocator *allocator, char *chars, int length) {
     uint32_t hash = hash_string(chars, length);
-    RavString *interned = table_interned(&allocator->strings, chars,
-                                         hash, length);
+    RavString *interned = table_interned(&allocator->strings, chars, hash, length);
 
     // box_string takes ownership of chars memory, so if
     // the string is already interned, it frees this memory,
@@ -112,8 +108,7 @@ RavMap *new_map(Allocator *allocator) {
 }
 
 RavFunction *new_function(Allocator *allocator) {
-    RavFunction *function = Alloc_Object(allocator, RavFunction,
-                                         OBJ_FUNCTION);
+    RavFunction *function = Alloc_Object(allocator, RavFunction, OBJ_FUNCTION);
 
     function->name = NULL;
     function->arity = 0;
@@ -124,8 +119,7 @@ RavFunction *new_function(Allocator *allocator) {
 }
 
 RavUpvalue *new_upvalue(Allocator *allocator, Value *location) {
-    RavUpvalue *upvalue = Alloc_Object(allocator, RavUpvalue,
-                                       OBJ_UPVALUE);
+    RavUpvalue *upvalue = Alloc_Object(allocator, RavUpvalue, OBJ_UPVALUE);
 
     upvalue->location = location;
     upvalue->captured = Void_Value;
@@ -135,15 +129,13 @@ RavUpvalue *new_upvalue(Allocator *allocator, Value *location) {
 }
 
 RavClosure *new_closure(Allocator *allocator, RavFunction *function) {
-    RavUpvalue **upvalues = Alloc(allocator, RavUpvalue*,
-                                  function->upvalue_count);
+    RavUpvalue **upvalues = Alloc(allocator, RavUpvalue*, function->upvalue_count);
 
     for (int i = 0; i < function->upvalue_count; i++) {
         upvalues[i] = NULL;
     }
 
-    RavClosure *closure = Alloc_Object(allocator, RavClosure,
-                                       OBJ_CLOSURE);
+    RavClosure *closure = Alloc_Object(allocator, RavClosure, OBJ_CLOSURE);
     closure->function = function;
     closure->upvalues = upvalues;
     closure->upvalue_count = function->upvalue_count;
@@ -190,7 +182,9 @@ static void print_map(RavMap *map) {
     int last_index = map->table.hash_mask;
 
     for (int i = 0; i < last_index; i++) {
-        if (entries[i].key == NULL) continue;
+        if (entries[i].key == NULL) {
+            continue;
+        }
 
         print_object(Obj_Value(entries[i].key));
         printf(": ");
