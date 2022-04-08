@@ -51,7 +51,9 @@ static void adjust_capacity(Table *table, int hash_mask) {
     table->count = 0;
     for (int i = 0; i <= table->hash_mask; i++) {
         Entry *entry = &table->entries[i];
-        if (entry->key == NULL) continue;
+        if (entry->key == NULL) {
+            continue;
+        }
 
         Entry *copy = find_entry(entries, entry->key, hash_mask);
         copy->key = entry->key;

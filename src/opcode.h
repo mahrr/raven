@@ -36,10 +36,10 @@ Opcode(OP_NOT)
 Opcode(OP_CONS)
 Opcode(OP_ARRAY_8)        // 1-byte number of elements
 Opcode(OP_ARRAY_16)       // 2-bytes number of elements
-Opcode(OP_INDEX_SET)
-Opcode(OP_INDEX_GET)
 Opcode(OP_MAP_8)          // 1-byte number of elements
 Opcode(OP_MAP_16)         // 2-bytes number of elements
+Opcode(OP_INDEX_SET)
+Opcode(OP_INDEX_GET)
 
 // Variables
 Opcode(OP_DEF_GLOBAL)     // 1-byte global buffer index

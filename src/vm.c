@@ -364,67 +364,6 @@ static InterpretResult run_vm(register VM *vm) {
         Dispatch();
     }
 
-    Case(OP_INDEX_SET): {
-        Value value = Pop();
-        Value offset = Pop();
-        Value collection = Pop();
-
-        if (!Is_Array(collection)) {
-            Runtime_Error("index a non-collection type");
-            return INTERPRET_RUNTIME_ERROR;
-        }
-
-        RavArray *array = As_Array(collection);
-        if (!Is_Num(offset)) {
-            Runtime_Error("index an array with non-numeric type");
-            return INTERPRET_RUNTIME_ERROR;
-        }
-
-        double index = As_Num(offset);
-        if (index != floor(index)) {
-            Runtime_Error("array index should not have fraction part (%f)", index);
-            return INTERPRET_RUNTIME_ERROR;
-        }
-
-        if (index < 0.0f || index >= (double)array->count) {
-            Runtime_Error("index out of bound (index: %lld, count: %llu)", (int64_t)index, array->count);
-            return INTERPRET_RUNTIME_ERROR;
-        }
-
-        Push(array->values[(size_t)index] = value);
-        Dispatch();
-    }
-
-    Case(OP_INDEX_GET): {
-        Value offset = Pop();
-        Value collection = Pop();
-
-        if (!Is_Array(collection)) {
-            Runtime_Error("index a non-collection type");
-            return INTERPRET_RUNTIME_ERROR;
-        }
-
-        RavArray *array = As_Array(collection);
-        if (!Is_Num(offset)) {
-            Runtime_Error("index an array with non-numeric type");
-            return INTERPRET_RUNTIME_ERROR;
-        }
-
-        double index = As_Num(offset);
-        if (index != floor(index)) {
-            Runtime_Error("array index should not have fraction part (%f)", index);
-            return INTERPRET_RUNTIME_ERROR;
-        }
-
-        if (index < 0.0f || index >= (double)array->count) {
-            Runtime_Error("index out of bound (index: %lld, count: %llu)", (int64_t)index, array->count);
-            return INTERPRET_RUNTIME_ERROR;
-        }
-
-        Push(array->values[(size_t)index]);
-        Dispatch();
-    }
-
     Case(OP_MAP_8): {
         size_t count = (size_t)Read_Byte() * 2;
         Value *offset = vm->stack_top - count;
@@ -457,6 +396,94 @@ static InterpretResult run_vm(register VM *vm) {
 
         vm->stack_top -= count;
         Push(Obj_Value(map));
+
+        Dispatch();
+    }
+
+    Case(OP_INDEX_SET): {
+        Value value = Pop();
+        Value offset = Pop();
+        Value collection = Pop();
+
+        if (Is_Array(collection)) {
+            RavArray *array = As_Array(collection);
+            if (!Is_Num(offset)) {
+                Runtime_Error("index an array with non-numeric type");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+
+            double index = As_Num(offset);
+            if (index != floor(index)) {
+                Runtime_Error("array index should not have fraction part (%f)", index);
+                return INTERPRET_RUNTIME_ERROR;
+            }
+
+            if (index < 0.0f || index >= (double)array->count) {
+                Runtime_Error("index out of bound (index: %lld, count: %llu)", (int64_t)index, array->count);
+                return INTERPRET_RUNTIME_ERROR;
+            }
+
+            Push(array->values[(size_t)index] = value);
+        } else if (Is_Map(collection)) {
+            RavMap *map = As_Map(collection);
+            if (!Is_String(offset)) {
+                Runtime_Error("index a map with non-string type");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+
+            table_set(&map->table, As_String(offset), value);
+            Push(value);
+        } else {
+            Runtime_Error("index a non-collection type");
+            return INTERPRET_RUNTIME_ERROR;
+        }
+
+        Dispatch();
+    }
+
+    Case(OP_INDEX_GET): {
+        Value offset = Pop();
+        Value collection = Pop();
+
+        if (Is_Array(collection)) {
+            RavArray *array = As_Array(collection);
+            if (!Is_Num(offset)) {
+                Runtime_Error("index an array with non-numeric type");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+
+            double index = As_Num(offset);
+            if (index != floor(index)) {
+                Runtime_Error("array index should not have fraction part (%f)", index);
+                return INTERPRET_RUNTIME_ERROR;
+            }
+
+            if (index < 0.0f || index >= (double)array->count) {
+                Runtime_Error(
+                    "index out of bound (index: %lld, count: %llu)",
+                    (int64_t)index,
+                    array->count
+                );
+                return INTERPRET_RUNTIME_ERROR;
+            }
+
+            Push(array->values[(size_t)index]);
+        } else if (Is_Map(collection)) {
+            RavMap *map = As_Map(collection);
+            if (!Is_String(offset)) {
+                Runtime_Error("index a map with non-string type");
+                return INTERPRET_RUNTIME_ERROR;
+            }
+
+            Value value = Nil_Value;
+            RavString* key = As_String(offset);
+            table_get(&map->table, key, &value);
+
+            Push(value);
+        } else {
+            Runtime_Error("index a non-collection type");
+            return INTERPRET_RUNTIME_ERROR;
+        }
 
         Dispatch();
     }
