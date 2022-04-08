@@ -1,5 +1,2 @@
-bin/
-misc/
-
-*.o
+build/
 perf*
