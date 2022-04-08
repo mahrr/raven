@@ -29,6 +29,6 @@ fn tail(pair)
 end
 
 
-let pair = cons(1, 2);
+let pair = cons(1, 2)
 
 head(pair) + tail(pair)  # => 3

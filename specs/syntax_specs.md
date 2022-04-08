@@ -2,7 +2,7 @@
 
 ```EBNF
 
-script ::= chunk;
+program ::= chunk;
 
 chunk ::= {declaration} [expression];
 
@@ -11,7 +11,7 @@ declaration ::= let_declaration
               | type_declaration
               | statement;
 
-let_declaration ::= "let" pattern "=" expression delimiter;
+let_declaration ::= "let" pattern "=" expression;
 
 fn_declaration ::= "fn" name "(" parameter_list ")" chunk "end";
 
@@ -22,13 +22,14 @@ type_variant ::= name "("[name {"," name} ]")";
 statement ::= assert_statement
             | expression_statement
             | return_statement
-            | "break" delimiter;
+            | "continue"
+            | "break";
 
-assert_statement ::= "assert" expression delimiter;
+assert_statement ::= "assert" expression;
 
-expression_statement ::= expression delimiter;
+expression_statement ::= expression;
 
-return_statement ::= "return" [expression] delimiter;
+return_statement ::= "return" [expression];
 
 expression ::= prefix_expression
              | infix_expression
@@ -139,8 +140,6 @@ infix_operator ::= "." | "+" | "-" | "*" | "/" | "%" | "@" | "="
                  | "and" | "or";
 
 name ::= IDENTIFIER;
-
-delimiter ::= ";" | NEW_LINE;
 
 ```
 

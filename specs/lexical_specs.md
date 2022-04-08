@@ -49,8 +49,7 @@ operator ::= "and" | "not" | "or"
 delimiter ::= "do" | "end" | "in"
             | "="  | "->"  | "("
             | ")"  | "["   | "]"
-            | ";"  | ":"   | "|"
-            | ",";
+            | ","  | ":"   | "|";
 
 comment ::= "#" <extends until the end of the line>;
 

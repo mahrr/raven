@@ -1266,7 +1266,10 @@ static uint8_t variable(Parser *parser, const char *error) {
     consume(parser, TOKEN_IDENTIFIER, error);
 
     declare_variable(parser);
-    if (parser->context->scope_depth > 0) return 0;
+
+    if (parser->context->scope_depth > 0) {
+        return 0;
+    }
 
     return register_identifier(parser, &parser->previous);
 }
@@ -1282,7 +1285,6 @@ static void let_declaration(Parser *parser) {
         emit_byte(parser, OP_PUSH_NIL);
     }
 
-    consume(parser, TOKEN_SEMICOLON, "expect ';' or newline after let declaration");
     define_variable(parser, index);
 
     Debug_Exit(parser);
@@ -1364,8 +1366,6 @@ static void return_statement(Parser *parser) {
     expression(parser);
     emit_byte(parser, OP_RETURN);
 
-    consume(parser, TOKEN_SEMICOLON, "expect ';' after return value");
-
     Debug_Exit(parser);
 }
 
@@ -1376,8 +1376,6 @@ static void continue_statement(Parser *parser) {
     if (parser->inner_loop_start == -1) {
         error_previous(parser, "use of continue outside a loop");
     }
-
-    consume(parser, TOKEN_SEMICOLON, "expect ';' after continue");
 
     unwind_stack(parser, parser->inner_loop_depth);
     emit_loop(parser, parser->inner_loop_start);
@@ -1390,8 +1388,6 @@ static void assert_statement(Parser *parser) {
 
     expression(parser);
     emit_byte(parser, OP_ASSERT);
-
-    consume(parser, TOKEN_SEMICOLON, "expect ';' after assert");
 
     Debug_Exit(parser);
 }
@@ -1434,12 +1430,12 @@ static void declaration(Parser *parser) {
         assert_statement(parser);
     } else {
         expression(parser);
-        // consume(parser, TOKEN_SEMICOLON,
-        //         "expect ';' or newline after expression");
         emit_byte(parser, OP_SAVE_X);
     }
 
-    if (parser->panic_mode) recover(parser);
+    if (parser->panic_mode) {
+        recover(parser);
+    }
 
     Debug_Exit(parser);
 }
