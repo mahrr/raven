@@ -26,7 +26,9 @@ void free_chunk(Chunk *chunk) {
 
 static void write_line(Chunk *chunk, int line) {
     if (chunk->lines_count > 0 &&
-        chunk->lines[chunk->lines_count - 1].line == line) return;
+        chunk->lines[chunk->lines_count - 1].line == line) {
+        return;
+    }
 
     if (chunk->lines_count == chunk->lines_capacity) {
         chunk->lines_capacity = Grow_Capacity(chunk->lines_capacity);

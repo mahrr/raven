@@ -13,7 +13,6 @@ OBJS = raven.o vm.o chunk.o table.o object.o value.o compiler.o \
 
 SRCDIR = src
 BINDIR = build
-OBJDIR = build/object
 
 debug: build/debug/raven
 release: build/release/raven
@@ -24,30 +23,30 @@ debug: CFLAGS += $(DEBUG_FLAGS)
 release: CFLAGS += $(RELEASE_FLAGS)
 release_symbols: CFLAGS += $(RELEASE_SYMBOLS_FLAGS)
 
-build/debug/raven: $(OBJS:%.o=$(OBJDIR)/debug/%.o)
+build/debug/raven: $(OBJS:%.o=build/debug/%.o)
 	@$(MKDIR) $(dir $@)
 	@$(CC) -o $@ $^ $(LDLIBS)
 
-build/release/raven: $(OBJS:%.o=$(OBJDIR)/release/%.o)
+build/release/raven: $(OBJS:%.o=build/release/%.o)
 	@$(MKDIR) $(dir $@)
 	$(CC) -o $@ $^ $(LDLIBS)
 
-build/relase_symbols/raven: $(OBJS:%.o=$(OBJDIR)/relase_symbols/%.o)
+build/relase_symbols/raven: $(OBJS:%.o=build/relase_symbols/%.o)
 	@$(MKDIR) $(dir $@)
 	$(CC) -o $@ $^ $(LDLIBS)
 
 .SECONDARY:
-$(OBJDIR)/debug/%.o: $(SRCDIR)/%.c
+build/debug/%.o: $(SRCDIR)/%.c
 	@$(MKDIR) $(dir $@)
 	@$(CC) $(CFLAGS) -o $@ -c $<
 
 .SECONDARY:
-$(OBJDIR)/release/%.o: $(SRCDIR)/%.c
+build/release/%.o: $(SRCDIR)/%.c
 	@$(MKDIR) $(dir $@)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 .SECONDARY:
-$(OBJDIR)/relase_symbols/%.o: $(SRCDIR)/%.c
+build/relase_symbols/%.o: $(SRCDIR)/%.c
 	@$(MKDIR) $(dir $@)
 	$(CC) $(CFLAGS) -o $@ -c $<
 

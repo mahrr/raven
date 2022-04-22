@@ -102,21 +102,26 @@ static bool call_closure(VM *vm, RavClosure *closure, int count) {
 }
 
 static bool call_cfunction(VM *vm, RavCFunction *cfunction, int count) {
-    if (cfunction->arity != -1 && cfunction->arity != count) {
-        runtime_error(vm, "expect %d arguments, but got %d", cfunction->arity, count);
-        return false;
+    if (cfunction->variadic) {
+        if (count < cfunction->arity) {
+            runtime_error(vm, "expect at least %d arguments, but got %d", cfunction->arity, count);
+            return false;
+        }
+    } else {
+        if (cfunction->arity != count) {
+            runtime_error(vm, "expect %d arguments, but got %d", cfunction->arity, count);
+            return false;
+        }
     }
 
     Value *stack_before = vm->stack_top;
-
-    // if it's a variadic function, we push the number of arguments into the stack
-    // before calling it
-    if (cfunction->arity == -1) {
-        push(vm, Num_Value(count));
-    }
-
-    Value result = cfunction->func(vm);
+    Value result = cfunction->func(vm, vm->stack_top - count, count);
     Value *stack_after = vm->stack_top;
+
+    // an error has occured in the function call
+    if (result == Void_Value) {
+        return false;
+    }
 
     // native functions must not manipulate the stack at a level before their
     // passed arguments
@@ -674,11 +679,11 @@ static InterpretResult run_vm(register VM *vm) {
 
 // Native Functions
 
-static Value native_print(VM* vm) {
-    size_t arguments_count = (size_t)As_Num(pop(vm));
+static Value native_print(VM *vm, Value* arguments, size_t count) {
+    (void) vm;
 
-    for (size_t i = 0; i < arguments_count; ++i) {
-        print_value(pop(vm));
+    for (size_t i = 0; i < count; ++i) {
+        print_value(arguments[i]);
         putchar(' ');
     }
 
@@ -686,18 +691,60 @@ static Value native_print(VM* vm) {
     return Nil_Value;
 }
 
+static Value native_push(VM *vm, Value* arguments, size_t count) {
+    Value receiver = arguments[0];
+    if (Is_Array(receiver) == false) {
+        runtime_error(vm, "pushing into non-array type");
+        return Void_Value;
+    }
+
+    RavArray *array = As_Array(receiver);
+    for (size_t i = 1; i < count; ++i) {
+        // Grow array memory, if needed
+        if (array->count == array->capacity) {
+            size_t old_cap = array->capacity;
+            size_t new_cap = Grow_Capacity(old_cap);
+            array->capacity = new_cap;
+            array->values = Grow_Array(&vm->allocator, array->values, Value, old_cap, new_cap);
+        }
+        array->values[array->count++] = arguments[i];
+    }
+
+    return receiver;
+}
+
+static Value native_pop(VM* vm, Value* arguments, size_t count) {
+    (void) count;
+
+    Value receiver = arguments[0];
+    if (Is_Array(receiver) == false) {
+        runtime_error(vm, "popping out of non-array type");
+        return Void_Value;
+    }
+
+    RavArray *array = As_Array(receiver);
+    if (array->count == 0) {
+        runtime_error(vm, "popping an empty array");
+        return Void_Value;
+    }
+
+    return array->values[--array->count];
+}
+
 static void register_natives(VM* vm) {
     size_t index = 0;
 
-#define Register(name, arity)                                                       \
-    do {                                                                            \
-        RavCFunction *func = new_cfunction(&vm->allocator, native_##name, arity);   \
-        RavString *name_string = new_string(&vm->allocator, #name, strlen(#name));  \
-        vm->global_buffer[index] = Obj_Value(func);                                 \
-        table_set(&vm->globals, name_string, Num_Value(index++));                   \
+#define Register(name, arity, variadic)                                                     \
+    do {                                                                                    \
+        RavCFunction *func = new_cfunction(&vm->allocator, native_##name, arity, variadic); \
+        RavString *name_string = new_string(&vm->allocator, #name, strlen(#name));          \
+        vm->global_buffer[index] = Obj_Value(func);                                         \
+        table_set(&vm->globals, name_string, Num_Value(index++));                           \
     } while (false)
 
-    Register(print, -1);
+    Register(print, 0, true);
+    Register(push, 2, true);
+    Register(pop, 1, false);
 
 #undef Register
 }

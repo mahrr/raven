@@ -86,8 +86,7 @@ void free_allocator(Allocator *allocator);
 // | P         | -         | 0        | free P memory                  |
 //  -------------------------------------------------------------------
 //
-void *allocate(Allocator *allocator, void *previous, size_t old_size,
-               size_t new_size);
+void *allocate(Allocator *allocator, void *previous, size_t old_size, size_t new_size);
 
 void run_gc(Allocator *allocator);
 

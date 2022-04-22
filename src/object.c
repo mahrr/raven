@@ -143,10 +143,11 @@ RavClosure *new_closure(Allocator *allocator, RavFunction *function) {
     return closure;
 }
 
-RavCFunction *new_cfunction(Allocator *allocator, CFunc func, int arity) {
+RavCFunction *new_cfunction(Allocator *allocator, CFunc func, int arity, bool variadic) {
     RavCFunction *cfunction = Alloc_Object(allocator, RavCFunction, OBJ_CFUNCTION);
     cfunction->func = func;
     cfunction->arity = arity;
+    cfunction->variadic = variadic;
     return cfunction;
 }
 

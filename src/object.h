@@ -10,7 +10,7 @@
 #include "value.h"
 #include "vm.h"
 
-typedef Value (*CFunc)(VM*);
+typedef Value (*CFunc)(VM*, Value*, size_t);
 
 typedef enum {
     OBJ_STRING,
@@ -86,6 +86,7 @@ struct RavCFunction {
     Object header;
     CFunc func;
     int arity;
+    bool variadic;
 };
 
 #define Obj_Type(value) (As_Obj(value)->type)
@@ -133,7 +134,7 @@ RavUpvalue *new_upvalue(Allocator *allocator, Value *location);
 RavClosure *new_closure(Allocator *allocator, RavFunction *function);
 
 // Construct a C function object.
-RavCFunction *new_cfunction(Allocator *allocator, CFunc func, int arity);
+RavCFunction *new_cfunction(Allocator *allocator, CFunc func, int arity, bool variadic);
 
 // Pretty print a raven object.
 void print_object(Value value);
