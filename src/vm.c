@@ -19,22 +19,6 @@ static inline void reset_stack(VM *vm) {
     vm->frame_count = 0;
 }
 
-void init_vm(VM *vm) {
-    vm->frame_count = 0;
-    vm->open_upvalues = NULL;
-
-    init_allocator(&vm->allocator);
-    init_table(&vm->globals);
-    reset_stack(vm);
-}
-
-void free_vm(VM *vm) {
-    free_table(&vm->globals);
-    free_allocator(&vm->allocator);
-
-    init_vm(vm);
-}
-
 static void dump_stack_trace(VM *vm, FILE *out) {
     fprintf(out, "stack traceback:\n");
 
@@ -103,7 +87,6 @@ static inline bool push_frame(VM *vm, RavClosure *closure, int count) {
     frame->closure = closure;
     frame->ip = closure->function->chunk.opcodes;
     frame->slots = vm->stack_top - count - 1;
-
     return true;
 }
 
@@ -111,17 +94,51 @@ static bool call_closure(VM *vm, RavClosure *closure, int count) {
     RavFunction *function = closure->function;
 
     if (function->arity != count) {
-        runtime_error(vm, "expect %d arguments, but got %d",
-                      function->arity, count);
+        runtime_error(vm, "expect %d arguments, but got %d", function->arity, count);
         return false;
     }
 
     return push_frame(vm, closure, count);
 }
 
-static inline bool call_value(VM *vm, Value value, int count) {
+static bool call_cfunction(VM *vm, RavCFunction *cfunction, int count) {
+    if (cfunction->arity != -1 && cfunction->arity != count) {
+        runtime_error(vm, "expect %d arguments, but got %d", cfunction->arity, count);
+        return false;
+    }
+
+    Value *stack_before = vm->stack_top;
+
+    // if it's a variadic function, we push the number of arguments into the stack
+    // before calling it
+    if (cfunction->arity == -1) {
+        push(vm, Num_Value(count));
+    }
+
+    Value result = cfunction->func(vm);
+    Value *stack_after = vm->stack_top;
+
+    // native functions must not manipulate the stack at a level before their
+    // passed arguments
+    if (stack_after < (stack_before - count)) {
+        runtime_error(vm, "corrupted stack");
+        return false;
+    }
+
+    // rewind the stack
+    vm->stack_top = stack_before - count;
+
+    // push the returned value from the function
+    push(vm, result);
+    return true;
+}
+
+static bool call_value(VM *vm, Value value, int count) {
     if (Is_Closure(value)) {
         return call_closure(vm, As_Closure(value), count);
+    }
+    if (Is_CFunction(value)) {
+        return call_cfunction(vm, As_CFunction(value), count);
     }
 
     runtime_error(vm, "call to a non-callable");
@@ -164,7 +181,7 @@ static void close_upvalues(VM *vm, Value *slot) {
 // Returns the name of a registered global at a given index.
 // It's a linear function, but that is not a problem, since it
 // only gets called at runtime errors.
-static inline const char *global_name_at(VM *vm, uint8_t index) {
+static const char *global_name_at(VM *vm, uint8_t index) {
     Table *globals = &vm->globals;
 
     for (int i = 0; i <= globals->hash_mask; i++) {
@@ -655,16 +672,64 @@ static InterpretResult run_vm(register VM *vm) {
 #undef Log_Execution
 }
 
+// Native Functions
+
+static Value native_print(VM* vm) {
+    size_t arguments_count = (size_t)As_Num(pop(vm));
+
+    for (size_t i = 0; i < arguments_count; ++i) {
+        print_value(pop(vm));
+        putchar(' ');
+    }
+
+    putchar('\n');
+    return Nil_Value;
+}
+
+static void register_natives(VM* vm) {
+    size_t index = 0;
+
+#define Register(name, arity)                                                       \
+    do {                                                                            \
+        RavCFunction *func = new_cfunction(&vm->allocator, native_##name, arity);   \
+        RavString *name_string = new_string(&vm->allocator, #name, strlen(#name));  \
+        vm->global_buffer[index] = Obj_Value(func);                                 \
+        table_set(&vm->globals, name_string, Num_Value(index++));                   \
+    } while (false)
+
+    Register(print, -1);
+
+#undef Register
+}
+
+// VM API
+
+void init_vm(VM *vm) {
+    vm->open_upvalues = NULL;
+
+    init_allocator(&vm->allocator);
+    init_table(&vm->globals);
+    reset_stack(vm);
+}
+
+void free_vm(VM *vm) {
+    free_table(&vm->globals);
+    free_allocator(&vm->allocator);
+
+    init_vm(vm);
+}
+
 InterpretResult interpret(VM *vm, const char *source, const char *path) {
     // Disable the GC while compiling.
     vm->allocator.gc_off = true;
 
-    RavFunction *function = compile(vm, source, path);
-    if (function == NULL) return INTERPRET_COMPILE_ERROR;
+    register_natives(vm);
 
-    // The compiler already reserve this slot for the function.
-    // Push the function, so the GC doesn't free its memory
-    // when allocating the closure object.
+    RavFunction *function = compile(vm, source, path);
+    if (function == NULL) {
+        return INTERPRET_COMPILE_ERROR;
+    }
+
     RavClosure *closure = new_closure(&vm->allocator, function);
     push(vm, Obj_Value(closure));
 

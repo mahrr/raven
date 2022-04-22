@@ -10,6 +10,8 @@
 #include "value.h"
 #include "vm.h"
 
+typedef Value (*CFunc)(VM*);
+
 typedef enum {
     OBJ_STRING,
     OBJ_PAIR,
@@ -18,6 +20,7 @@ typedef enum {
     OBJ_FUNCTION,
     OBJ_UPVALUE,
     OBJ_CLOSURE,
+    OBJ_CFUNCTION,
 } ObjectType;
 
 // The header (metadata) of all objects.
@@ -79,26 +82,33 @@ struct RavClosure {
     int upvalue_count;
 };
 
+struct RavCFunction {
+    Object header;
+    CFunc func;
+    int arity;
+};
+
 #define Obj_Type(value) (As_Obj(value)->type)
 
-#define Is_String(value)   is_object_type(value, OBJ_STRING)
-#define Is_Pair(value)     is_object_type(value, OBJ_PAIR)
-#define Is_Array(value)    is_object_type(value, OBJ_ARRAY)
-#define Is_Map(value)      is_object_type(value, OBJ_MAP)
-#define Is_Function(value) is_object_type(value, OBJ_FUNCTION)
-#define Is_Closure(value)  is_object_type(value, OBJ_CLOSURE)
+#define Is_String(value)    is_object_type(value, OBJ_STRING)
+#define Is_Pair(value)      is_object_type(value, OBJ_PAIR)
+#define Is_Array(value)     is_object_type(value, OBJ_ARRAY)
+#define Is_Map(value)       is_object_type(value, OBJ_MAP)
+#define Is_Function(value)  is_object_type(value, OBJ_FUNCTION)
+#define Is_Closure(value)   is_object_type(value, OBJ_CLOSURE)
+#define Is_CFunction(value) is_object_type(value, OBJ_CFUNCTION)
 
-#define As_String(value)   ((RavString *)As_Obj(value))
-#define As_Pair(value)     ((RavPair *)As_Obj(value))
-#define As_Array(value)    ((RavArray *)As_Obj(value))
-#define As_Map(value)      ((RavMap *)As_Obj(value))
-#define As_CString(value)  ((As_String(value))->chars)
-#define As_Function(value) ((RavFunction *)As_Obj(value))
-#define As_Closure(value)  ((RavClosure *)As_Obj(value))
+#define As_String(value)    ((RavString *)As_Obj(value))
+#define As_Pair(value)      ((RavPair *)As_Obj(value))
+#define As_Array(value)     ((RavArray *)As_Obj(value))
+#define As_Map(value)       ((RavMap *)As_Obj(value))
+#define As_CString(value)   ((As_String(value))->chars)
+#define As_Function(value)  ((RavFunction *)As_Obj(value))
+#define As_Closure(value)   ((RavClosure *)As_Obj(value))
+#define As_CFunction(value) ((RavCFunction *)As_Obj(value))
 
 // Construct a RavString with a copy of the given string.
-RavString *new_string(Allocator *allocator, const char *chars,
-                      int length);
+RavString *new_string(Allocator *allocator, const char *chars, int length);
 
 // Construct a RavString wrapping the given string.
 // The object will have an ownership of the chars memory.
@@ -121,6 +131,9 @@ RavUpvalue *new_upvalue(Allocator *allocator, Value *location);
 
 // Construct a closure object.
 RavClosure *new_closure(Allocator *allocator, RavFunction *function);
+
+// Construct a C function object.
+RavCFunction *new_cfunction(Allocator *allocator, CFunc func, int arity);
 
 // Pretty print a raven object.
 void print_object(Value value);

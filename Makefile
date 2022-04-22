@@ -26,7 +26,7 @@ release_symbols: CFLAGS += $(RELEASE_SYMBOLS_FLAGS)
 
 build/debug/raven: $(OBJS:%.o=$(OBJDIR)/debug/%.o)
 	@$(MKDIR) $(dir $@)
-	$(CC) -o $@ $^ $(LDLIBS)
+	@$(CC) -o $@ $^ $(LDLIBS)
 
 build/release/raven: $(OBJS:%.o=$(OBJDIR)/release/%.o)
 	@$(MKDIR) $(dir $@)
@@ -39,7 +39,7 @@ build/relase_symbols/raven: $(OBJS:%.o=$(OBJDIR)/relase_symbols/%.o)
 .SECONDARY:
 $(OBJDIR)/debug/%.o: $(SRCDIR)/%.c
 	@$(MKDIR) $(dir $@)
-	$(CC) $(CFLAGS) -o $@ -c $<
+	@$(CC) $(CFLAGS) -o $@ -c $<
 
 .SECONDARY:
 $(OBJDIR)/release/%.o: $(SRCDIR)/%.c
@@ -53,7 +53,7 @@ $(OBJDIR)/relase_symbols/%.o: $(SRCDIR)/%.c
 
 .PHONY: run clean
 
-run:
+run: build/debug/raven
 	@./build/debug/raven
 
 clean:

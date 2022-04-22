@@ -71,6 +71,11 @@ static void free_object(Allocator *allocator, Object *object) {
         break;
     }
 
+    case OBJ_CFUNCTION: {
+        Free(allocator, RavCFunction, object);
+        break;
+    }
+
     default:
         assert(!"invalid object type");
     }
@@ -123,8 +128,11 @@ static void mark_object(Allocator *allocator, Object *object) {
 
     object->marked = true;
 
-    // No need to be a gray object, if it's a string object.
-    if (object->type == OBJ_STRING) return;
+    // Strings and native functions have no nested references, so no need
+    // to push them into the gray stack
+    if (object->type == OBJ_STRING || object->type == OBJ_CFUNCTION) {
+        return;
+    }
 
     // Add the object to the marked stack.
     if (allocator->gray_count == allocator->gray_capacity) {

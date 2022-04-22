@@ -10,7 +10,6 @@ token ::= keyword
         | operator
         | delimiter;
 
-
 keyword ::= "assert"
           | "break"
           | "cond"

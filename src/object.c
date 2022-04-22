@@ -143,6 +143,13 @@ RavClosure *new_closure(Allocator *allocator, RavFunction *function) {
     return closure;
 }
 
+RavCFunction *new_cfunction(Allocator *allocator, CFunc func, int arity) {
+    RavCFunction *cfunction = Alloc_Object(allocator, RavCFunction, OBJ_CFUNCTION);
+    cfunction->func = func;
+    cfunction->arity = arity;
+    return cfunction;
+}
+
 static void print_pair(RavPair *pair) {
     print_value(pair->head);
 
@@ -207,7 +214,11 @@ static void print_function(RavFunction *function) {
         return;
     }
 
-    printf("<fn %s>", function->name->chars);
+    printf("<fn (%d) %s>", function->arity, function->name->chars);
+}
+
+static void print_cfunction(RavCFunction *function) {
+    printf("<native (%d) @ %p>", function->arity, function->func);
 }
 
 void print_object(Value value) {
@@ -240,6 +251,10 @@ void print_object(Value value) {
 
     case OBJ_CLOSURE:
         print_function(As_Closure(value)->function);
+        break;
+
+    case OBJ_CFUNCTION:
+        print_cfunction(As_CFunction(value));
         break;
 
     default:

@@ -15,6 +15,7 @@ typedef struct RavMap RavMap;
 typedef struct RavFunction RavFunction;
 typedef struct RavUpvalue RavUpvalue;
 typedef struct RavClosure RavClosure;
+typedef struct RavCFunction RavCFunction;
 
 #ifdef NAN_TAGGING
 
@@ -75,8 +76,7 @@ static inline double number_from_value(Value value) {
 #define False_Value       ((Value)(QNaN | TAG_FALSE))
 #define Nil_Value         ((Value)(QNaN | TAG_NIL))
 #define Void_Value        ((Value)(QNaN | TAG_VOID))
-#define Obj_Value(value)                                \
-    ((Value)(SB | QNaN | (uint64_t)(uintptr_t)(value)))
+#define Obj_Value(value)  ((Value)(SB | QNaN | (uint64_t)(uintptr_t)(value)))
 
 #else
 
@@ -111,8 +111,7 @@ typedef struct {
 #define Bool_Value(value) ((Value){ VALUE_BOOL, { .boolean = value }})
 #define Nil_Value         ((Value){ VALUE_NIL, { .number = 0 }})
 #define Void_Value        ((Value){ VALUE_VOID, { .number = 0 }})
-#define Obj_Value(value)                                    \
-    ((Value){ VALUE_OBJ, { .object = (Object *)value }})
+#define Obj_Value(value)  ((Value){ VALUE_OBJ, { .object = (Object *)value }})
 
 #endif // NAN_TAGGING
 
