@@ -61,15 +61,15 @@ static void runtime_error(VM *vm, const char *format, ...) {
     reset_stack(vm);
 }
 
-static inline Value pop(register VM *vm) {
+static inline Value pop(VM *vm) {
     return *--vm->stack_top;
 }
 
-static inline Value peek(register VM *vm, int distance) {
+static inline Value peek(VM *vm, int distance) {
     return vm->stack_top[-1 - distance];
 }
 
-static inline void push(register VM *vm, Value value) {
+static inline void push(VM *vm, Value value) {
     *vm->stack_top++ = value;
 }
 
@@ -361,10 +361,16 @@ static InterpretResult run_vm(register VM *vm) {
     Case(OP_NOT): Push(Bool_Value(is_falsy(Pop()))); Dispatch();
 
     Case(OP_CONS): {
-        Value tail = Pop();
-        Value head = Pop();
+        // peek is used instead of pop, because of the possible GC round in `new_pair`
+        // call could reclaim any of `tail` or `head` memory, if they were objects
+        Value tail = Peek(0);
+        Value head = Peek(1);
+        Value pair = Obj_Value(new_pair(&vm->allocator, head, tail));
 
-        Push(Obj_Value(new_pair(&vm->allocator, head, tail)));
+        (void) Pop(); // head
+        (void) Pop(); // tail
+        Push(pair);
+
         Dispatch();
     }
 

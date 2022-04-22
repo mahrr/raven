@@ -155,7 +155,9 @@ static void print_pair(RavPair *pair) {
     print_value(pair->head);
 
     // end of a proper list?
-    if (Is_Nil(pair->tail)) return;
+    if (Is_Nil(pair->tail)) {
+        return;
+    }
 
     if (Is_Pair(pair->tail)) {
         printf(", ");
