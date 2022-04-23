@@ -100,20 +100,21 @@ bool table_set(Table *table, RavString *key, Value value) {
     return is_new_key;
 }
 
-bool table_remove(Table *table, RavString *key) {
+Value table_remove(Table *table, RavString *key) {
     if (table->count == 0) {
-        return false;
+        return Nil_Value;
     }
 
     Entry *entry = find_entry(table->entries, key, table->hash_mask);
     if (entry->key == NULL) {
-        return false;
+        return Nil_Value;
     }
 
+    Value value = entry->value;
     entry->key = NULL;
     entry->value = Bool_Value(false); // Any non-nil value
 
-    return true;
+    return value;
 }
 
 void table_copy(Table *from, Table *to) {

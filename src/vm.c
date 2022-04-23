@@ -685,7 +685,7 @@ static InterpretResult run_vm(register VM *vm) {
 
 // Native Functions
 
-static Value native_print(VM *vm, Value* arguments, size_t count) {
+static Value native_print(VM *vm, Value *arguments, size_t count) {
     (void) vm;
 
     for (size_t i = 0; i < count; ++i) {
@@ -697,7 +697,26 @@ static Value native_print(VM *vm, Value* arguments, size_t count) {
     return Nil_Value;
 }
 
+static Value native_len(VM *vm, Value *arguments, size_t count) {
+    assert(count == 1);
+
+    Value value = arguments[0];
+    if (Is_String(value))
+        return Num_Value(As_String(value)->length);
+    else if (Is_Array(value))
+        return Num_Value(As_Array(value)->count);
+    else if (Is_Map(value))
+        return Num_Value(As_Map(value)->table.count);
+
+    runtime_error(vm, "passing non-countable value to `len`");
+    return Void_Value;
+}
+
+// Array Native Functions
+
 static Value native_push(VM *vm, Value* arguments, size_t count) {
+    assert(count > 1);
+
     Value receiver = arguments[0];
     if (Is_Array(receiver) == false) {
         runtime_error(vm, "pushing into non-array type");
@@ -719,22 +738,66 @@ static Value native_push(VM *vm, Value* arguments, size_t count) {
     return receiver;
 }
 
-static Value native_pop(VM* vm, Value* arguments, size_t count) {
-    (void) count;
+static Value native_pop(VM *vm, Value *arguments, size_t count) {
+    assert(count == 1);
 
-    Value receiver = arguments[0];
-    if (Is_Array(receiver) == false) {
+    Value value = arguments[0];
+    if (Is_Array(value) == false) {
         runtime_error(vm, "popping out of non-array type");
         return Void_Value;
     }
 
-    RavArray *array = As_Array(receiver);
+    RavArray *array = As_Array(value);
     if (array->count == 0) {
         runtime_error(vm, "popping an empty array");
         return Void_Value;
     }
 
     return array->values[--array->count];
+}
+
+// Map Native Functions
+
+static Value native_insert(VM *vm, Value *arguments, size_t count) {
+    assert(count == 3);
+
+    Value argument_1 = arguments[0];
+    if (Is_Map(argument_1) == false) {
+        runtime_error(vm, "inserting into non-map value");
+        return Void_Value;
+    }
+    RavMap *map = As_Map(argument_1);
+
+    Value argument_2 = arguments[1];
+    if (Is_String(argument_2) == false) {
+        runtime_error(vm, "inserting with non-string key");
+        return Void_Value;
+    }
+    RavString *key = As_String(argument_2);
+
+    Value value = arguments[2];
+    table_set(&map->table, key, value);
+    return value;
+}
+
+static Value native_remove(VM *vm, Value *arguments, size_t count) {
+    assert(count == 2);
+
+    Value argument_1 = arguments[0];
+    if (Is_Map(argument_1) == false) {
+        runtime_error(vm, "inserting into non-map value");
+        return Void_Value;
+    }
+    RavMap *map = As_Map(argument_1);
+
+    Value argument_2 = arguments[1];
+    if (Is_String(argument_2) == false) {
+        runtime_error(vm, "inserting with non-string key");
+        return Void_Value;
+    }
+    RavString *key = As_String(argument_2);
+
+    return table_remove(&map->table, key);
 }
 
 static void register_natives(VM* vm) {
@@ -748,9 +811,12 @@ static void register_natives(VM* vm) {
         table_set(&vm->globals, name_string, Num_Value(index++));                           \
     } while (false)
 
-    Register(print, 0, true);
-    Register(push, 2, true);
-    Register(pop, 1, false);
+    Register(print,  0, true);
+    Register(len,    1, false);
+    Register(push,   2, true);
+    Register(pop,    1, false);
+    Register(insert, 3, false);
+    Register(remove, 2, false);
 
 #undef Register
 }

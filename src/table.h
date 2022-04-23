@@ -33,8 +33,8 @@ bool table_get(Table *table, RavString *key, Value *value);
 bool table_set(Table *table, RavString *key, Value value);
 
 // Remove the value corresponding to key, if it's found.
-// Return true if there is a value, false otherwise.
-bool table_remove(Table *table, RavString *key);
+// Return the removed value if it existed, or nil otherwise.
+Value table_remove(Table *table, RavString *key);
 
 // Copy every entry from a table to another.
 void table_copy(Table *from, Table *to);
