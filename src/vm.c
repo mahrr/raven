@@ -366,7 +366,7 @@ static InterpretResult run_vm(register VM *vm) {
     Case(OP_NOT): Push(Bool_Value(is_falsy(Pop()))); Dispatch();
 
     Case(OP_CONCATENATE): {
-        // peek is used instead of pop, because of the possible GC round in `new_pair`
+        // peek is used instead of pop, because of the possible GC round in `string_buf_push`
         // call could reclaim any of `left` or `right` memory, if they were objects
         Value left = Peek(1);
         Value right = Peek(0);
