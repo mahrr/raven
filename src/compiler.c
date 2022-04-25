@@ -1012,6 +1012,41 @@ static void string(Parser *parser) {
     Debug_Exit(parser);
 }
 
+static void string_interpolated(Parser *parser) {
+    Debug_Log(parser);
+
+    Allocator *allocator = &parser->vm->allocator;
+
+    // +1 and -2 for the literal string delimiters
+    RavString *begin = new_string(
+        allocator,
+        parser->previous.lexeme + 1,
+        parser->previous.length - 2
+    );
+    emit_constant(parser, Obj_Value(begin));
+
+    while (parser->previous.type != TOKEN_STRING_END) {
+        expression(parser);
+        emit_byte(parser, OP_CONCATENATE);
+
+        if (match(parser, TOKEN_STRING_PART) || match(parser, TOKEN_STRING_END)) {
+            const char *chars = parser->previous.lexeme + 1;
+            int length = parser->previous.length - 2;
+
+            if (length != 0) {
+                RavString *part = new_string(allocator, chars, length);
+                emit_constant(parser, Obj_Value(part));
+                emit_byte(parser, OP_CONCATENATE);
+            }
+        } else {
+            error_current(parser, "ill-formed interpolated string");
+            break;
+        }
+    }
+
+    Debug_Exit(parser);
+}
+
 static void boolean(Parser *parser) {
     Debug_Log(parser);
 
@@ -1139,60 +1174,62 @@ static void unary(Parser *parser) {
 
 // Parsing rule table
 static ParseRule rules[] = {
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_ASSERT
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_BREAK
-    { cond,       NULL,       PREC_NONE },         // TOKEN_COND
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_CONTINUE
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_ELSE
-    { boolean,    NULL,       PREC_NONE },         // TOKEN_FALSE
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_FN
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_FOR
-    { if_,        NULL,       PREC_NONE },         // TOKEN_IF
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_IN
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_LET
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_MATCH
-    { nil,        NULL,       PREC_NONE },         // TOKEN_NIL
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_RETURN
-    { while_,     NULL,       PREC_NONE },         // TOKEN_WHILE
-    { boolean,    NULL,       PREC_NONE },         // TOKEN_TRUE
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_TYPE
-    { NULL,       binary,     PREC_TERM },         // TOKEN_PLUS
-    { unary,      binary,     PREC_TERM },         // TOKEN_MINUS
-    { NULL,       binary,     PREC_FACTOR },       // TOKEN_STAR
-    { NULL,       binary,     PREC_FACTOR },       // TOKEN_SLASH
-    { NULL,       binary,     PREC_FACTOR },       // TOKEN_PERCENT
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_DOT
-    { unary,      NULL,       PREC_NONE },         // TOKEN_NOT
-    { NULL,       and_,       PREC_AND },          // TOKEN_AND
-    { NULL,       or_,        PREC_OR  },          // TOKEN_OR
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_AT
-    { NULL,       cons,       PREC_CONS },         // TOKEN_COLON_COLON
-    { NULL,       binary,     PREC_COMPARISON },   // TOKEN_LESS
-    { NULL,       binary,     PREC_COMPARISON },   // TOKEN_LESS_EQUAL
-    { NULL,       binary,     PREC_COMPARISON },   // TOKEN_GREATER
-    { NULL,       binary,     PREC_COMPARISON },   // TOKEN_GREATER_EQUAL
-    { NULL,       assignment, PREC_ASSIGNMENT },   // TOKEN_EQUAL
-    { NULL,       binary,     PREC_EQUALITY },     // TOKEN_EQUAL_EQUAL
-    { NULL,       binary,     PREC_EQUALITY },     // TOKEN_BANG_EQUAL
-    { block,      NULL,       PREC_NONE },         // TOKEN_DO
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_END
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_PIPE
-    { lambda,     NULL,       PREC_NONE },         // TOKEN_ARROW
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_COMMA
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_SEMICOLON
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_COLON
-    { grouping,   call,       PREC_CALL },         // TOKEN_LEFT_PAREN
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_PAREN
-    { map,        NULL,       PREC_NONE },         // TOKEN_LEFT_BRACE
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_BRACE
-    { array,      indexing,   PREC_HIGHEST },      // TOKEN_LEFT_BRACKET
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_RIGHT_BRACKET
-    { lambda,     NULL,       PREC_NONE },         // TOKEN_BACK_SLASH
-    { identifier, NULL,       PREC_NONE },         // TOKEN_IDENTIFIER
-    { number,     NULL,       PREC_NONE },         // TOKEN_NUMBER
-    { string,     NULL,       PREC_NONE },         // TOKEN_STRING
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_ERROR
-    { NULL,       NULL,       PREC_NONE },         // TOKEN_EOF
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_ASSERT
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_BREAK
+    { cond,                 NULL,       PREC_NONE },         // TOKEN_COND
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_CONTINUE
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_ELSE
+    { boolean,              NULL,       PREC_NONE },         // TOKEN_FALSE
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_FN
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_FOR
+    { if_,                  NULL,       PREC_NONE },         // TOKEN_IF
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_IN
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_LET
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_MATCH
+    { nil,                  NULL,       PREC_NONE },         // TOKEN_NIL
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_RETURN
+    { while_,               NULL,       PREC_NONE },         // TOKEN_WHILE
+    { boolean,              NULL,       PREC_NONE },         // TOKEN_TRUE
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_TYPE
+    { NULL,                 binary,     PREC_TERM },         // TOKEN_PLUS
+    { unary,                binary,     PREC_TERM },         // TOKEN_MINUS
+    { NULL,                 binary,     PREC_FACTOR },       // TOKEN_STAR
+    { NULL,                 binary,     PREC_FACTOR },       // TOKEN_SLASH
+    { NULL,                 binary,     PREC_FACTOR },       // TOKEN_PERCENT
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_DOT
+    { unary,                NULL,       PREC_NONE },         // TOKEN_NOT
+    { NULL,                 and_,       PREC_AND },          // TOKEN_AND
+    { NULL,                 or_,        PREC_OR  },          // TOKEN_OR
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_AT
+    { NULL,                 cons,       PREC_CONS },         // TOKEN_COLON_COLON
+    { NULL,                 binary,     PREC_COMPARISON },   // TOKEN_LESS
+    { NULL,                 binary,     PREC_COMPARISON },   // TOKEN_LESS_EQUAL
+    { NULL,                 binary,     PREC_COMPARISON },   // TOKEN_GREATER
+    { NULL,                 binary,     PREC_COMPARISON },   // TOKEN_GREATER_EQUAL
+    { NULL,                 assignment, PREC_ASSIGNMENT },   // TOKEN_EQUAL
+    { NULL,                 binary,     PREC_EQUALITY },     // TOKEN_EQUAL_EQUAL
+    { NULL,                 binary,     PREC_EQUALITY },     // TOKEN_BANG_EQUAL
+    { block,                NULL,       PREC_NONE },         // TOKEN_DO
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_END
+    { lambda,               NULL,       PREC_NONE },         // TOKEN_ARROW
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_COMMA
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_SEMICOLON
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_COLON
+    { grouping,             call,       PREC_CALL },         // TOKEN_LEFT_PAREN
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_RIGHT_PAREN
+    { map,                  NULL,       PREC_NONE },         // TOKEN_LEFT_BRACE
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_RIGHT_BRACE
+    { array,                indexing,   PREC_HIGHEST },      // TOKEN_LEFT_BRACKET
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_RIGHT_BRACKET
+    { lambda,               NULL,       PREC_NONE },         // TOKEN_BACK_SLASH
+    { identifier,           NULL,       PREC_NONE },         // TOKEN_IDENTIFIER
+    { number,               NULL,       PREC_NONE },         // TOKEN_NUMBER
+    { string,               NULL,       PREC_NONE },         // TOKEN_STRING
+    { string_interpolated,  NULL,       PREC_NONE },         // TOKEN_STRING_BEGIN
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_STRING_PART
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_STRING_END
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_ERROR
+    { NULL,                 NULL,       PREC_NONE },         // TOKEN_EOF
 };
 
 // Return the parsing rule of a given token type.

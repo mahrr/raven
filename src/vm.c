@@ -13,6 +13,8 @@
 #include "debug.h"
 #endif
 
+/// Runtime Errors
+
 static inline void reset_stack(VM *vm) {
     vm->x = Nil_Value;
     vm->stack_top = vm->stack;
@@ -60,6 +62,8 @@ static void runtime_error(VM *vm, const char *format, ...) {
     va_end(arguments);
     reset_stack(vm);
 }
+
+/// Stack Operations
 
 static inline Value pop(VM *vm) {
     return *--vm->stack_top;
@@ -201,7 +205,8 @@ static const char *global_name_at(VM *vm, uint8_t index) {
     return NULL;
 }
 
-// VM Dispatch Loop
+/// VM Dispatch Loop
+
 static InterpretResult run_vm(register VM *vm) {
     CallFrame frame = vm->frames[vm->frame_count - 1];
     uint8_t instruction;
@@ -359,6 +364,24 @@ static InterpretResult run_vm(register VM *vm) {
     Case(OP_GTQ): Binary_OP(Bool_Value, >=); Dispatch();
 
     Case(OP_NOT): Push(Bool_Value(is_falsy(Pop()))); Dispatch();
+
+    Case(OP_CONCATENATE): {
+        // peek is used instead of pop, because of the possible GC round in `new_pair`
+        // call could reclaim any of `left` or `right` memory, if they were objects
+        Value left = Peek(1);
+        Value right = Peek(0);
+
+        StringBuffer buffer = string_buf_new(&vm->allocator);
+        string_buf_push(&buffer, left);
+        string_buf_push(&buffer, right);
+        Value result = Obj_Value(string_buf_into(&buffer));
+
+        (void) Pop(); // right
+        (void) Pop(); // left
+        Push(result);
+
+        Dispatch();
+    }
 
     Case(OP_CONS): {
         // peek is used instead of pop, because of the possible GC round in `new_pair`
@@ -821,7 +844,7 @@ static void register_natives(VM* vm) {
 #undef Register
 }
 
-// VM API
+/// VM API
 
 void init_vm(VM *vm) {
     vm->open_upvalues = NULL;

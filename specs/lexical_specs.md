@@ -7,6 +7,9 @@ token ::= keyword
         | integer
         | float
         | string
+        | string_begin
+        | string_part
+        | string_end
         | operator
         | delimiter;
 
@@ -35,7 +38,14 @@ integer ::= decimal_digit+
 
 float ::= decimal_digit+ "." decimal_digit+;
 
-string ::= "'" <ASCII character expect single quote, extends until the end of line> "'";
+string ::= "'" <ASCII character expect single quote, extends until the end of line> "'"
+         | "\"" <ASCII character expect double quote, extends until the terminating double quote> "\"";
+
+string_begin ::= "\"" <ASCII character expect double quote or pipe, extends until the delimiting pipe> "|";
+
+string_part ::= "|" <ASCII character expect double quote or pipe, extends until the delimiting pipe> "|";
+
+string_end ::= "|" <ASCII character expect double quote or pipe, extends until the terminating double quote>; "\"";
 
 operator ::= "and" | "not" | "or"
            | "()"  | "[]"  | "."
@@ -48,7 +58,7 @@ operator ::= "and" | "not" | "or"
 delimiter ::= "do" | "end" | "in"
             | "="  | "->"  | "("
             | ")"  | "["   | "]"
-            | ","  | ":"   | "|";
+            | ","  | ":";
 
 comment ::= "#" <extends until the end of the line>;
 

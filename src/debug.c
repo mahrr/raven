@@ -11,9 +11,9 @@ static int basic_instruction(const char *tag, int offset) {
 
 static int const_instruction(const char *tag, Chunk *chunk, int offset) {
     uint8_t constant_index = chunk->opcodes[offset + 1];
-    printf("%-16s %4d '", tag, constant_index);
+    printf("%-16s %4d ", tag, constant_index);
     print_value(chunk->constants[constant_index]);
-    printf("'\n");
+    printf("\n");
     return offset + 2;
 }
 
@@ -138,6 +138,9 @@ int disassemble_instruction(Chunk *chunk, int offset) {
 
     case OP_NOT:
         return basic_instruction("NOT", offset);
+
+    case OP_CONCATENATE:
+        return basic_instruction("CONCATENATE", offset);
 
     case OP_CONS:
         return basic_instruction("CONS", offset);

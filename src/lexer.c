@@ -61,9 +61,7 @@ static Token error_token(Lexer *lexer, const char *message) {
 }
 
 static Token string(Lexer *lexer) {
-    while (!at_end(lexer) &&
-           peek(lexer) != '\'' &&
-           peek(lexer) != '\n') {
+    while (!at_end(lexer) && peek(lexer) != '\'' && peek(lexer) != '\n') {
         advance(lexer);
     }
 
@@ -75,7 +73,57 @@ static Token string(Lexer *lexer) {
     return new_token(lexer, TOKEN_STRING);
 }
 
-static inline TokenType is_keyword(Lexer *lexer, int start, int length, const char *rest, TokenType type) {
+static Token string_interpolated(Lexer *lexer) {
+    //
+    // "interpolated |exp_1| string |exp_2| example"
+    //
+    // This is scanned into three string tokens (besides expressions tokens):
+    //   1. "interpolated | -> STRING_BEGIN
+    //   2. | string |      -> STRING_PART
+    //   3. | example"      -> STRING_END
+    //
+    // "double quoted string example"
+    //
+    // This is scanned into one string token:
+    //   1. "double quoted string example" -> STRING
+    //
+
+    TokenType token_type;
+    char begin = *lexer->start;
+
+    while (!at_end(lexer)) {
+        char current = peek(lexer);
+
+        // full string or string-end
+        if (current == '"') {
+            if (begin == '"')
+                token_type = TOKEN_STRING;
+            else
+                token_type = TOKEN_STRING_END;
+            break;
+        }
+
+        // string part or string-begin
+        if (current == '|') {
+            if (begin == '"')
+                token_type = TOKEN_STRING_BEGIN;
+            else
+                token_type = TOKEN_STRING_PART;
+            break;
+        }
+
+        advance(lexer);
+    }
+
+    if (at_end(lexer)) {
+        return error_token(lexer, "Unterminated string");
+    }
+
+    advance(lexer); // delimiter
+    return new_token(lexer, token_type);
+}
+
+static TokenType is_keyword(Lexer *lexer, int start, int length, const char *rest, TokenType type) {
     if (lexer->current - lexer->start == start + length &&
         memcmp(lexer->start + start, rest, length) == 0) {
         return type;
@@ -254,14 +302,13 @@ Token next_token(Lexer *lexer) {
 
     char c = advance(lexer);
     switch (c) {
-        // One-Character Tokens
+    // One-Character Tokens
     case '+': return New_Token(TOKEN_PLUS);
     case '*': return New_Token(TOKEN_STAR);
     case '/': return New_Token(TOKEN_SLASH);
     case '%': return New_Token(TOKEN_PERCENT);
     case '.': return New_Token(TOKEN_DOT);
     case '@': return New_Token(TOKEN_AT);
-    case '|': return New_Token(TOKEN_PIPE);
     case ',': return New_Token(TOKEN_COMMA);
     case '(': return New_Token(TOKEN_LEFT_PAREN);
     case ')': return New_Token(TOKEN_RIGHT_PAREN);
@@ -272,7 +319,7 @@ Token next_token(Lexer *lexer) {
     case ';': return New_Token(TOKEN_SEMICOLON);
     case '\\': return New_Token(TOKEN_BACK_SLASH);
 
-        // Possible Two-Charachter Tokens
+    // Possible Two-Charachter Tokens
     case '-':
         if (match(lexer, '>')) return New_Token(TOKEN_ARROW);
         return New_Token(TOKEN_MINUS);
@@ -297,8 +344,12 @@ Token next_token(Lexer *lexer) {
         if (match(lexer, '=')) return New_Token(TOKEN_BANG_EQUAL);
         break;
 
-        // Identifiers, Literals
-    case '\'': return string(lexer);
+    // String Literals
+    case '\'':
+        return string(lexer);
+    case '"':
+    case '|':
+        return string_interpolated(lexer);
 
     default:
         if (isalpha(c) || c == '_') return identifier(lexer);

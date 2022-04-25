@@ -21,8 +21,6 @@ typedef struct RavCFunction RavCFunction;
 
 #include <string.h>
 
-// TODO: short strings optimization
-
 //
 // IEEE 754 64-bit double-precision IEEE floating-point representation:
 //

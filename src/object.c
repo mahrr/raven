@@ -1,4 +1,5 @@
 #include <string.h>
+#include <stdlib.h>
 #include <stdio.h>
 
 #include "common.h"
@@ -49,6 +50,8 @@ static uint32_t hash_string(const char *key, int length) {
 
     return hash;
 }
+
+/// Object API
 
 RavString *new_string(Allocator *allocator, const char *chars, int length) {
     uint32_t hash = hash_string(chars, length);
@@ -263,4 +266,75 @@ void print_object(Value value) {
     default:
         assert(!"invalid object type");
     }
+}
+
+
+/// String Buffer API
+
+StringBuffer string_buf_new(Allocator *allocator) {
+    StringBuffer self = {};
+    self.allocator = allocator;
+    return self;
+}
+
+void string_buf_free(StringBuffer* self) {
+    if (self->buffer) {
+        Free_Array(self->allocator, char, self->buffer, self->capacity);
+    }
+    *self = (StringBuffer){};
+}
+
+void string_buf_push(StringBuffer *self, Value value) {
+    const char *value_string = NULL;
+    int value_length = 0;
+
+    if (Is_Nil(value)) {
+        value_string = "nil";
+        value_length = strlen(value_string);
+    } else if (Is_Bool(value)) {
+        value_string = As_Bool(value) ? "true" : "false";
+        value_length = strlen(value_string);
+    } else if (Is_Num(value)) {
+        char buffer[128] = {};
+        int written = snprintf(buffer, sizeof buffer, "%g", As_Num(value));
+        assert(written > 0);
+        value_string = buffer;
+        value_length = written;
+    } else if (Is_String(value)) {
+        RavString *string = As_String(value);
+        value_string = string->chars;
+        value_length = string->length;
+    } else if (Is_Pair(value)) {
+        // TODO
+        value_string = "<pair>";
+        value_length = strlen(value_string);
+    } else if (Is_Array(value)) {
+        // TODO
+        value_string = "<array>";
+        value_length = strlen(value_string);
+    } else if (Is_Map(value)) {
+        // TODO
+        value_string = "<map>";
+        value_length = strlen(value_string);
+    } else {
+        assert(!"unreachable: invalid value tag");
+    }
+
+    if (self->count + value_length > self->capacity) {
+        size_t new_capacity = Grow_Capacity(self->capacity);
+        new_capacity += (size_t)value_length;
+        self->buffer = allocate(self->allocator, self->buffer, self->capacity, new_capacity);
+        self->capacity = new_capacity;
+    }
+
+    memcpy(self->buffer + self->count, value_string, value_length);
+    self->count += value_length;
+}
+
+RavString *string_buf_into(StringBuffer *self) {
+    self->buffer = allocate(self->allocator, self->buffer, self->capacity, self->count + 1);
+    RavString *result = box_string(self->allocator, self->buffer, self->count);
+
+    *self = (StringBuffer){};
+    return result;
 }

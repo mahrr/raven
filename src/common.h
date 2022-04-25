@@ -29,7 +29,6 @@
 #endif
 
 // System Configuration
-// TODO: move this to a separate header.
 
 // The limit of nested frames.
 #define FRAMES_LIMIT 128

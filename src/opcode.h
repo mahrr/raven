@@ -33,6 +33,7 @@ Opcode(OP_GTQ)
 Opcode(OP_NOT)
 
 // Collections
+Opcode(OP_CONCATENATE)
 Opcode(OP_CONS)
 Opcode(OP_ARRAY_8)        // 1-byte number of elements
 Opcode(OP_ARRAY_16)       // 2-bytes number of elements

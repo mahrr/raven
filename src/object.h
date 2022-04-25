@@ -108,6 +108,8 @@ struct RavCFunction {
 #define As_Closure(value)   ((RavClosure *)As_Obj(value))
 #define As_CFunction(value) ((RavCFunction *)As_Obj(value))
 
+/// Object API
+
 // Construct a RavString with a copy of the given string.
 RavString *new_string(Allocator *allocator, const char *chars, int length);
 
@@ -143,5 +145,26 @@ void print_object(Value value);
 static inline bool is_object_type(Value value, ObjectType type) {
     return Is_Obj(value) && Obj_Type(value) == type;
 }
+
+/// Object Utilites
+
+typedef struct StringBuffer {
+    Allocator *allocator;
+    int count;
+    int capacity;
+    char *buffer;
+} StringBuffer;
+
+// Constructs a new string buffer
+StringBuffer string_buf_new(Allocator *allocator);
+
+// Frees the given string buffer
+void string_buf_free(StringBuffer* self);
+
+// Pushes a string representation of the given value into the buffer
+void string_buf_push(StringBuffer *self, Value value);
+
+// Consumes the given string buffer and converts it into a string object
+RavString *string_buf_into(StringBuffer *self);
 
 #endif
