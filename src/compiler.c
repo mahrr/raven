@@ -85,7 +85,7 @@ typedef enum {
     PREC_EQUALITY,    // == !=
     PREC_COMPARISON,  // < > <= >=
     PREC_CONS,        // ::
-    PREC_CONCAT,      // @
+    PREC_CONCAT,      // ..
     PREC_TERM,        // + -
     PREC_FACTOR,      // * / %
     PREC_UNARY,       // not -
@@ -611,6 +611,15 @@ static void cons(Parser *parser) {
     // Not PREC_CONS + 1, since cons is right associated operator.
     parse_precedence(parser, PREC_CONS);
     emit_byte(parser, OP_CONS);
+
+    Debug_Exit(parser);
+}
+
+static void concat(Parser *parser) {
+    Debug_Log(parser);
+
+    parse_precedence(parser, PREC_CONCAT + 1);
+    emit_byte(parser, OP_CONCATENATE);
 
     Debug_Exit(parser);
 }
@@ -1200,7 +1209,7 @@ static ParseRule rules[] = {
     { unary,                NULL,       PREC_NONE },         // TOKEN_NOT
     { NULL,                 and_,       PREC_AND },          // TOKEN_AND
     { NULL,                 or_,        PREC_OR  },          // TOKEN_OR
-    { NULL,                 NULL,       PREC_NONE },         // TOKEN_AT
+    { NULL,                 concat,     PREC_CONCAT },       // TOKEN_DOT_DOT
     { NULL,                 cons,       PREC_CONS },         // TOKEN_COLON_COLON
     { NULL,                 binary,     PREC_COMPARISON },   // TOKEN_LESS
     { NULL,                 binary,     PREC_COMPARISON },   // TOKEN_LESS_EQUAL

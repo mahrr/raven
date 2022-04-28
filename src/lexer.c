@@ -307,8 +307,6 @@ Token next_token(Lexer *lexer) {
     case '*': return New_Token(TOKEN_STAR);
     case '/': return New_Token(TOKEN_SLASH);
     case '%': return New_Token(TOKEN_PERCENT);
-    case '.': return New_Token(TOKEN_DOT);
-    case '@': return New_Token(TOKEN_AT);
     case ',': return New_Token(TOKEN_COMMA);
     case '(': return New_Token(TOKEN_LEFT_PAREN);
     case ')': return New_Token(TOKEN_RIGHT_PAREN);
@@ -339,6 +337,10 @@ Token next_token(Lexer *lexer) {
     case ':':
         if (match(lexer, ':')) return New_Token(TOKEN_COLON_COLON);
         return New_Token(TOKEN_COLON);
+
+    case '.':
+        if (match(lexer, '.')) return New_Token(TOKEN_DOT_DOT);
+        return New_Token(TOKEN_DOT);
 
     case '!':
         if (match(lexer, '=')) return New_Token(TOKEN_BANG_EQUAL);

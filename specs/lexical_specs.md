@@ -50,7 +50,7 @@ string_end ::= "|" <ASCII character expect double quote or pipe, extends until t
 operator ::= "and" | "not" | "or"
            | "()"  | "[]"  | "."
            | "*"   | "/"   | "%"
-           | "+"   | "-"   | "@"
+           | "+"   | "-"   | ".."
            | "::"  | "<"   | ">"
            | "<="  | ">="  | "=="
            | "!="  | "=";
