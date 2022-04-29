@@ -15,6 +15,21 @@
 
 /// Runtime Errors
 
+static const char* type_repr(Value value) {
+    if (Is_Nil(value))       return "nil";
+    if (Is_Bool(value))      return "boolean";
+    if (Is_Num(value))       return "number";
+    if (Is_String(value))    return "string";
+    if (Is_Pair(value))      return "pair";
+    if (Is_Array(value))     return "array";
+    if (Is_Map(value))       return "map";
+    if (Is_Function(value))  return "function";
+    if (Is_Closure(value))   return "function";
+    if (Is_CFunction(value)) return "native-function";
+
+    assert(!"unreachable: invalid value tag");
+}
+
 static inline void reset_stack(VM *vm) {
     vm->x = Nil_Value;
     vm->stack_top = vm->stack;
@@ -706,10 +721,10 @@ static InterpretResult run_vm(register VM *vm) {
 #undef Log_Execution
 }
 
-// Native Functions
+/// Native Functions
 
 static Value native_print(VM *vm, Value *arguments, size_t count) {
-    (void) vm;
+    MAYBE_UNUSED(vm);
 
     for (size_t i = 0; i < count; ++i) {
         print_value(arguments[i]);
@@ -721,17 +736,18 @@ static Value native_print(VM *vm, Value *arguments, size_t count) {
 }
 
 static Value native_len(VM *vm, Value *arguments, size_t count) {
+    MAYBE_UNUSED(count);
     assert(count == 1);
 
-    Value value = arguments[0];
-    if (Is_String(value))
-        return Num_Value(As_String(value)->length);
-    else if (Is_Array(value))
-        return Num_Value(As_Array(value)->count);
-    else if (Is_Map(value))
-        return Num_Value(As_Map(value)->table.count);
+    Value argument = arguments[0];
+    if (Is_String(argument))
+        return Num_Value(As_String(argument)->length);
+    else if (Is_Array(argument))
+        return Num_Value(As_Array(argument)->count);
+    else if (Is_Map(argument))
+        return Num_Value(As_Map(argument)->table.count);
 
-    runtime_error(vm, "passing non-countable value to `len`");
+    runtime_error(vm, "`len` expected collection, got %s", type_repr(argument));
     return Void_Value;
 }
 
@@ -740,13 +756,13 @@ static Value native_len(VM *vm, Value *arguments, size_t count) {
 static Value native_push(VM *vm, Value* arguments, size_t count) {
     assert(count > 1);
 
-    Value receiver = arguments[0];
-    if (Is_Array(receiver) == false) {
-        runtime_error(vm, "pushing into non-array type");
+    Value argument = arguments[0];
+    if (Is_Array(argument) == false) {
+        runtime_error(vm, "`push` expected array as firt argument, got %s", type_repr(argument));
         return Void_Value;
     }
 
-    RavArray *array = As_Array(receiver);
+    RavArray *array = As_Array(argument);
     for (size_t i = 1; i < count; ++i) {
         // Grow array memory, if needed
         if (array->count == array->capacity) {
@@ -758,21 +774,22 @@ static Value native_push(VM *vm, Value* arguments, size_t count) {
         array->values[array->count++] = arguments[i];
     }
 
-    return receiver;
+    return argument;
 }
 
 static Value native_pop(VM *vm, Value *arguments, size_t count) {
+    MAYBE_UNUSED(count);
     assert(count == 1);
 
-    Value value = arguments[0];
-    if (Is_Array(value) == false) {
-        runtime_error(vm, "popping out of non-array type");
+    Value argument = arguments[0];
+    if (Is_Array(argument) == false) {
+        runtime_error(vm, "`pop` expected array, got %s", type_repr(argument));
         return Void_Value;
     }
 
-    RavArray *array = As_Array(value);
+    RavArray *array = As_Array(argument);
     if (array->count == 0) {
-        runtime_error(vm, "popping an empty array");
+        runtime_error(vm, "`pop` on an empty array");
         return Void_Value;
     }
 
@@ -782,21 +799,22 @@ static Value native_pop(VM *vm, Value *arguments, size_t count) {
 // Map Native Functions
 
 static Value native_insert(VM *vm, Value *arguments, size_t count) {
+    MAYBE_UNUSED(count);
     assert(count == 3);
 
-    Value argument_1 = arguments[0];
-    if (Is_Map(argument_1) == false) {
-        runtime_error(vm, "inserting into non-map value");
+    Value argument1 = arguments[0];
+    if (Is_Map(argument1) == false) {
+        runtime_error(vm, "`insert` expected map as first argument, got %s", type_repr(argument1));
         return Void_Value;
     }
-    RavMap *map = As_Map(argument_1);
+    RavMap *map = As_Map(argument1);
 
-    Value argument_2 = arguments[1];
-    if (Is_String(argument_2) == false) {
-        runtime_error(vm, "inserting with non-string key");
+    Value argument2 = arguments[1];
+    if (Is_String(argument2) == false) {
+        runtime_error(vm, "`insert` expected string as second argument, got %s", type_repr(argument2));
         return Void_Value;
     }
-    RavString *key = As_String(argument_2);
+    RavString *key = As_String(argument2);
 
     Value value = arguments[2];
     table_set(&map->table, key, value);
@@ -804,21 +822,22 @@ static Value native_insert(VM *vm, Value *arguments, size_t count) {
 }
 
 static Value native_remove(VM *vm, Value *arguments, size_t count) {
+    MAYBE_UNUSED(count);
     assert(count == 2);
 
-    Value argument_1 = arguments[0];
-    if (Is_Map(argument_1) == false) {
-        runtime_error(vm, "inserting into non-map value");
+    Value argument1 = arguments[0];
+    if (Is_Map(argument1) == false) {
+        runtime_error(vm, "`remove` expected map as firt argument, got %s", type_repr(argument1));
         return Void_Value;
     }
-    RavMap *map = As_Map(argument_1);
+    RavMap *map = As_Map(argument1);
 
-    Value argument_2 = arguments[1];
-    if (Is_String(argument_2) == false) {
-        runtime_error(vm, "inserting with non-string key");
+    Value argument2 = arguments[1];
+    if (Is_String(argument2) == false) {
+        runtime_error(vm, "`remove` expected string as second argument, got %s", type_repr(argument2));
         return Void_Value;
     }
-    RavString *key = As_String(argument_2);
+    RavString *key = As_String(argument2);
 
     return table_remove(&map->table, key);
 }

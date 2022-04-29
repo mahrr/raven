@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#define MAYBE_UNUSED(variable) do { (void) variable; } while(false)
+
 // Debugging flags
 #ifdef DEBUG
 //# define DEBUG_TRACE_PARSING   // Dump the parsing functions call stack
