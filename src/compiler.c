@@ -546,7 +546,11 @@ static inline RavFunction *end_context(Parser *parser, bool toplevel) {
 #ifdef DEBUG_DUMP_CODE
     if (parser->had_error == false) {
         RavString *name = function->name;
-        disassemble_chunk(parser_chunk(parser), name ? name->chars : "top-level");
+        disassemble_chunk(
+            parser_chunk(parser),
+            parser->lexer->file,
+            name ? name->chars : "top-level"
+        );
         putchar('\n');
     }
 #endif

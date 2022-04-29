@@ -1,6 +1,8 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdarg.h>
 #include <math.h>
+#include <errno.h>
 
 #include "common.h"
 #include "compiler.h"
@@ -31,7 +33,6 @@ static const char* type_repr(Value value) {
 }
 
 static inline void reset_stack(VM *vm) {
-    vm->x = Nil_Value;
     vm->stack_top = vm->stack;
     vm->frame_count = 0;
 }
@@ -235,9 +236,9 @@ static InterpretResult run_vm(register VM *vm) {
             print_value(*value);                                         \
             printf(" ]");                                                \
         }                                                                \
-        printf("[ X: ");                                                 \
+        printf(" X = ");                                                 \
         print_value(vm->x);                                              \
-        printf(" ]\n");                                                  \
+        putchar('\n');                                                   \
                                                                          \
         RavFunction *function = frame.closure->function;                 \
         int offset = (int)(frame.ip - function->chunk.opcodes);          \
@@ -694,10 +695,9 @@ static InterpretResult run_vm(register VM *vm) {
     }
 
     Case(OP_EXIT): {
-        print_value(vm->x);
-        putchar('\n');
         Pop(); // Top-level Wrapping Function
-        reset_stack(vm);
+        if (vm->reset_on_exit)
+            reset_stack(vm);
         return INTERPRET_OK;
     }
     }
@@ -723,6 +723,73 @@ static InterpretResult run_vm(register VM *vm) {
 
 /// Native Functions
 
+static Value native_import(VM *vm, Value *arguments, size_t count) {
+    MAYBE_UNUSED(count);
+
+    Value argument = arguments[0];
+    if (Is_String(argument) == false) {
+        runtime_error(vm, "`import` expected string, got %s", type_repr(argument));
+        return Void_Value;
+    }
+
+    const char *path = As_String(argument)->chars;
+    char *source = NULL;
+
+    // read the file
+    {
+        FILE *file = fopen(path, "rb");
+        if (file == NULL) {
+            runtime_error(vm, "`import` error reading '%s' (%s)", path, strerror(errno));
+            return Void_Value;
+        }
+
+        fseek(file, 0L, SEEK_END);
+        size_t size = ftell(file);
+        rewind(file);
+
+        source = (char *)malloc(size + 1);
+        if (source == NULL) {
+            runtime_error(vm, "`import` error reading '%s' (out of memory)", path);
+            fclose(file);
+            return Void_Value;
+        }
+
+        size_t bytes_read = fread(source, sizeof (char), size, file);
+        if (bytes_read < size || ferror(file)) {
+            runtime_error(vm, "`import` error reading '%s' (%s)", path, strerror(errno));
+            fclose(file);
+            free(source);
+            return Void_Value;
+        }
+        fclose(file);
+        source[size] = '\0';
+    }
+
+    // execute the source
+    Value exported = Nil_Value;
+    {
+        VM sandbox;
+        sandbox.reset_on_exit = false;
+        sandbox.allocator = vm->allocator;
+        reset_stack(&sandbox);
+        init_table(&sandbox.globals);
+
+        // TODO: errors should dump the current context stack
+        InterpretResult result = interpret(&sandbox, source, path);
+        if (result != INTERPRET_OK) {
+            free(source);
+            return Void_Value;
+        }
+        exported = sandbox.x;
+
+        // TODO: the result value could refernce the sandbox globals
+        free_table(&sandbox.globals);
+    }
+
+    free(source);
+    return exported;
+}
+
 static Value native_print(VM *vm, Value *arguments, size_t count) {
     MAYBE_UNUSED(vm);
 
@@ -737,7 +804,6 @@ static Value native_print(VM *vm, Value *arguments, size_t count) {
 
 static Value native_len(VM *vm, Value *arguments, size_t count) {
     MAYBE_UNUSED(count);
-    assert(count == 1);
 
     Value argument = arguments[0];
     if (Is_String(argument))
@@ -754,8 +820,6 @@ static Value native_len(VM *vm, Value *arguments, size_t count) {
 // Array Native Functions
 
 static Value native_push(VM *vm, Value* arguments, size_t count) {
-    assert(count > 1);
-
     Value argument = arguments[0];
     if (Is_Array(argument) == false) {
         runtime_error(vm, "`push` expected array as firt argument, got %s", type_repr(argument));
@@ -779,7 +843,6 @@ static Value native_push(VM *vm, Value* arguments, size_t count) {
 
 static Value native_pop(VM *vm, Value *arguments, size_t count) {
     MAYBE_UNUSED(count);
-    assert(count == 1);
 
     Value argument = arguments[0];
     if (Is_Array(argument) == false) {
@@ -800,7 +863,6 @@ static Value native_pop(VM *vm, Value *arguments, size_t count) {
 
 static Value native_insert(VM *vm, Value *arguments, size_t count) {
     MAYBE_UNUSED(count);
-    assert(count == 3);
 
     Value argument1 = arguments[0];
     if (Is_Map(argument1) == false) {
@@ -823,7 +885,6 @@ static Value native_insert(VM *vm, Value *arguments, size_t count) {
 
 static Value native_remove(VM *vm, Value *arguments, size_t count) {
     MAYBE_UNUSED(count);
-    assert(count == 2);
 
     Value argument1 = arguments[0];
     if (Is_Map(argument1) == false) {
@@ -853,6 +914,7 @@ static void register_natives(VM* vm) {
         table_set(&vm->globals, name_string, Num_Value(index++));                           \
     } while (false)
 
+    Register(import, 1, false);
     Register(print,  0, true);
     Register(len,    1, false);
     Register(push,   2, true);
@@ -867,6 +929,7 @@ static void register_natives(VM* vm) {
 
 void init_vm(VM *vm) {
     vm->open_upvalues = NULL;
+    vm->reset_on_exit = true;
 
     init_allocator(&vm->allocator);
     init_table(&vm->globals);
@@ -883,6 +946,7 @@ void free_vm(VM *vm) {
 InterpretResult interpret(VM *vm, const char *source, const char *path) {
     // Disable the GC while compiling.
     vm->allocator.gc_off = true;
+    vm->x = Nil_Value;
 
     register_natives(vm);
 

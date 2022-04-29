@@ -21,7 +21,11 @@ static void repl() {
         if (!fgets(buf, 256, stdin) || feof(stdin)) {
             break;
         }
-        interpret(&vm, buf, "stdin");
+        InterpretResult result = interpret(&vm, buf, "stdin");
+        if (result == INTERPRET_OK) {
+            print_value(vm.x);
+            putchar('\n');
+        }
     }
 
     free_vm(&vm);
@@ -30,8 +34,7 @@ static void repl() {
 static char *scan_file(const char *path) {
     FILE *file = fopen(path, "rb");
     if (file == NULL) {
-        fprintf(stderr, "Fatal: error openning '%s' (%s)\n", path,
-                strerror(errno));
+        fprintf(stderr, "Fatal: error openning '%s' (%s)\n", path, strerror(errno));
         exit(EXIT_FAILURE);
     }
 
@@ -63,8 +66,12 @@ static void execute_file(const char *path) {
 
     char *source = scan_file(path);
     InterpretResult result = interpret(&vm, source, path);
-    free(source);
+    if (result == INTERPRET_OK) {
+        print_value(vm.x);
+        putchar('\n');
+    }
 
+    free(source);
     free_vm(&vm);
 
     if (result == INTERPRET_RUNTIME_ERROR) exit(EXIT_FAILURE);

@@ -8,6 +8,6 @@
 int disassemble_instruction(Chunk *chunk, int offset);
 
 // Dump out a whole chunk instructions with a given tag name.
-void disassemble_chunk(Chunk *chunk, const char *name);
+void disassemble_chunk(Chunk *chunk, const char *path, const char *name);
 
 #endif

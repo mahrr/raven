@@ -22,6 +22,8 @@ typedef struct {
     Value stack[STACK_SIZE];
     Value *stack_top;
 
+    bool reset_on_exit; // whether or not to reset the stack on OP_EXIT
+
     CallFrame frames[FRAMES_LIMIT];
     int frame_count;
 

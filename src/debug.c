@@ -219,8 +219,8 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     return 0; // For Warnings
 }
 
-void disassemble_chunk(Chunk *chunk, const char *name) {
-    printf("\n== %s ==\n", name);
+void disassemble_chunk(Chunk *chunk, const char *path, const char *name) {
+    printf("\n== '%s': %s ==\n", path, name);
 
     for (int offset = 0; offset < chunk->count; ) {
         offset = disassemble_instruction(chunk, offset);
