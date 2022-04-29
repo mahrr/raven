@@ -723,6 +723,8 @@ static InterpretResult run_vm(register VM *vm) {
 
 /// Native Functions
 
+static void register_natives(VM*);
+
 static Value native_import(VM *vm, Value *arguments, size_t count) {
     MAYBE_UNUSED(count);
 
@@ -732,10 +734,9 @@ static Value native_import(VM *vm, Value *arguments, size_t count) {
         return Void_Value;
     }
 
+    // read the file
     const char *path = As_String(argument)->chars;
     char *source = NULL;
-
-    // read the file
     {
         FILE *file = fopen(path, "rb");
         if (file == NULL) {
@@ -768,18 +769,40 @@ static Value native_import(VM *vm, Value *arguments, size_t count) {
     // execute the source
     Value exported = Nil_Value;
     {
-        VM sandbox = {};
+        VM sandbox = {0};
         sandbox.reset_on_exit = false;
         sandbox.allocator = vm->allocator;
+        sandbox.path = path;
+        sandbox.x = Nil_Value;
+
         reset_stack(&sandbox);
         init_table(&sandbox.globals);
+        register_natives(&sandbox);
+
+        // TODO: `vm` objects could be freed in the `interpret` call
+        sandbox.allocator.gc_off = true;
+
+        RavFunction *function = compile(&sandbox, source, path);
+        if (function == NULL) {
+            free(source);
+            return Void_Value;
+        }
+
+        RavClosure *closure = new_closure(&sandbox.allocator, function);
+        push(&sandbox, Obj_Value(closure));
+        push_frame(&sandbox, closure, 0);
 
         // TODO: errors should dump the current context stack
-        InterpretResult result = interpret(&sandbox, source, path);
+        InterpretResult result = run_vm(&sandbox);
         if (result != INTERPRET_OK) {
             free(source);
             return Void_Value;
         }
+
+        // reset allocator state to the current context
+        vm->allocator = sandbox.allocator;
+
+        // obtian the exported value from the X register
         exported = sandbox.x;
 
         // TODO: the result value could refernce the sandbox globals
@@ -905,6 +928,7 @@ static Value native_remove(VM *vm, Value *arguments, size_t count) {
 
 static void register_natives(VM* vm) {
     size_t index = 0;
+    vm->allocator.gc_off = true;
 
 #define Register(name, arity, variadic)                                                     \
     do {                                                                                    \
@@ -934,21 +958,19 @@ void init_vm(VM *vm) {
     init_allocator(&vm->allocator);
     init_table(&vm->globals);
     reset_stack(vm);
+    register_natives(vm);
 }
 
 void free_vm(VM *vm) {
     free_table(&vm->globals);
     free_allocator(&vm->allocator);
-
-    init_vm(vm);
+    *vm = (VM){0};
 }
 
 InterpretResult interpret(VM *vm, const char *source, const char *path) {
     // Disable the GC while compiling.
     vm->allocator.gc_off = true;
     vm->x = Nil_Value;
-
-    register_natives(vm);
 
     RavFunction *function = compile(vm, source, path);
     if (function == NULL) {
