@@ -53,7 +53,7 @@ build/relase_symbols/%.o: $(SRCDIR)/%.c
 .PHONY: run clean
 
 run: debug
-	@./build/debug/raven
+	@rlwrap -n ./build/debug/raven
 
 clean:
 	$(RM) -rf build/*

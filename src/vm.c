@@ -150,8 +150,8 @@ static bool call_cfunction(VM *vm, RavCFunction *cfunction, int count) {
         return false;
     }
 
-    // rewind the stack
-    vm->stack_top = stack_before - count;
+    // rewind the stack to the point before the cfunction and its argument
+    vm->stack_top = stack_before - (count + 1);
 
     // push the returned value from the function
     push(vm, result);
@@ -768,7 +768,7 @@ static Value native_import(VM *vm, Value *arguments, size_t count) {
     // execute the source
     Value exported = Nil_Value;
     {
-        VM sandbox;
+        VM sandbox = {};
         sandbox.reset_on_exit = false;
         sandbox.allocator = vm->allocator;
         reset_stack(&sandbox);
