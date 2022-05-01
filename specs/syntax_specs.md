@@ -14,13 +14,10 @@ let_declaration ::= "let" name "=" expression;
 
 fn_declaration ::= "fn" name "(" parameter_list ")" chunk "end";
 
-statement ::= assert_statement
-            | expression_statement
+statement ::= expression_statement
             | return_statement
             | "continue"
             | "break";
-
-assert_statement ::= "assert" expression;
 
 expression_statement ::= expression;
 

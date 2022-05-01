@@ -13,8 +13,7 @@ token ::= keyword
         | operator
         | delimiter;
 
-keyword ::= "assert"
-          | "break"
+keyword ::= "break"
           | "cond"
           | "else"
           | "false"

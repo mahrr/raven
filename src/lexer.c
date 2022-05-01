@@ -150,7 +150,6 @@ static TokenType identifier_type(Lexer *lexer) {
 
         switch (lexer->start[1]) {
         case 'n': return Is_Keyword(2, "d",    TOKEN_AND);
-        case 's': return Is_Keyword(2, "sert", TOKEN_ASSERT);
         }
         break;
 

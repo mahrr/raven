@@ -30,6 +30,7 @@ static const char* type_repr(Value value) {
     if (Is_CFunction(value)) return "native-function";
 
     assert(!"unreachable: invalid value tag");
+    return NULL;
 }
 
 static inline void reset_stack(VM *vm) {
@@ -122,16 +123,18 @@ static bool call_closure(VM *vm, RavClosure *closure, int count) {
 }
 
 static bool call_cfunction(VM *vm, RavCFunction *cfunction, int count) {
-    if (cfunction->variadic) {
-        if (count < cfunction->arity) {
-            runtime_error(vm, "expect at least %d arguments, but got %d", cfunction->arity, count);
-            return false;
+    int arity_min = cfunction->arity_min;
+    int arity_max = cfunction->arity_max;
+
+    if (count < arity_min || count > arity_max) {
+        if (arity_min == arity_max) { // non-variadic
+            runtime_error(vm, "expect %d arguments, but got %d", arity_min, count);
+        } else if (arity_max != PARAMS_LIMIT) { // non-variadic
+            runtime_error(vm, "expect %d to %d arguments, but got %d", arity_min, arity_max, count);
+        } else { // variadic
+            runtime_error(vm, "expect at least %d arguments, but got %d", arity_min, count);
         }
-    } else {
-        if (cfunction->arity != count) {
-            runtime_error(vm, "expect %d arguments, but got %d", cfunction->arity, count);
-            return false;
-        }
+        return false;
     }
 
     Value *stack_before = vm->stack_top;
@@ -669,18 +672,6 @@ static InterpretResult run_vm(register VM *vm) {
         Dispatch();
     }
 
-    Case(OP_ASSERT): {
-        Value value = Pop();
-
-        if (is_falsy(value)) {
-            Runtime_Error("assertion failed");
-            return INTERPRET_RUNTIME_ERROR;
-        }
-
-        vm->x = Nil_Value;
-        Dispatch();
-    }
-
     Case(OP_RETURN): {
         Value result = Pop();
         close_upvalues(vm, frame.slots);
@@ -813,6 +804,32 @@ static Value native_import(VM *vm, Value *arguments, size_t count) {
     return exported;
 }
 
+static Value native_assert(VM *vm, Value *arguments, size_t count) {
+    Value expression = arguments[0];
+    Value message = Nil_Value;
+
+    // message is optional
+    if (count == 2) {
+        message = arguments[1];
+
+        if (Is_String(message) == false) {
+            runtime_error(vm, "`assert` expected string as second argument, got %s", type_repr(message));
+            return Void_Value;
+        }
+    }
+
+    if (is_falsy(expression)) {
+        if (count == 2) {
+            runtime_error(vm, "assertion failed: %s", As_String(message)->chars);
+        } else {
+            runtime_error(vm, "assertion failed");
+        }
+        return Void_Value;
+    }
+
+    return Nil_Value;
+}
+
 static Value native_print(VM *vm, Value *arguments, size_t count) {
     MAYBE_UNUSED(vm);
 
@@ -930,21 +947,22 @@ static void register_natives(VM* vm) {
     size_t index = 0;
     vm->allocator.gc_off = true;
 
-#define Register(name, arity, variadic)                                                     \
-    do {                                                                                    \
-        RavCFunction *func = new_cfunction(&vm->allocator, native_##name, arity, variadic); \
-        RavString *name_string = new_string(&vm->allocator, #name, strlen(#name));          \
-        vm->global_buffer[index] = Obj_Value(func);                                         \
-        table_set(&vm->globals, name_string, Num_Value(index++));                           \
+#define Register(name, arity_min, arity_max)                                                     \
+    do {                                                                                         \
+        RavCFunction *func = new_cfunction(&vm->allocator, native_##name, arity_min, arity_max); \
+        RavString *name_string = new_string(&vm->allocator, #name, strlen(#name));               \
+        vm->global_buffer[index] = Obj_Value(func);                                              \
+        table_set(&vm->globals, name_string, Num_Value(index++));                                \
     } while (false)
 
-    Register(import, 1, false);
-    Register(print,  0, true);
-    Register(len,    1, false);
-    Register(push,   2, true);
-    Register(pop,    1, false);
-    Register(insert, 3, false);
-    Register(remove, 2, false);
+    Register(import, 1, 1);
+    Register(assert, 1, 2);
+    Register(print,  0, PARAMS_LIMIT); // variadic
+    Register(len,    1, 1);
+    Register(push,   2, PARAMS_LIMIT); // variadic
+    Register(pop,    1, 1);
+    Register(insert, 3, 3);
+    Register(remove, 2, 2);
 
 #undef Register
 }

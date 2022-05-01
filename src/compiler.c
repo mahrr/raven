@@ -1187,7 +1187,6 @@ static void unary(Parser *parser) {
 
 // Parsing rule table
 static ParseRule rules[] = {
-    { NULL,                 NULL,       PREC_NONE },         // TOKEN_ASSERT
     { NULL,                 NULL,       PREC_NONE },         // TOKEN_BREAK
     { cond,                 NULL,       PREC_NONE },         // TOKEN_COND
     { NULL,                 NULL,       PREC_NONE },         // TOKEN_CONTINUE
@@ -1433,15 +1432,6 @@ static void continue_statement(Parser *parser) {
     Debug_Exit(parser);
 }
 
-static void assert_statement(Parser *parser) {
-    Debug_Log(parser);
-
-    expression(parser);
-    emit_byte(parser, OP_ASSERT);
-
-    Debug_Exit(parser);
-}
-
 // Synchronize the parser state to the next statement.
 static void recover(Parser *parser) {
     parser->panic_mode = false;
@@ -1476,8 +1466,6 @@ static void declaration(Parser *parser) {
         return_statement(parser);
     } else if (match(parser, TOKEN_CONTINUE)) {
         continue_statement(parser);
-    } else if (match(parser, TOKEN_ASSERT)) {
-        assert_statement(parser);
     } else {
         expression(parser);
         emit_byte(parser, OP_SAVE_X);

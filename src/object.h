@@ -85,8 +85,8 @@ struct RavClosure {
 struct RavCFunction {
     Object header;
     CFunc func;
-    int arity;
-    bool variadic;
+    int arity_min;
+    int arity_max;
 };
 
 #define Obj_Type(value) (As_Obj(value)->type)
@@ -136,7 +136,7 @@ RavUpvalue *new_upvalue(Allocator *allocator, Value *location);
 RavClosure *new_closure(Allocator *allocator, RavFunction *function);
 
 // Construct a C function object.
-RavCFunction *new_cfunction(Allocator *allocator, CFunc func, int arity, bool variadic);
+RavCFunction *new_cfunction(Allocator *allocator, CFunc func, int arity_min, int arity_max);
 
 // Pretty print a raven object.
 void print_object(Value value);

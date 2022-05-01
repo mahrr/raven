@@ -145,11 +145,11 @@ RavClosure *new_closure(Allocator *allocator, RavFunction *function) {
     return closure;
 }
 
-RavCFunction *new_cfunction(Allocator *allocator, CFunc func, int arity, bool variadic) {
+RavCFunction *new_cfunction(Allocator *allocator, CFunc func, int arity_min, int arity_max) {
     RavCFunction *cfunction = Alloc_Object(allocator, RavCFunction, OBJ_CFUNCTION);
     cfunction->func = func;
-    cfunction->arity = arity;
-    cfunction->variadic = variadic;
+    cfunction->arity_min = arity_min;
+    cfunction->arity_max = arity_max;
     return cfunction;
 }
 
@@ -219,11 +219,11 @@ static void print_function(RavFunction *function) {
         return;
     }
 
-    printf("<fn (%d) %s>", function->arity, function->name->chars);
+    printf("<fn %s>", function->name->chars);
 }
 
 static void print_cfunction(RavCFunction *function) {
-    printf("<native (%d) @ %p>", function->arity, function->func);
+    printf("<native @ %p>", function->func);
 }
 
 void print_object(Value value) {
@@ -267,7 +267,6 @@ void print_object(Value value) {
     }
 }
 
-
 /// String Buffer API
 
 StringBuffer string_buf_new(Allocator *allocator) {
@@ -276,11 +275,11 @@ StringBuffer string_buf_new(Allocator *allocator) {
     return self;
 }
 
-void string_buf_free(StringBuffer* self) {
+void string_buf_free(StringBuffer *self) {
     if (self->buffer) {
         Free_Array(self->allocator, char, self->buffer, self->capacity);
     }
-    *self = (StringBuffer){};
+    *self = (StringBuffer){0};
 }
 
 void string_buf_push(StringBuffer *self, Value value) {
