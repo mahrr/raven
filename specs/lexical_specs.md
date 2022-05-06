@@ -37,14 +37,14 @@ integer ::= decimal_digit+
 
 float ::= decimal_digit+ "." decimal_digit+;
 
-string ::= "'" <ASCII character expect single quote, extends until the end of line> "'"
-         | "\"" <ASCII character expect double quote, extends until the terminating double quote> "\"";
+string ::= "'" <ASCII character> "'"
+         | "\"" <ASCII character>  "\"";
 
-string_begin ::= "\"" <ASCII character expect double quote or pipe, extends until the delimiting pipe> "|";
+string_begin ::= "\"" <ASCII character> "|";
 
-string_part ::= "|" <ASCII character expect double quote or pipe, extends until the delimiting pipe> "|";
+string_part ::= "|" <ASCII character> "|";
 
-string_end ::= "|" <ASCII character expect double quote or pipe, extends until the terminating double quote>; "\"";
+string_end ::= "|" <ASCII character>; "\"";
 
 operator ::= "and" | "not" | "or"
            | "()"  | "[]"  | "."

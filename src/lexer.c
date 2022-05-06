@@ -61,11 +61,11 @@ static Token error_token(Lexer *lexer, const char *message) {
 }
 
 static Token string(Lexer *lexer) {
-    while (!at_end(lexer) && peek(lexer) != '\'' && peek(lexer) != '\n') {
+    while (!at_end(lexer) && peek(lexer) != '\'') {
         advance(lexer);
     }
 
-    if (at_end(lexer) || peek(lexer) == '\n') {
+    if (at_end(lexer)) {
         return error_token(lexer, "Unterminated string");
     }
 
