@@ -27,6 +27,9 @@ typedef struct {
     // Intrusive linked list of all allocated objects.
     Object *objects;
 
+    // The end of `objects` list for the current context.
+    Object *objects_end;
+
     // Array of currently marked, but not processed, objects.
     Object **gray_stack;
     int gray_capacity;

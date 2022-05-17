@@ -752,8 +752,11 @@ static Value native_import(VM *vm, Value *arguments, size_t count) {
         init_table(&sandbox.globals);
         register_natives(&sandbox);
 
-        // TODO: `vm` objects could be freed in the `interpret` call
-        sandbox.allocator.gc_off = true;
+        // since the current context's object are not reachable to the sandbox they need
+        // to be hided, so they are not freed in the `interpret` call by the GC, this is
+        // achieved by marking the beginning of the current objects list to be the end of
+        // the sandbox object list
+        sandbox.allocator.objects_end = sandbox.allocator.objects;
 
         RavFunction *function = compile(&sandbox, source, path);
         if (function == NULL) {
@@ -773,12 +776,13 @@ static Value native_import(VM *vm, Value *arguments, size_t count) {
         }
 
         // reset allocator state to the current context
+        sandbox.allocator.objects_end = NULL;
         vm->allocator = sandbox.allocator;
 
         // obtian the exported value from the X register
         exported = sandbox.x;
 
-        // TODO: the result value could refernce the sandbox globals
+        // clear the sandbox resources
         free_table(&sandbox.globals);
     }
 

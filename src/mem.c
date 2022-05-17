@@ -265,7 +265,7 @@ static void trace_references(Allocator *allocator) {
 static void sweep(Allocator *allocator) {
     Object **link = &allocator->objects;
 
-    while (*link != NULL) {
+    while (*link != allocator->objects_end) {
         if ((*link)->marked) {
             (*link)->marked = false;
             link = &(*link)->next;
