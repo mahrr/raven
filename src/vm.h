@@ -27,13 +27,7 @@ typedef struct {
     CallFrame frames[FRAMES_LIMIT];
     int frame_count;
 
-    // Map each used global name to its index at the global variables
-    // buffer. It's populated at compile time, as the parser resolve
-    // the identifiers.
     Table globals;
-
-    // Used to obtain globals variables at runtime.
-    Value global_buffer[GLOBALS_LIMIT];
 
     // Intrusive linked list of all available open opvalues.
     // TODO: experiment with using a hash table instead.

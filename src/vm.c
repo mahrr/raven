@@ -206,24 +206,6 @@ static void close_upvalues(VM *vm, Value *slot) {
     }
 }
 
-// Returns the name of a registered global at a given index.
-// It's a linear function, but that is not a problem, since it
-// only gets called at runtime errors.
-static const char *global_name_at(VM *vm, uint8_t index) {
-    Table *globals = &vm->globals;
-
-    for (int i = 0; i <= globals->hash_mask; i++) {
-        if (globals->entries[i].key == NULL) continue;
-
-        if ((uint8_t)As_Num(globals->entries[i].value) == index) {
-            return globals->entries[i].key->chars;
-        }
-    }
-
-    assert(!"Query the name of unregistered global variable");
-    return NULL;
-}
-
 /// VM Dispatch Loop
 
 static InterpretResult run_vm(register VM *vm) {
@@ -559,28 +541,28 @@ static InterpretResult run_vm(register VM *vm) {
     }
 
     Case(OP_DEF_GLOBAL): {
-        vm->global_buffer[Read_Byte()] = Pop();
+        RavString *name = Read_String();
+        table_set(&vm->globals, name, Peek(0));
+        Pop();
         Dispatch();
     }
 
     Case(OP_SET_GLOBAL): {
-        uint8_t index = Read_Byte();
-
-        if (Is_Void(vm->global_buffer[index])) {
-            Runtime_Error("unbound variable '%s'", global_name_at(vm, index));
+        RavString *name = Read_String();
+        if (table_set(&vm->globals, name, Peek(0))) {
+            table_remove(&vm->globals, name);
+            Runtime_Error("unbound variable '%s'", name->chars);
             return INTERPRET_RUNTIME_ERROR;
         }
-
-        vm->global_buffer[index] = Peek(0);
         Dispatch();
     }
 
     Case(OP_GET_GLOBAL): {
-        uint8_t index = Read_Byte();
-        Value value = vm->global_buffer[index];
+        RavString *name = Read_String();
 
-        if (Is_Void(value)) {
-            Runtime_Error("unbound variable '%s'", global_name_at(vm, index));
+        Value value;
+        if (table_get(&vm->globals, name, &value) == false) {
+            Runtime_Error("unbound variable '%s'", name->chars);
             return INTERPRET_RUNTIME_ERROR;
         }
 
@@ -944,15 +926,13 @@ static Value native_remove(VM *vm, Value *arguments, size_t count) {
 }
 
 static void register_natives(VM* vm) {
-    size_t index = 0;
     vm->allocator.gc_off = true;
 
 #define Register(name, arity_min, arity_max)                                                     \
     do {                                                                                         \
         RavCFunction *func = new_cfunction(&vm->allocator, native_##name, arity_min, arity_max); \
         RavString *name_string = new_string(&vm->allocator, #name, strlen(#name));               \
-        vm->global_buffer[index] = Obj_Value(func);                                              \
-        table_set(&vm->globals, name_string, Num_Value(index++));                                \
+        table_set(&vm->globals, name_string, Obj_Value(func));                                   \
     } while (false)
 
     Register(import, 1, 1);

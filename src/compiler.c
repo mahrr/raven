@@ -261,33 +261,10 @@ static inline void emit_constant(Parser *parser, Value value) {
     emit_bytes(parser, OP_PUSH_CONST, make_constant(parser, value));
 }
 
-// Register a global variable name, and returns its index at the globals
-// buffer (vm->global_buffer[]).
-static uint8_t register_identifier(Parser *parser, Token *name) {
-    const char *start = name->lexeme;
-    int length = name->length;
-    VM *vm = parser->vm;
-
-    RavString *ident = new_string(&vm->allocator, start, length);
-    Value index_value;
-
-    // Already registered?
-    if (table_get(&vm->globals, ident, &index_value)) {
-        return (uint8_t)As_Num(index_value);
-    }
-
-    // Exceeds the global limit?
-    if (vm->globals.count >= GLOBALS_LIMIT) {
-        error_limit(parser, "globals", GLOBALS_LIMIT);
-        return 0;
-    }
-
-    uint8_t index = vm->globals.count;
-
-    vm->global_buffer[index] = Void_Value;
-    table_set(&vm->globals, ident, Num_Value((double)index));
-
-    return index;
+// Put the name in the constant table as string, and return its index.
+static inline uint8_t identifier_constant(Parser *parser, Token *name) {
+    RavString *ident = new_string(&parser->vm->allocator, name->lexeme, name->length);
+    return write_constant(parser_chunk(parser), Obj_Value(ident));
 }
 
 /** Parser State **/
@@ -978,9 +955,10 @@ static void grouping(Parser *parser) {
 static void identifier(Parser *parser) {
     Debug_Log(parser);
 
-    uint8_t get_op;
     Token *name = &parser->previous;
     int index = resolve_local(parser->context, name);
+
+    uint8_t get_op;
 
     // Local?
     if (index != -1) {
@@ -992,7 +970,7 @@ static void identifier(Parser *parser) {
         if (index != -1) {
             get_op = OP_GET_UPVALUE;
         } else {
-            index = register_identifier(parser, &parser->previous);
+            index = identifier_constant(parser, &parser->previous);
             get_op = OP_GET_GLOBAL;
         }
     }
@@ -1316,11 +1294,12 @@ static uint8_t variable(Parser *parser, const char *error) {
 
     declare_variable(parser);
 
+    // Local?
     if (parser->context->scope_depth > 0) {
         return 0;
     }
 
-    return register_identifier(parser, &parser->previous);
+    return identifier_constant(parser, &parser->previous);
 }
 
 static void let_declaration(Parser *parser) {

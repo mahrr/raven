@@ -44,9 +44,6 @@
 // The limit of number of variables a closure can capture.
 #define UPVALUES_LIMIT UINT8_MAX + 1
 
-// The limit of number of globals per script.
-#define GLOBALS_LIMIT UINT8_MAX + 1
-
 // The limit of number of constants per function.
 #define CONST_LIMIT UINT8_MAX + 1
 
