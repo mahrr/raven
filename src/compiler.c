@@ -1251,9 +1251,8 @@ static void expression(Parser *parser) {
     parse_precedence(parser, PREC_ASSIGNMENT);
 }
 
-static void declare_variable(Parser *parser) {
+static void declare_local_variable(Parser *parser) {
     Context *context = parser->context;
-    if (context->scope_depth == 0) return; // Global Scope
 
     Token *name = &parser->previous;
     for (int i = context->local_count - 1; i >= 0; i--) {
@@ -1271,34 +1270,33 @@ static void declare_variable(Parser *parser) {
     add_local(parser, *name);
 }
 
+// Initialize the most declared local variable.
 static inline void mark_initialized(Context *context) {
     size_t last_index = context->local_count - 1;
     context->locals[last_index].depth = context->scope_depth;
 }
 
 static void define_variable(Parser *parser, uint8_t name_index) {
-    Context *context = parser->context;
-
-    // Local Scope?
-    if (context->scope_depth > 0) {
-        // Initialize the most declared local variable.
+    // local scope
+    if (parser->context->scope_depth > 0) {
         mark_initialized(parser->context);
         return;
     }
 
+    // global scope
     emit_bytes(parser, OP_DEF_GLOBAL, name_index);
 }
 
 static uint8_t variable(Parser *parser, const char *error) {
     consume(parser, TOKEN_IDENTIFIER, error);
 
-    declare_variable(parser);
-
-    // Local?
+    // local scope
     if (parser->context->scope_depth > 0) {
+        declare_local_variable(parser);
         return 0;
     }
 
+    // global scope
     return identifier_constant(parser, &parser->previous);
 }
 
