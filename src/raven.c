@@ -23,7 +23,7 @@ static void repl() {
         }
         InterpretResult result = interpret(&vm, buf, "stdin");
         if (result == INTERPRET_OK) {
-            print_value(vm.x);
+            value_print(vm.x);
             putchar('\n');
         }
     }
@@ -67,7 +67,7 @@ static void execute_file(const char *path) {
     char *source = scan_file(path);
     InterpretResult result = interpret(&vm, source, path);
     if (result == INTERPRET_OK) {
-        print_value(vm.x);
+        value_print(vm.x);
         putchar('\n');
     }
 

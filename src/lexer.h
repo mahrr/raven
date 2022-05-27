@@ -55,9 +55,9 @@ typedef struct {
 } Lexer;
 
 // Initialize a lexer with a given string source.
-void init_lexer(Lexer *lexer, const char *source, const char *file);
+void lexer_init(Lexer *lexer, const char *source, const char *file);
 
 // Consume and return the next token.
-Token next_token(Lexer *lexer);
+Token lexer_next(Lexer *lexer);
 
 #endif

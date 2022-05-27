@@ -5,7 +5,7 @@
 #include "object.h"
 #include "value.h"
 
-void print_value(Value value) {
+void value_print(Value value) {
 #ifdef NAN_TAGGING
     if (Is_Num(value)) {
         printf("%g", As_Num(value));
@@ -23,7 +23,7 @@ void print_value(Value value) {
     }
 
     if (Is_Obj(value)) {
-        print_object(value);
+        object_print(value);
         return;
     }
 
@@ -33,14 +33,14 @@ void print_value(Value value) {
     case VALUE_NUM:  printf("%g", As_Num(value)); break;
     case VALUE_BOOL: printf(As_Bool(value) ? "true" : "false"); break;
     case VALUE_NIL:  printf("nil"); break;
-    case VALUE_OBJ:  print_object(value); break;
+    case VALUE_OBJ:  object_print(value); break;
     default:
         assert(!"invalid value type");
     }
 #endif
 }
 
-bool equal_values(Value x, Value y) {
+bool value_equal(Value x, Value y) {
 #ifdef NAN_TAGGING
     return x == y;
 #else

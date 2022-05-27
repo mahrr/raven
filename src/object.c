@@ -52,7 +52,7 @@ static uint32_t hash_string(const char *key, int length) {
 
 /// Object API
 
-RavString *new_string(Allocator *allocator, const char *chars, int length) {
+RavString *object_string(Allocator *allocator, const char *chars, int length) {
     uint32_t hash = hash_string(chars, length);
     RavString *interned = table_interned(&allocator->strings, chars, hash, length);
 
@@ -65,11 +65,11 @@ RavString *new_string(Allocator *allocator, const char *chars, int length) {
     return alloc_string(allocator, length, hash, copy);
 }
 
-RavString *box_string(Allocator *allocator, char *chars, int length) {
+RavString *object_string_box(Allocator *allocator, char *chars, int length) {
     uint32_t hash = hash_string(chars, length);
     RavString *interned = table_interned(&allocator->strings, chars, hash, length);
 
-    // box_string takes ownership of chars memory, so if
+    // object_string_box takes ownership of chars memory, so if
     // the string is already interned, it frees this memory,
     // as it's no longer needed.
     if (interned != NULL) {
@@ -80,7 +80,7 @@ RavString *box_string(Allocator *allocator, char *chars, int length) {
     return alloc_string(allocator, length, hash, chars);
 }
 
-RavPair *new_pair(Allocator *allocator, Value head, Value tail) {
+RavPair *object_pair(Allocator *allocator, Value head, Value tail) {
     RavPair *pair = Alloc_Object(allocator, RavPair, OBJ_PAIR);
 
     pair->head = head;
@@ -89,7 +89,7 @@ RavPair *new_pair(Allocator *allocator, Value head, Value tail) {
     return pair;
 }
 
-RavArray *new_array(Allocator *allocator, Value *values, size_t count) {
+RavArray *object_array(Allocator *allocator, Value *values, size_t count) {
     RavArray *array = Alloc_Object(allocator, RavArray, OBJ_ARRAY);
 
     array->header.marked = true; // for gc
@@ -103,24 +103,24 @@ RavArray *new_array(Allocator *allocator, Value *values, size_t count) {
     return array;
 }
 
-RavMap *new_map(Allocator *allocator) {
+RavMap *object_map(Allocator *allocator) {
     RavMap *map = Alloc_Object(allocator, RavMap, OBJ_MAP);
-    init_table(&map->table);
+    table_init(&map->table);
     return map;
 }
 
-RavFunction *new_function(Allocator *allocator) {
+RavFunction *object_function(Allocator *allocator) {
     RavFunction *function = Alloc_Object(allocator, RavFunction, OBJ_FUNCTION);
 
     function->name = NULL;
     function->arity = 0;
     function->upvalue_count = 0;
 
-    init_chunk(&function->chunk);
+    chunk_init(&function->chunk);
     return function;
 }
 
-RavUpvalue *new_upvalue(Allocator *allocator, Value *location) {
+RavUpvalue *object_upvalue(Allocator *allocator, Value *location) {
     RavUpvalue *upvalue = Alloc_Object(allocator, RavUpvalue, OBJ_UPVALUE);
 
     upvalue->location = location;
@@ -130,7 +130,7 @@ RavUpvalue *new_upvalue(Allocator *allocator, Value *location) {
     return upvalue;
 }
 
-RavClosure *new_closure(Allocator *allocator, RavFunction *function) {
+RavClosure *object_closure(Allocator *allocator, RavFunction *function) {
     RavUpvalue **upvalues = Alloc(allocator, RavUpvalue*, function->upvalue_count);
 
     for (int i = 0; i < function->upvalue_count; i++) {
@@ -145,7 +145,7 @@ RavClosure *new_closure(Allocator *allocator, RavFunction *function) {
     return closure;
 }
 
-RavCFunction *new_cfunction(Allocator *allocator, CFunc func, int arity_min, int arity_max) {
+RavCFunction *object_cfunction(Allocator *allocator, CFunc func, int arity_min, int arity_max) {
     RavCFunction *cfunction = Alloc_Object(allocator, RavCFunction, OBJ_CFUNCTION);
     cfunction->func = func;
     cfunction->arity_min = arity_min;
@@ -154,7 +154,7 @@ RavCFunction *new_cfunction(Allocator *allocator, CFunc func, int arity_min, int
 }
 
 static void print_pair(RavPair *pair) {
-    print_value(pair->head);
+    value_print(pair->head);
 
     // end of a proper list?
     if (Is_Nil(pair->tail)) {
@@ -166,7 +166,7 @@ static void print_pair(RavPair *pair) {
         print_pair(As_Pair(pair->tail));
     } else {
         printf(" . ");
-        print_value(pair->tail);
+        value_print(pair->tail);
     }
 }
 
@@ -176,12 +176,12 @@ static void print_array(RavArray *array) {
     putchar('[');
 
     for (int i = 0; i < (int)array->count - 1; i++) {
-        print_value(array->values[i]);
+        value_print(array->values[i]);
         printf(", ");
     }
 
     if (array->count > 0) {
-        print_value(array->values[array->count - 1]);
+        value_print(array->values[array->count - 1]);
     }
 
     putchar(']');
@@ -198,16 +198,16 @@ static void print_map(RavMap *map) {
             continue;
         }
 
-        print_object(Obj_Value(entries[i].key));
+        object_print(Obj_Value(entries[i].key));
         printf(": ");
-        print_value(entries[i].value);
+        value_print(entries[i].value);
         printf(", ");
     }
 
     if (last_index >= 0) {
-        print_object(Obj_Value(entries[last_index].key));
+        object_print(Obj_Value(entries[last_index].key));
         printf(": ");
-        print_value(entries[last_index].value);
+        value_print(entries[last_index].value);
     }
 
     putchar('}');
@@ -222,7 +222,7 @@ static void print_function(RavFunction *function) {
     printf("<fn %s>", function->name->chars);
 }
 
-void print_object(Value value) {
+void object_print(Value value) {
     switch (Obj_Type(value)) {
     case OBJ_STRING:
         printf("%s", As_CString(value));
@@ -339,7 +339,7 @@ void string_buf_push(StringBuffer *self, Value value) {
 
 RavString *string_buf_into(StringBuffer *self) {
     self->buffer = allocate(self->allocator, self->buffer, self->capacity, self->count + 1);
-    RavString *result = box_string(self->allocator, self->buffer, self->count);
+    RavString *result = object_string_box(self->allocator, self->buffer, self->count);
 
     *self = (StringBuffer){};
     return result;

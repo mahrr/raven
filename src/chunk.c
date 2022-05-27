@@ -5,7 +5,7 @@
 #include "mem.h"
 #include "value.h"
 
-void init_chunk(Chunk *chunk) {
+void chunk_init(Chunk *chunk) {
     chunk->count = 0;
     chunk->capacity = 0;
     chunk->opcodes = NULL;
@@ -17,11 +17,11 @@ void init_chunk(Chunk *chunk) {
     chunk->constants_count = 0;
 }
 
-void free_chunk(Chunk *chunk) {
+void chunk_free(Chunk *chunk) {
     free(chunk->opcodes);
     free(chunk->lines);
 
-    init_chunk(chunk);
+    chunk_init(chunk);
 }
 
 static void write_line(Chunk *chunk, int line) {
@@ -40,7 +40,7 @@ static void write_line(Chunk *chunk, int line) {
     line_encoding->offset = chunk->count - 1;
 }
 
-void write_byte(Chunk *chunk, uint8_t byte, int line) {
+void chunk_write_byte(Chunk *chunk, uint8_t byte, int line) {
     if (chunk->count == chunk->capacity) {
         chunk->capacity = Grow_Capacity(chunk->capacity);
         chunk->opcodes = realloc(chunk->opcodes, chunk->capacity);
@@ -50,12 +50,12 @@ void write_byte(Chunk *chunk, uint8_t byte, int line) {
     write_line(chunk, line);
 }
 
-int write_constant(Chunk *chunk, Value value) {
+int chunk_write_constant(Chunk *chunk, Value value) {
     chunk->constants[chunk->constants_count++] = value;
     return chunk->constants_count - 1;
 }
 
-int decode_line(Chunk *chunk, int offset) {
+int chunk_decode_line(Chunk *chunk, int offset) {
     int start = 0;
     int end = chunk->lines_count - 1;
 

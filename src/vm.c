@@ -47,7 +47,7 @@ static void dump_stack_trace(VM *vm, FILE *out) {
         RavFunction *function = frame->closure->function;
 
         size_t offset = frame->ip - function->chunk.opcodes - 1;
-        int line = decode_line(&function->chunk, offset);
+        int line = chunk_decode_line(&function->chunk, offset);
 
         fprintf(out, "\t%s | line:%d in ", vm->path, line);
 
@@ -68,7 +68,7 @@ static void runtime_error(VM *vm, const char *format, ...) {
 
     // -1 because ip is sitting on the next instruction to be executed.
     size_t offset = frame->ip - function->chunk.opcodes - 1;
-    int line = decode_line(&function->chunk, offset);
+    int line = chunk_decode_line(&function->chunk, offset);
     fprintf(stderr, "[%s | line: %d] ", vm->path, line);
 
     vfprintf(stderr, format, arguments);
@@ -186,7 +186,7 @@ static RavUpvalue *capture_upvalue(VM *vm, Value *location) {
 
     if (current && current->location == location) return current;
 
-    RavUpvalue *upvalue = new_upvalue(&vm->allocator, location);
+    RavUpvalue *upvalue = object_upvalue(&vm->allocator, location);
     upvalue->next = current;
 
     if (previous == NULL) {
@@ -220,11 +220,11 @@ static InterpretResult run_vm(register VM *vm) {
         printf("          ");                                            \
         for (Value *value = vm->stack; value < vm->stack_top; value++) { \
             printf("[ ");                                                \
-            print_value(*value);                                         \
+            value_print(*value);                                         \
             printf(" ]");                                                \
         }                                                                \
         printf(" X = ");                                                 \
-        print_value(vm->x);                                              \
+        value_print(vm->x);                                              \
         putchar('\n');                                                   \
                                                                          \
         RavFunction *function = frame.closure->function;                 \
@@ -349,7 +349,7 @@ static InterpretResult run_vm(register VM *vm) {
         Value y = Pop();
         Value x = Pop();
 
-        Push(Bool_Value(equal_values(x, y)));
+        Push(Bool_Value(value_equal(x, y)));
         Dispatch();
     }
 
@@ -357,7 +357,7 @@ static InterpretResult run_vm(register VM *vm) {
         Value y = Pop();
         Value x = Pop();
 
-        Push(Bool_Value(!equal_values(x, y)));
+        Push(Bool_Value(!value_equal(x, y)));
         Dispatch();
     }
 
@@ -387,11 +387,11 @@ static InterpretResult run_vm(register VM *vm) {
     }
 
     Case(OP_CONS): {
-        // peek is used instead of pop, because of the possible GC round in `new_pair`
+        // peek is used instead of pop, because of the possible GC round in `object_pair`
         // call could reclaim any of `tail` or `head` memory, if they were objects
         Value tail = Peek(0);
         Value head = Peek(1);
-        Value pair = Obj_Value(new_pair(&vm->allocator, head, tail));
+        Value pair = Obj_Value(object_pair(&vm->allocator, head, tail));
 
         (void) Pop(); // head
         (void) Pop(); // tail
@@ -402,7 +402,7 @@ static InterpretResult run_vm(register VM *vm) {
 
     Case(OP_ARRAY_8): {
         size_t count = (size_t)Read_Byte();
-        RavArray *array = new_array(&vm->allocator, vm->stack_top - count, count);
+        RavArray *array = object_array(&vm->allocator, vm->stack_top - count, count);
         vm->stack_top -= count;
         Push(Obj_Value(array));
 
@@ -411,7 +411,7 @@ static InterpretResult run_vm(register VM *vm) {
 
     Case(OP_ARRAY_16): {
         size_t count = (size_t)Read_Short();
-        RavArray *array = new_array(&vm->allocator, vm->stack_top - count, count);
+        RavArray *array = object_array(&vm->allocator, vm->stack_top - count, count);
         vm->stack_top -= count;
         Push(Obj_Value(array));
 
@@ -421,7 +421,7 @@ static InterpretResult run_vm(register VM *vm) {
     Case(OP_MAP_8): {
         size_t count = (size_t)Read_Byte() * 2;
         Value *offset = vm->stack_top - count;
-        RavMap *map = new_map(&vm->allocator);
+        RavMap *map = object_map(&vm->allocator);
 
         for (size_t i = 0; i < count; i += 2) {
             Value key = offset[i];
@@ -439,7 +439,7 @@ static InterpretResult run_vm(register VM *vm) {
     Case(OP_MAP_16): {
         size_t count = (size_t)Read_Short() * 2;
         Value *offset = vm->stack_top - count;
-        RavMap *map = new_map(&vm->allocator);
+        RavMap *map = object_map(&vm->allocator);
 
         for (size_t i = 0; i < count; i += 2) {
             Value key = offset[i];
@@ -633,7 +633,7 @@ static InterpretResult run_vm(register VM *vm) {
 
     Case(OP_CLOSURE): {
         RavFunction *function = As_Function(Read_Constant());
-        RavClosure *closure = new_closure(&vm->allocator, function);
+        RavClosure *closure = object_closure(&vm->allocator, function);
         Push(Obj_Value(closure));
 
         for (int i = 0; i < closure->upvalue_count; i++) {
@@ -751,7 +751,7 @@ static bool native_import(VM *vm, Value *arguments, size_t count, Value *result)
         sandbox.x = Nil_Value;
 
         reset_stack(&sandbox);
-        init_table(&sandbox.globals);
+        table_init(&sandbox.globals);
         register_natives(&sandbox);
 
         // since the current context's object are not reachable to the sandbox they need
@@ -766,7 +766,7 @@ static bool native_import(VM *vm, Value *arguments, size_t count, Value *result)
             return false;
         }
 
-        RavClosure *closure = new_closure(&sandbox.allocator, function);
+        RavClosure *closure = object_closure(&sandbox.allocator, function);
         push(&sandbox, Obj_Value(closure));
         push_frame(&sandbox, closure, 0);
 
@@ -785,7 +785,7 @@ static bool native_import(VM *vm, Value *arguments, size_t count, Value *result)
         exported = sandbox.x;
 
         // clear the sandbox resources
-        free_table(&sandbox.globals);
+        table_free(&sandbox.globals);
     }
 
     *result = exported;
@@ -825,7 +825,7 @@ static bool native_print(VM *vm, Value *arguments, size_t count, Value *result) 
     MAYBE_UNUSED(vm);
 
     for (size_t i = 0; i < count; ++i) {
-        print_value(arguments[i]);
+        value_print(arguments[i]);
         putchar(' ');
     }
     putchar('\n');
@@ -948,11 +948,11 @@ static bool native_remove(VM *vm, Value *arguments, size_t count, Value *result)
 static void register_natives(VM* vm) {
     vm->allocator.gc_off = true;
 
-#define Register(name, arity_min, arity_max)                                                     \
-    do {                                                                                         \
-        RavCFunction *func = new_cfunction(&vm->allocator, native_##name, arity_min, arity_max); \
-        RavString *name_string = new_string(&vm->allocator, #name, strlen(#name));               \
-        table_set(&vm->globals, name_string, Obj_Value(func));                                   \
+#define Register(name, arity_min, arity_max)                                                        \
+    do {                                                                                            \
+        RavCFunction *func = object_cfunction(&vm->allocator, native_##name, arity_min, arity_max); \
+        RavString *name_string = object_string(&vm->allocator, #name, strlen(#name));               \
+        table_set(&vm->globals, name_string, Obj_Value(func));                                      \
     } while (false)
 
     Register(import, 1, 1);
@@ -973,15 +973,15 @@ void init_vm(VM *vm) {
     vm->open_upvalues = NULL;
     vm->reset_on_exit = true;
 
-    init_allocator(&vm->allocator);
-    init_table(&vm->globals);
+    allocator_init(&vm->allocator);
+    table_init(&vm->globals);
     reset_stack(vm);
     register_natives(vm);
 }
 
 void free_vm(VM *vm) {
-    free_table(&vm->globals);
-    free_allocator(&vm->allocator);
+    table_free(&vm->globals);
+    allocator_free(&vm->allocator);
     *vm = (VM){0};
 }
 
@@ -995,7 +995,7 @@ InterpretResult interpret(VM *vm, const char *source, const char *path) {
         return INTERPRET_COMPILE_ERROR;
     }
 
-    RavClosure *closure = new_closure(&vm->allocator, function);
+    RavClosure *closure = object_closure(&vm->allocator, function);
     push(vm, Obj_Value(closure));
 
     // Top-level code is wrapped in a function for convenience,

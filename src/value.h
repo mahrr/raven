@@ -107,8 +107,10 @@ typedef struct {
 
 #endif // NAN_TAGGING
 
-void print_value(Value value);
+// Pretty print Raven values to the standard output.
+void value_print(Value value);
 
-bool equal_values(Value x, Value y);
+// Test identity equality for the given two values.
+bool value_equal(Value x, Value y);
 
 #endif

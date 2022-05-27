@@ -91,13 +91,13 @@ struct RavCFunction {
 
 #define Obj_Type(value) (As_Obj(value)->type)
 
-#define Is_String(value)    is_object_type(value, OBJ_STRING)
-#define Is_Pair(value)      is_object_type(value, OBJ_PAIR)
-#define Is_Array(value)     is_object_type(value, OBJ_ARRAY)
-#define Is_Map(value)       is_object_type(value, OBJ_MAP)
-#define Is_Function(value)  is_object_type(value, OBJ_FUNCTION)
-#define Is_Closure(value)   is_object_type(value, OBJ_CLOSURE)
-#define Is_CFunction(value) is_object_type(value, OBJ_CFUNCTION)
+#define Is_String(value)    object_type_is(value, OBJ_STRING)
+#define Is_Pair(value)      object_type_is(value, OBJ_PAIR)
+#define Is_Array(value)     object_type_is(value, OBJ_ARRAY)
+#define Is_Map(value)       object_type_is(value, OBJ_MAP)
+#define Is_Function(value)  object_type_is(value, OBJ_FUNCTION)
+#define Is_Closure(value)   object_type_is(value, OBJ_CLOSURE)
+#define Is_CFunction(value) object_type_is(value, OBJ_CFUNCTION)
 
 #define As_String(value)    ((RavString *)As_Obj(value))
 #define As_Pair(value)      ((RavPair *)As_Obj(value))
@@ -111,38 +111,38 @@ struct RavCFunction {
 /// Object API
 
 // Construct a RavString with a copy of the given string.
-RavString *new_string(Allocator *allocator, const char *chars, int length);
+RavString *object_string(Allocator *allocator, const char *chars, int length);
 
 // Construct a RavString wrapping the given string.
 // The object will have an ownership of the chars memory.
-RavString *box_string(Allocator *allocator, char *chars, int length);
+RavString *object_string_box(Allocator *allocator, char *chars, int length);
 
 // Construct a RavPair with the given head and tail.
-RavPair *new_pair(Allocator *allocator, Value head, Value tail);
+RavPair *object_pair(Allocator *allocator, Value head, Value tail);
 
 // Construct a RavArray from the provided sized array.
-RavArray *new_array(Allocator *allocator, Value *array, size_t count);
+RavArray *object_array(Allocator *allocator, Value *array, size_t count);
 
 // Construct an empty RavMap.
-RavMap *new_map(Allocator *allocator);
+RavMap *object_map(Allocator *allocator);
 
 // Construct an empty function object.
-RavFunction *new_function(Allocator *allocator);
+RavFunction *object_function(Allocator *allocator);
 
 // Construct an upvalue object, with a reference to the captured value.
-RavUpvalue *new_upvalue(Allocator *allocator, Value *location);
+RavUpvalue *object_upvalue(Allocator *allocator, Value *location);
 
 // Construct a closure object.
-RavClosure *new_closure(Allocator *allocator, RavFunction *function);
+RavClosure *object_closure(Allocator *allocator, RavFunction *function);
 
 // Construct a C function object.
-RavCFunction *new_cfunction(Allocator *allocator, CFunc func, int arity_min, int arity_max);
+RavCFunction *object_cfunction(Allocator *allocator, CFunc func, int arity_min, int arity_max);
 
-// Pretty print a raven object.
-void print_object(Value value);
+// Pretty print a raven object to the standard output.
+void object_print(Value value);
 
 // Check if a given raven value is an object with specified type.
-static inline bool is_object_type(Value value, ObjectType type) {
+static inline bool object_type_is(Value value, ObjectType type) {
     return Is_Obj(value) && Obj_Type(value) == type;
 }
 

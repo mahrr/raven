@@ -8,15 +8,15 @@
 
 #define TABLE_MAX_LOAD 0.75
 
-void init_table(Table *table) {
+void table_init(Table *table) {
     table->entries = NULL;
     table->count = 0;
     table->hash_mask = -1;
 }
 
-void free_table(Table *table) {
+void table_free(Table *table) {
     free(table->entries);
-    init_table(table);
+    table_init(table);
 }
 
 static Entry *find_entry(Entry *entries, RavString *key, int hash_mask) {

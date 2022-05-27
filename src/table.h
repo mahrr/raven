@@ -18,10 +18,10 @@ typedef struct {
 } Table;
 
 // Initialize table state.
-void init_table(Table *table);
+void table_init(Table *table);
 
 // Dispose table owned memory.
-void free_table(Table *table);
+void table_free(Table *table);
 
 // Set value to the value corresponding to key if it's found.
 // Return true if a value is found, false otherwise.
@@ -41,8 +41,7 @@ void table_copy(Table *from, Table *to);
 
 // Return interned string object key, if it's found in
 // the table entries, otherwise return NULL.
-RavString *table_interned(Table *table, const char *chars,
-                          uint32_t hash, int length);
+RavString *table_interned(Table *table, const char *chars, uint32_t hash, int length);
 
 // Remove the weak referenced strings objects (unreachable white objects).
 void table_remove_weak(Table *table);

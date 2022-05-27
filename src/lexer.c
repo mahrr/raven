@@ -5,7 +5,7 @@
 #include "common.h"
 #include "lexer.h"
 
-void init_lexer(Lexer *lexer, const char *source, const char *file) {
+void lexer_init(Lexer *lexer, const char *source, const char *file) {
     lexer->file = file;
     lexer->start = source;
     lexer->current = source;
@@ -290,7 +290,7 @@ static void skip_whitespace(Lexer *lexer) {
     }
 }
 
-Token next_token(Lexer *lexer) {
+Token lexer_next(Lexer *lexer) {
 #define New_Token(type) (new_token(lexer, type))
 
     skip_whitespace(lexer);

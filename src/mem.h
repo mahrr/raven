@@ -73,9 +73,11 @@ typedef struct {
 #define Free_Array(allocator, type, array, size)                    \
     (void)allocate(allocator, (array), sizeof(type) * (size), 0)
 
-void init_allocator(Allocator *allocator);
+// Initialize the allocator to empty state
+void allocator_init(Allocator *allocator);
 
-void free_allocator(Allocator *allocator);
+// Free all the allocator used memory
+void allocator_free(Allocator *allocator);
 
 //
 // The main entry point for most of the runtime raven objects allocation
@@ -91,6 +93,8 @@ void free_allocator(Allocator *allocator);
 //
 void *allocate(Allocator *allocator, void *previous, size_t old_size, size_t new_size);
 
-void run_gc(Allocator *allocator);
+// Start a GC round for the object allocated by given allocator, freeing
+// the memory of non-reachable objects
+void allocator_gc(Allocator *allocator);
 
 #endif

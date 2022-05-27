@@ -35,18 +35,18 @@ typedef struct {
 } Chunk;
 
 // Initialize the chunk state.
-void init_chunk(Chunk *chunk);
+void chunk_init(Chunk *chunk);
 
 // Free the chunk memory.
-void free_chunk(Chunk *chunk);
+void chunk_free(Chunk *chunk);
 
 // Add a byte to the chuck, and register it with the provided line.
-void write_byte(Chunk *chunk, uint8_t byte, int line);
+void chunk_write_byte(Chunk *chunk, uint8_t byte, int line);
 
 // Add a constant to the constants table, and return its index.
-int write_constant(Chunk *chunk, Value value);
+int chunk_write_constant(Chunk *chunk, Value value);
 
 // Decode a line corresponing to a given instruction offset
-int decode_line(Chunk *chunk, int offset);
+int chunk_decode_line(Chunk *chunk, int offset);
 
 #endif

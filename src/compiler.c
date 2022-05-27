@@ -205,7 +205,7 @@ static inline Chunk *parser_chunk(Parser *parser) {
 }
 
 static inline void emit_byte(Parser *parser, uint8_t byte) {
-    write_byte(parser_chunk(parser), byte, parser->previous.line);
+    chunk_write_byte(parser_chunk(parser), byte, parser->previous.line);
 }
 
 static inline void emit_bytes(Parser *parser, uint8_t x, uint8_t y) {
@@ -246,7 +246,7 @@ static inline void patch_jump(Parser *parser, int from) {
 }
 
 static inline uint8_t make_constant(Parser *parser, Value value) {
-    int constant_index = write_constant(parser_chunk(parser), value);
+    int constant_index = chunk_write_constant(parser_chunk(parser), value);
 
     if (constant_index >= CONST_LIMIT) {
         error_limit(parser, "constants", CONST_LIMIT);
@@ -263,8 +263,8 @@ static inline void emit_constant(Parser *parser, Value value) {
 
 // Put the name in the constant table as string, and return its index.
 static inline uint8_t identifier_constant(Parser *parser, Token *name) {
-    RavString *ident = new_string(&parser->vm->allocator, name->lexeme, name->length);
-    return write_constant(parser_chunk(parser), Obj_Value(ident));
+    RavString *ident = object_string(&parser->vm->allocator, name->lexeme, name->length);
+    return chunk_write_constant(parser_chunk(parser), Obj_Value(ident));
 }
 
 /** Parser State **/
@@ -273,7 +273,7 @@ static inline void advance(Parser *parser) {
     parser->previous = parser->current;
 
     for (;;) {
-        parser->current = next_token(parser->lexer);
+        parser->current = lexer_next(parser->lexer);
         if (parser->current.type != TOKEN_ERROR) break;
     }
 }
@@ -490,7 +490,7 @@ static inline void init_context(Context *context, Parser *parser, FunctionType t
     context->toplevel = type == FunctionToplevel;
     context->local_count = 0;
     context->scope_depth = 0;
-    context->function = new_function(&parser->vm->allocator);
+    context->function = object_function(&parser->vm->allocator);
 
     // Reserve the first slot of the stack for the function itself.
     Local *local = &context->locals[context->local_count++];
@@ -500,7 +500,7 @@ static inline void init_context(Context *context, Parser *parser, FunctionType t
     local->is_captured = false;
 
     if (type == FunctionDeclaration) {
-        context->function->name = new_string(
+        context->function->name = object_string(
             &parser->vm->allocator,
             parser->previous.lexeme,
             parser->previous.length
@@ -508,7 +508,7 @@ static inline void init_context(Context *context, Parser *parser, FunctionType t
     } else if (type == FunctionLambda || type == FunctionLambdaHeadless) {
         static const char LAMBDA_NAME[] = "\\lambda";
 
-        context->function->name = new_string(
+        context->function->name = object_string(
             &parser->vm->allocator,
             LAMBDA_NAME,
             sizeof LAMBDA_NAME
@@ -993,7 +993,7 @@ static void string(Parser *parser) {
     Debug_Log(parser);
 
     // +1 and -2 for the literal string quotes
-    RavString *string = new_string(
+    RavString *string = object_string(
         &parser->vm->allocator,
         parser->previous.lexeme + 1,
         parser->previous.length - 2
@@ -1009,7 +1009,7 @@ static void string_interpolated(Parser *parser) {
     Allocator *allocator = &parser->vm->allocator;
 
     // +1 and -2 for the literal string delimiters
-    RavString *begin = new_string(
+    RavString *begin = object_string(
         allocator,
         parser->previous.lexeme + 1,
         parser->previous.length - 2
@@ -1025,7 +1025,7 @@ static void string_interpolated(Parser *parser) {
             int length = parser->previous.length - 2;
 
             if (length != 0) {
-                RavString *part = new_string(allocator, chars, length);
+                RavString *part = object_string(allocator, chars, length);
                 emit_constant(parser, Obj_Value(part));
                 emit_byte(parser, OP_CONCATENATE);
             }
@@ -1069,7 +1069,7 @@ static void map(Parser* parser) {
         consume(parser, TOKEN_IDENTIFIER, "expect a map key name");
 
         // key
-        RavString *key = new_string(
+        RavString *key = object_string(
             &parser->vm->allocator,
             parser->previous.lexeme,
             parser->previous.length
@@ -1457,7 +1457,7 @@ static void declaration(Parser *parser) {
 
 RavFunction *compile(VM *vm, const char *source, const char *file) {
     Lexer lexer;
-    init_lexer(&lexer, source, file);
+    lexer_init(&lexer, source, file);
 
     Parser parser;
     init_parser(&parser, &lexer, vm);

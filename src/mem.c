@@ -9,7 +9,7 @@
 #include "debug.h"
 #endif
 
-void init_allocator(Allocator *allocator) {
+void allocator_init(Allocator *allocator) {
     allocator->objects = NULL;
     allocator->gray_stack = NULL;
     allocator->gray_count = 0;
@@ -17,7 +17,7 @@ void init_allocator(Allocator *allocator) {
     allocator->bytes_allocated = 0;
     allocator->next_gc = GC_INITIAL_NEXT;
     allocator->gc_off = false;
-    init_table(&allocator->strings);
+    table_init(&allocator->strings);
 }
 
 static void free_object(Allocator *allocator, Object *object) {
@@ -47,14 +47,14 @@ static void free_object(Allocator *allocator, Object *object) {
 
     case OBJ_MAP: {
         RavMap *map = (RavMap *)object;
-        free_table(&map->table);
+        table_free(&map->table);
         Free(allocator, RavMap, map);
         break;
     }
 
     case OBJ_FUNCTION: {
         RavFunction *function = (RavFunction *)object;
-        free_chunk(&function->chunk);
+        chunk_free(&function->chunk);
         Free(allocator, RavFunction, function);
         break;
     }
@@ -81,8 +81,8 @@ static void free_object(Allocator *allocator, Object *object) {
     }
 }
 
-void free_allocator(Allocator *allocator) {
-    free_table(&allocator->strings);
+void allocator_free(Allocator *allocator) {
+    table_free(&allocator->strings);
     free(allocator->gray_stack);
 
     Object *objects = allocator->objects;
@@ -92,7 +92,7 @@ void free_allocator(Allocator *allocator) {
         objects = next;
     }
 
-    init_allocator(allocator);
+    allocator_init(allocator);
 }
 
 void *allocate(Allocator *allocator, void *previous, size_t old_size, size_t new_size) {
@@ -100,10 +100,10 @@ void *allocate(Allocator *allocator, void *previous, size_t old_size, size_t new
 
     if (!allocator->gc_off && new_size > old_size) {
 #ifdef DEBUG_STRESS_GC
-        run_gc(allocator);
+        allocator_gc(allocator);
 #else
         if (allocator->bytes_allocated >= allocator->next_gc) {
-            run_gc(allocator);
+            allocator_gc(allocator);
         }
 #endif
     }
@@ -122,7 +122,7 @@ static void mark_object(Allocator *allocator, Object *object) {
 
 #ifdef DEBUG_TRACE_MEMORY
     printf("[Memory] %p get marked: ", object);
-    print_value(Obj_Value(object));
+    value_print(Obj_Value(object));
     putchar('\n');
 #endif
 
@@ -192,7 +192,7 @@ void mark_roots(Allocator *allocator) {
 static void blacken_object(Allocator *allocator, Object *object) {
 #ifdef DEUBG_TRACE_MEMORY
     printf("[Memory] %p get blacken: ", object);
-    print_value(Obj_Value(object));
+    value_print(Obj_Value(object));
     putchar('\n');
 #endif
 
@@ -278,7 +278,7 @@ static void sweep(Allocator *allocator) {
     }
 }
 
-void run_gc(Allocator *allocator) {
+void allocator_gc(Allocator *allocator) {
 #ifdef DEBUG_TRACE_MEMORY
     puts("[Memory] --- GC Round Start ---");
     size_t size_before = allocator->bytes_allocated;

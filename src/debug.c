@@ -12,7 +12,7 @@ static int basic_instruction(const char *tag, int offset) {
 static int const_instruction(const char *tag, Chunk *chunk, int offset) {
     uint8_t constant_index = chunk->opcodes[offset + 1];
     printf("%-16s %4d ", tag, constant_index);
-    print_value(chunk->constants[constant_index]);
+    value_print(chunk->constants[constant_index]);
     printf("\n");
     return offset + 2;
 }
@@ -49,7 +49,7 @@ static int closure_instruction(Chunk *chunk, int offset) {
     Value value = chunk->constants[index];
 
     printf("%-16s %4d ", "CLOSURE", index);
-    print_value(value);
+    value_print(value);
     putchar('\n');
 
     RavFunction *function = As_Function(value);
@@ -66,10 +66,10 @@ static int closure_instruction(Chunk *chunk, int offset) {
 int disassemble_instruction(Chunk *chunk, int offset) {
     printf("%04d", offset);
 
-    int line = decode_line(chunk, offset);
+    int line = chunk_decode_line(chunk, offset);
     int instruction = chunk->opcodes[offset];
 
-    if (offset > 0 && line == decode_line(chunk, offset - 1)) {
+    if (offset > 0 && line == chunk_decode_line(chunk, offset - 1)) {
         printf("   | ");
     } else {
         printf("%4d ", line);
