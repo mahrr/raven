@@ -1007,12 +1007,10 @@ static void string_interpolated(Parser *parser) {
     Debug_Log(parser);
 
     Allocator *allocator = &parser->vm->allocator;
-
-    // +1 and -2 for the literal string delimiters
     RavString *begin = object_string(
         allocator,
-        parser->previous.lexeme + 1,
-        parser->previous.length - 2
+        parser->previous.lexeme + 1, // +1 advances the double quote
+        parser->previous.length - 3  // -3 for the delimiters count
     );
     emit_constant(parser, Obj_Value(begin));
 
@@ -1020,9 +1018,22 @@ static void string_interpolated(Parser *parser) {
         expression(parser);
         emit_byte(parser, OP_CONCATENATE);
 
-        if (match(parser, TOKEN_STRING_PART) || match(parser, TOKEN_STRING_END)) {
-            const char *chars = parser->previous.lexeme + 1;
-            int length = parser->previous.length - 2;
+        bool string_part = match(parser, TOKEN_STRING_PART);
+        bool string_end = match(parser, TOKEN_STRING_END);
+
+        if (string_part || string_end) {
+            const char *chars = parser->previous.lexeme + 2; // +2 advances '}}'
+            int length = 0;
+
+            // enclosed between '}}' and '{{'
+            if (string_part) {
+                length = parser->previous.length - 4;
+            }
+            // enclosed between '}}' and '"'
+            else if (string_end) {
+                length = parser->previous.length - 3;
+            }
+            printf("# '%.*s' => %d\n", length, chars, length);
 
             if (length != 0) {
                 RavString *part = object_string(allocator, chars, length);

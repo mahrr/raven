@@ -75,12 +75,12 @@ static Token string(Lexer *lexer) {
 
 static Token string_interpolated(Lexer *lexer) {
     //
-    // "interpolated |exp_1| string |exp_2| example"
+    // "interpolated {{exp_1}} string {{exp_2}} example"
     //
     // This is scanned into three string tokens (besides expressions tokens):
-    //   1. "interpolated | -> STRING_BEGIN
-    //   2. | string |      -> STRING_PART
-    //   3. | example"      -> STRING_END
+    //   1. "interpolated {{ -> STRING_BEGIN
+    //   2. }} string {{     -> STRING_PART
+    //   3. }} example"      -> STRING_END
     //
     // "double quoted string example"
     //
@@ -96,6 +96,8 @@ static Token string_interpolated(Lexer *lexer) {
 
         // full string or string-end
         if (current == '"') {
+            advance(lexer); // consume double quote
+
             if (begin == '"')
                 token_type = TOKEN_STRING;
             else
@@ -104,7 +106,10 @@ static Token string_interpolated(Lexer *lexer) {
         }
 
         // string part or string-begin
-        if (current == '|') {
+        if (current == '{' && peek_next(lexer) == '{') {
+            advance(lexer);
+            advance(lexer); // consume '{{'
+
             if (begin == '"')
                 token_type = TOKEN_STRING_BEGIN;
             else
@@ -118,8 +123,6 @@ static Token string_interpolated(Lexer *lexer) {
     if (at_end(lexer)) {
         return error_token(lexer, "Unterminated string");
     }
-
-    advance(lexer); // delimiter
     return new_token(lexer, token_type);
 }
 
@@ -312,7 +315,6 @@ Token lexer_next(Lexer *lexer) {
     case '[': return New_Token(TOKEN_LEFT_BRACKET);
     case ']': return New_Token(TOKEN_RIGHT_BRACKET);
     case '{': return New_Token(TOKEN_LEFT_BRACE);
-    case '}': return New_Token(TOKEN_RIGHT_BRACE);
     case ';': return New_Token(TOKEN_SEMICOLON);
     case '\\': return New_Token(TOKEN_BACK_SLASH);
 
@@ -345,11 +347,13 @@ Token lexer_next(Lexer *lexer) {
         if (match(lexer, '=')) return New_Token(TOKEN_BANG_EQUAL);
         break;
 
-    // String Literals
+    // Strings
+    case '}':
+        if (match(lexer, '}')) return string_interpolated(lexer);
+        return New_Token(TOKEN_RIGHT_BRACE);
     case '\'':
         return string(lexer);
     case '"':
-    case '|':
         return string_interpolated(lexer);
 
     default:

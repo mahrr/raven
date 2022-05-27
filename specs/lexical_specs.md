@@ -40,11 +40,11 @@ float ::= decimal_digit+ "." decimal_digit+;
 string ::= "'" <ASCII character> "'"
          | "\"" <ASCII character>  "\"";
 
-string_begin ::= "\"" <ASCII character> "|";
+string_begin ::= "\"" <ASCII character> "{{";
 
-string_part ::= "|" <ASCII character> "|";
+string_part ::= "}}" <ASCII character> "{{";
 
-string_end ::= "|" <ASCII character>; "\"";
+string_end ::= "}}" <ASCII character>; "\"";
 
 operator ::= "and" | "not" | "or"
            | "()"  | "[]"  | "."
@@ -55,9 +55,10 @@ operator ::= "and" | "not" | "or"
            | "!="  | "=";
 
 delimiter ::= "do" | "end" | "in"
-            | "="  | "->"  | "("
-            | ")"  | "["   | "]"
-            | ","  | ":";
+            | "="  | "->"  | ","
+            | "("  | ")"   | "["
+            | "]"  | "{"   | "}"
+            | ":";
 
 comment ::= "#" <extends until the end of the line>;
 

@@ -224,40 +224,41 @@ static void print_function(RavFunction *function) {
 
 void object_print(Value value) {
     switch (Obj_Type(value)) {
-    case OBJ_STRING:
-        printf("%s", As_CString(value));
+    case OBJ_STRING: {
+        RavString *string = As_String(value);
+        printf("%.*s", string->length, string->chars);
         break;
-
-    case OBJ_PAIR:
+    }
+    case OBJ_PAIR: {
         putchar('(');
         print_pair(As_Pair(value));
         putchar(')');
         break;
-
-    case OBJ_ARRAY:
+    }
+    case OBJ_ARRAY: {
         print_array(As_Array(value));
         break;
-
-    case OBJ_MAP:
+    }
+    case OBJ_MAP: {
         print_map(As_Map(value));
         break;
-
-    case OBJ_FUNCTION:
+    }
+    case OBJ_FUNCTION: {
         print_function(As_Function(value));
         break;
-
-    case OBJ_UPVALUE:
+    }
+    case OBJ_UPVALUE: {
         printf("<upvalue>");
         break;
-
-    case OBJ_CLOSURE:
+    }
+    case OBJ_CLOSURE: {
         print_function(As_Closure(value)->function);
         break;
-
-    case OBJ_CFUNCTION:
+    }
+    case OBJ_CFUNCTION: {
         printf("<native @ %p>", As_CFunction(value)->func);
         break;
-
+    }
     default:
         assert(!"invalid object type");
     }
@@ -326,9 +327,17 @@ void string_buf_push(StringBuffer *self, Value value) {
         assert(!"unreachable: invalid value tag");
     }
 
+    // ignore empty strings
+    if (value_length == 0) {
+        return;
+    }
+
     if (self->count + value_length > self->capacity) {
         size_t new_capacity = Grow_Capacity(self->capacity);
-        new_capacity += (size_t)value_length;
+        if (new_capacity <= (size_t)(self->count + value_length)) {
+            new_capacity += (size_t)value_length;
+        }
+
         self->buffer = allocate(self->allocator, self->buffer, self->capacity, new_capacity);
         self->capacity = new_capacity;
     }
