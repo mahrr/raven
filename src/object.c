@@ -327,11 +327,6 @@ void string_buf_push(StringBuffer *self, Value value) {
         assert(!"unreachable: invalid value tag");
     }
 
-    // ignore empty strings
-    if (value_length == 0) {
-        return;
-    }
-
     if (self->count + value_length > self->capacity) {
         size_t new_capacity = Grow_Capacity(self->capacity);
         if (new_capacity <= (size_t)(self->count + value_length)) {
@@ -347,9 +342,11 @@ void string_buf_push(StringBuffer *self, Value value) {
 }
 
 RavString *string_buf_into(StringBuffer *self) {
+    // shrink the string buffer into the string needed length
     self->buffer = allocate(self->allocator, self->buffer, self->capacity, self->count + 1);
+    // allocate a string object pointing to the buffer string
     RavString *result = object_string_box(self->allocator, self->buffer, self->count);
-
-    *self = (StringBuffer){};
+    // reset the buffer state
+    *self = (StringBuffer){0};
     return result;
 }

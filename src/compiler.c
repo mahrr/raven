@@ -1033,7 +1033,6 @@ static void string_interpolated(Parser *parser) {
             else if (string_end) {
                 length = parser->previous.length - 3;
             }
-            printf("# '%.*s' => %d\n", length, chars, length);
 
             if (length != 0) {
                 RavString *part = object_string(allocator, chars, length);
