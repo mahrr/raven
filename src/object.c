@@ -124,7 +124,7 @@ RavUpvalue *new_upvalue(Allocator *allocator, Value *location) {
     RavUpvalue *upvalue = Alloc_Object(allocator, RavUpvalue, OBJ_UPVALUE);
 
     upvalue->location = location;
-    upvalue->captured = Void_Value;
+    upvalue->captured = Nil_Value;
     upvalue->next = NULL;
 
     return upvalue;
@@ -222,14 +222,10 @@ static void print_function(RavFunction *function) {
     printf("<fn %s>", function->name->chars);
 }
 
-static void print_cfunction(RavCFunction *function) {
-    printf("<native @ %p>", function->func);
-}
-
 void print_object(Value value) {
     switch (Obj_Type(value)) {
     case OBJ_STRING:
-        printf("'%s'", As_CString(value));
+        printf("%s", As_CString(value));
         break;
 
     case OBJ_PAIR:
@@ -259,7 +255,7 @@ void print_object(Value value) {
         break;
 
     case OBJ_CFUNCTION:
-        print_cfunction(As_CFunction(value));
+        printf("<native @ %p>", As_CFunction(value)->func);
         break;
 
     default:
@@ -293,7 +289,7 @@ void string_buf_push(StringBuffer *self, Value value) {
         value_string = As_Bool(value) ? "true" : "false";
         value_length = strlen(value_string);
     } else if (Is_Num(value)) {
-        char buffer[128] = {};
+        char buffer[128] = {0};
         int written = snprintf(buffer, sizeof buffer, "%g", As_Num(value));
         assert(written > 0);
         value_string = buffer;
@@ -314,6 +310,18 @@ void string_buf_push(StringBuffer *self, Value value) {
         // TODO
         value_string = "<map>";
         value_length = strlen(value_string);
+    } else if (Is_Function(value)) {
+        char buffer[128] = {0};
+        int written = snprintf(buffer, sizeof buffer, "<fn %s>", As_Function(value)->name->chars);
+        assert(written > 0);
+        value_string = buffer;
+        value_length = written;
+    } else if (Is_CFunction(value)) {
+        char buffer[128] = {0};
+        int written = snprintf(buffer, sizeof buffer, "<native @ %p>", As_Obj(value));
+        assert(written > 0);
+        value_string = buffer;
+        value_length = written;
     } else {
         assert(!"unreachable: invalid value tag");
     }

@@ -137,12 +137,14 @@ static bool call_cfunction(VM *vm, RavCFunction *cfunction, int count) {
         return false;
     }
 
+    Value result = Nil_Value;
+
     Value *stack_before = vm->stack_top;
-    Value result = cfunction->func(vm, vm->stack_top - count, count);
+    bool succeed = cfunction->func(vm, vm->stack_top - count, count, &result);
     Value *stack_after = vm->stack_top;
 
     // an error has occured in the function call
-    if (result == Void_Value) {
+    if (!succeed) {
         return false;
     }
 
@@ -698,13 +700,13 @@ static InterpretResult run_vm(register VM *vm) {
 
 static void register_natives(VM*);
 
-static Value native_import(VM *vm, Value *arguments, size_t count) {
+static bool native_import(VM *vm, Value *arguments, size_t count, Value *result) {
     MAYBE_UNUSED(count);
 
     Value argument = arguments[0];
     if (Is_String(argument) == false) {
         runtime_error(vm, "`import` expected string, got %s", type_repr(argument));
-        return Void_Value;
+        return false;
     }
 
     // read the file
@@ -714,7 +716,7 @@ static Value native_import(VM *vm, Value *arguments, size_t count) {
         FILE *file = fopen(path, "rb");
         if (file == NULL) {
             runtime_error(vm, "`import` error reading '%s' (%s)", path, strerror(errno));
-            return Void_Value;
+            return false;
         }
 
         fseek(file, 0L, SEEK_END);
@@ -725,7 +727,7 @@ static Value native_import(VM *vm, Value *arguments, size_t count) {
         if (source == NULL) {
             runtime_error(vm, "`import` error reading '%s' (out of memory)", path);
             fclose(file);
-            return Void_Value;
+            return false;
         }
 
         size_t bytes_read = fread(source, sizeof (char), size, file);
@@ -733,7 +735,7 @@ static Value native_import(VM *vm, Value *arguments, size_t count) {
             runtime_error(vm, "`import` error reading '%s' (%s)", path, strerror(errno));
             fclose(file);
             free(source);
-            return Void_Value;
+            return false;
         }
         fclose(file);
         source[size] = '\0';
@@ -761,7 +763,7 @@ static Value native_import(VM *vm, Value *arguments, size_t count) {
         RavFunction *function = compile(&sandbox, source, path);
         if (function == NULL) {
             free(source);
-            return Void_Value;
+            return false;
         }
 
         RavClosure *closure = new_closure(&sandbox.allocator, function);
@@ -772,7 +774,7 @@ static Value native_import(VM *vm, Value *arguments, size_t count) {
         InterpretResult result = run_vm(&sandbox);
         if (result != INTERPRET_OK) {
             free(source);
-            return Void_Value;
+            return false;
         }
 
         // reset allocator state to the current context
@@ -786,11 +788,13 @@ static Value native_import(VM *vm, Value *arguments, size_t count) {
         free_table(&sandbox.globals);
     }
 
+    *result = exported;
+
     free(source);
-    return exported;
+    return true;
 }
 
-static Value native_assert(VM *vm, Value *arguments, size_t count) {
+static bool native_assert(VM *vm, Value *arguments, size_t count, Value *result) {
     Value expression = arguments[0];
     Value message = Nil_Value;
 
@@ -800,7 +804,7 @@ static Value native_assert(VM *vm, Value *arguments, size_t count) {
 
         if (Is_String(message) == false) {
             runtime_error(vm, "`assert` expected string as second argument, got %s", type_repr(message));
-            return Void_Value;
+            return false;
         }
     }
 
@@ -810,46 +814,54 @@ static Value native_assert(VM *vm, Value *arguments, size_t count) {
         } else {
             runtime_error(vm, "assertion failed");
         }
-        return Void_Value;
+        return false;
     }
 
-    return Nil_Value;
+    *result = Nil_Value;
+    return true;
 }
 
-static Value native_print(VM *vm, Value *arguments, size_t count) {
+static bool native_print(VM *vm, Value *arguments, size_t count, Value *result) {
     MAYBE_UNUSED(vm);
 
     for (size_t i = 0; i < count; ++i) {
         print_value(arguments[i]);
         putchar(' ');
     }
-
     putchar('\n');
-    return Nil_Value;
+
+    *result = Nil_Value;
+    return true;
 }
 
-static Value native_len(VM *vm, Value *arguments, size_t count) {
+static bool native_len(VM *vm, Value *arguments, size_t count, Value *result) {
     MAYBE_UNUSED(count);
 
     Value argument = arguments[0];
-    if (Is_String(argument))
-        return Num_Value(As_String(argument)->length);
-    else if (Is_Array(argument))
-        return Num_Value(As_Array(argument)->count);
-    else if (Is_Map(argument))
-        return Num_Value(As_Map(argument)->table.count);
+    if (Is_String(argument)) {
+        *result = Num_Value(As_String(argument)->length);
+        return true;
+    }
+    if (Is_Array(argument)) {
+        *result = Num_Value(As_Array(argument)->count);
+        return true;
+    }
+    if (Is_Map(argument)) {
+        *result = Num_Value(As_Map(argument)->table.count);
+        return true;
+    }
 
     runtime_error(vm, "`len` expected collection, got %s", type_repr(argument));
-    return Void_Value;
+    return false;
 }
 
 // Array Native Functions
 
-static Value native_push(VM *vm, Value* arguments, size_t count) {
+static bool native_push(VM *vm, Value *arguments, size_t count, Value *result) {
     Value argument = arguments[0];
     if (Is_Array(argument) == false) {
         runtime_error(vm, "`push` expected array as firt argument, got %s", type_repr(argument));
-        return Void_Value;
+        return false;
     }
 
     RavArray *array = As_Array(argument);
@@ -864,69 +876,73 @@ static Value native_push(VM *vm, Value* arguments, size_t count) {
         array->values[array->count++] = arguments[i];
     }
 
-    return argument;
+    *result = argument;
+    return true;
 }
 
-static Value native_pop(VM *vm, Value *arguments, size_t count) {
+static bool native_pop(VM *vm, Value *arguments, size_t count, Value *result) {
     MAYBE_UNUSED(count);
 
     Value argument = arguments[0];
     if (Is_Array(argument) == false) {
         runtime_error(vm, "`pop` expected array, got %s", type_repr(argument));
-        return Void_Value;
+        return false;
     }
 
     RavArray *array = As_Array(argument);
     if (array->count == 0) {
         runtime_error(vm, "`pop` on an empty array");
-        return Void_Value;
+        return false;
     }
 
-    return array->values[--array->count];
+    *result = array->values[--array->count];
+    return true;
 }
 
 // Map Native Functions
 
-static Value native_insert(VM *vm, Value *arguments, size_t count) {
+static bool native_insert(VM *vm, Value *arguments, size_t count, Value *result) {
     MAYBE_UNUSED(count);
 
     Value argument1 = arguments[0];
     if (Is_Map(argument1) == false) {
         runtime_error(vm, "`insert` expected map as first argument, got %s", type_repr(argument1));
-        return Void_Value;
+        return false;
     }
     RavMap *map = As_Map(argument1);
 
     Value argument2 = arguments[1];
     if (Is_String(argument2) == false) {
         runtime_error(vm, "`insert` expected string as second argument, got %s", type_repr(argument2));
-        return Void_Value;
+        return false;
     }
     RavString *key = As_String(argument2);
 
     Value value = arguments[2];
     table_set(&map->table, key, value);
-    return value;
+    *result = value;
+    return true;
 }
 
-static Value native_remove(VM *vm, Value *arguments, size_t count) {
+static bool native_remove(VM *vm, Value *arguments, size_t count, Value *result) {
     MAYBE_UNUSED(count);
 
     Value argument1 = arguments[0];
     if (Is_Map(argument1) == false) {
         runtime_error(vm, "`remove` expected map as firt argument, got %s", type_repr(argument1));
-        return Void_Value;
+        return false;
     }
     RavMap *map = As_Map(argument1);
 
     Value argument2 = arguments[1];
     if (Is_String(argument2) == false) {
         runtime_error(vm, "`remove` expected string as second argument, got %s", type_repr(argument2));
-        return Void_Value;
+        return false;
     }
     RavString *key = As_String(argument2);
 
-    return table_remove(&map->table, key);
+    *result = table_remove(&map->table, key);
+    return true;
 }
 
 static void register_natives(VM* vm) {

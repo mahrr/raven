@@ -10,7 +10,7 @@
 #include "value.h"
 #include "vm.h"
 
-typedef Value (*CFunc)(VM*, Value*, size_t);
+typedef bool (*CFunc)(VM*, Value*, size_t, Value*);
 
 typedef enum {
     OBJ_STRING,

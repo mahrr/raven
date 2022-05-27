@@ -22,11 +22,6 @@ void print_value(Value value) {
         return;
     }
 
-    if (Is_Void(value)) {
-        printf("()");
-        return;
-    }
-
     if (Is_Obj(value)) {
         print_object(value);
         return;
@@ -38,7 +33,6 @@ void print_value(Value value) {
     case VALUE_NUM:  printf("%g", As_Num(value)); break;
     case VALUE_BOOL: printf(As_Bool(value) ? "true" : "false"); break;
     case VALUE_NIL:  printf("nil"); break;
-    case VALUE_VOID: printf("()"); break;
     case VALUE_OBJ:  print_object(value); break;
     default:
         assert(!"invalid value type");
