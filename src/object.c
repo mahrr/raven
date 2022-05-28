@@ -29,7 +29,7 @@ static Object *alloc_object(Allocator *allocator, ObjectType type, size_t size) 
     return object;
 }
 
-static RavString *alloc_string(Allocator *allocator, int length, uint32_t hash, char *chars) {
+static RavString *construct_string(Allocator *allocator, int length, uint32_t hash, char *chars) {
     RavString *string = Alloc_Object(allocator, RavString, OBJ_STRING);
     string->length = length;
     string->hash = hash;
@@ -55,14 +55,15 @@ static uint32_t hash_string(const char *key, int length) {
 RavString *object_string(Allocator *allocator, const char *chars, int length) {
     uint32_t hash = hash_string(chars, length);
     RavString *interned = table_interned(&allocator->strings, chars, hash, length);
-
-    if (interned != NULL) return interned;
+    if (interned != NULL) {
+        return interned;
+    }
 
     char *copy = Alloc(allocator, char, length + 1);
     memcpy(copy, chars, length);
     copy[length] = '\0';
 
-    return alloc_string(allocator, length, hash, copy);
+    return construct_string(allocator, length, hash, copy);
 }
 
 RavString *object_string_box(Allocator *allocator, char *chars, int length) {
@@ -77,7 +78,7 @@ RavString *object_string_box(Allocator *allocator, char *chars, int length) {
         return interned;
     }
 
-    return alloc_string(allocator, length, hash, chars);
+    return construct_string(allocator, length, hash, chars);
 }
 
 RavPair *object_pair(Allocator *allocator, Value head, Value tail) {
@@ -344,8 +345,11 @@ void string_buf_push(StringBuffer *self, Value value) {
 RavString *string_buf_into(StringBuffer *self) {
     // shrink the string buffer into the string needed length
     self->buffer = allocate(self->allocator, self->buffer, self->capacity, self->count + 1);
+    self->buffer[self->count] = '\0';
+
     // allocate a string object pointing to the buffer string
     RavString *result = object_string_box(self->allocator, self->buffer, self->count);
+
     // reset the buffer state
     *self = (StringBuffer){0};
     return result;
