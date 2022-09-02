@@ -828,6 +828,18 @@ static bool native_print(VM *vm, Value *arguments, size_t count, Value *result) 
         value_print(arguments[i]);
         putchar(' ');
     }
+
+    *result = Nil_Value;
+    return true;
+}
+
+static bool native_println(VM *vm, Value *arguments, size_t count, Value *result) {
+    MAYBE_UNUSED(vm);
+
+    for (size_t i = 0; i < count; ++i) {
+        value_print(arguments[i]);
+        putchar(' ');
+    }
     putchar('\n');
 
     *result = Nil_Value;
@@ -955,14 +967,15 @@ static void register_natives(VM* vm) {
         table_set(&vm->globals, name_string, Obj_Value(func));                                      \
     } while (false)
 
-    Register(import, 1, 1);
-    Register(assert, 1, 2);
-    Register(print,  0, PARAMS_LIMIT); // variadic
-    Register(len,    1, 1);
-    Register(push,   2, PARAMS_LIMIT); // variadic
-    Register(pop,    1, 1);
-    Register(insert, 3, 3);
-    Register(remove, 2, 2);
+    Register(import,  1, 1);
+    Register(assert,  1, 2);
+    Register(print,   0, PARAMS_LIMIT); // variadic
+    Register(println, 0, PARAMS_LIMIT); // variadic
+    Register(len,     1, 1);
+    Register(push,    2, PARAMS_LIMIT); // variadic
+    Register(pop,     1, 1);
+    Register(insert,  3, 3);
+    Register(remove,  2, 2);
 
 #undef Register
 }
