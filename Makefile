@@ -16,7 +16,7 @@ BINDIR = build
 
 debug: build/debug/raven
 release: build/release/raven
-release_symbols: build/relase_symbols/raven
+release_symbols: build/release_symbols/raven
 re: clean debug
 
 debug: CFLAGS += $(DEBUG_FLAGS)
@@ -31,7 +31,7 @@ build/release/raven: $(OBJS:%.o=build/release/%.o)
 	@$(MKDIR) $(dir $@)
 	$(CC) -o $@ $^ $(LDLIBS)
 
-build/relase_symbols/raven: $(OBJS:%.o=build/relase_symbols/%.o)
+build/release_symbols/raven: $(OBJS:%.o=build/release_symbols/%.o)
 	@$(MKDIR) $(dir $@)
 	$(CC) -o $@ $^ $(LDLIBS)
 
@@ -46,7 +46,7 @@ build/release/%.o: $(SRCDIR)/%.c
 	$(CC) $(CFLAGS) -o $@ -c $<
 
 .SECONDARY:
-build/relase_symbols/%.o: $(SRCDIR)/%.c
+build/release_symbols/%.o: $(SRCDIR)/%.c
 	@$(MKDIR) $(dir $@)
 	$(CC) $(CFLAGS) -o $@ -c $<
 
