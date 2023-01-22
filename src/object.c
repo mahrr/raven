@@ -283,6 +283,7 @@ void string_buf_free(StringBuffer *self) {
 void string_buf_push(StringBuffer *self, Value value) {
     const char *value_string = NULL;
     int value_length = 0;
+    char buffer[128] = {0};
 
     if (Is_Nil(value)) {
         value_string = "nil";
@@ -291,7 +292,6 @@ void string_buf_push(StringBuffer *self, Value value) {
         value_string = As_Bool(value) ? "true" : "false";
         value_length = strlen(value_string);
     } else if (Is_Num(value)) {
-        char buffer[128] = {0};
         int written = snprintf(buffer, sizeof buffer, "%g", As_Num(value));
         assert(written > 0);
         value_string = buffer;
@@ -313,13 +313,11 @@ void string_buf_push(StringBuffer *self, Value value) {
         value_string = "<map>";
         value_length = strlen(value_string);
     } else if (Is_Function(value)) {
-        char buffer[128] = {0};
         int written = snprintf(buffer, sizeof buffer, "<fn %s>", As_Function(value)->name->chars);
         assert(written > 0);
         value_string = buffer;
         value_length = written;
     } else if (Is_CFunction(value)) {
-        char buffer[128] = {0};
         int written = snprintf(buffer, sizeof buffer, "<native @ %p>", As_Obj(value));
         assert(written > 0);
         value_string = buffer;

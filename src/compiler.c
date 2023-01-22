@@ -443,7 +443,7 @@ static int add_upvalue(Parser *parser, Context *context, uint8_t index, bool is_
 //
 // Note:
 //  This method is first invented by the Lua development team, a detailed
-//  explaination of how this method work could be found in their amazing
+//  explanation of how this method work could be found in their amazing
 //  paper 'Closures in Lua'.
 //
 
