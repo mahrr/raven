@@ -160,7 +160,7 @@ $ make release                       # build in release mode
 $ make release_symbols               # build in release mode with debug symbols
 
 $ ./build/release/raven              # starts a REPL session
-$ ./build/release/raven  script.rav  # executes the given scripts
+$ ./build/release/raven script.rav   # executes the given script, multiple files are not supported
 ```
 
 ## Credits
