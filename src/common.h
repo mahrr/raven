@@ -12,8 +12,8 @@
 #ifdef DEBUG
 # define DEBUG_TRACE_PARSING   // Dump the parsing functions call stack
 # define DEBUG_TRACE_EXECUTION // Dump the vm state on every instruction
-# define DEBUG_TRACE_MEMORY    // Dump the memory info on GC/Alloc/Free
-# define DEBUG_STRESS_GC       // Trigger the GC on every allocation
+//# define DEBUG_TRACE_MEMORY    // Dump the memory info on GC/Alloc/Free
+//# define DEBUG_STRESS_GC       // Trigger the GC on every allocation
 # define DEBUG_DUMP_CODE       // Dump the functions compiled chunk
 #endif
 
@@ -58,5 +58,11 @@
 
 // The limit of cond cases.
 #define COND_LIMIT 256
+
+// The limit of match cases.
+#define MATCH_LIMIT 512
+
+// The limit of element in one pattern.
+#define PATTERN_LIMIT 32
 
 #endif

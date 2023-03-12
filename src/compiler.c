@@ -313,6 +313,20 @@ static void add_local(Parser *parser, Token name) {
     local->is_captured = false;
 }
 
+static void add_dummy_local(Parser* parser) {
+    Context *context = parser->context;
+
+    if (context->local_count == LOCALS_LIMIT) {
+        error_limit(parser, "function locals", LOCALS_LIMIT);
+        return;
+    }
+
+    Local *local = &context->locals[context->local_count++];
+    local->name = (Token){0};
+    local->depth = context->scope_depth;
+    local->is_captured = false;
+}
+
 static inline void begin_scope(Parser *parser) {
     parser->context->scope_depth++;
 }
@@ -872,6 +886,152 @@ static void if_(Parser *parser) {
     Debug_Exit(parser);
 }
 
+static void define_variable(Parser *parser, uint8_t name_index);
+static uint8_t variable(Parser *parser, const char *error);
+
+static void pattern(Parser* parser, int* cases_next, int* cases_next_count, int bindings_count) {
+    if (parser->panic_mode) {
+        return;
+    }
+
+    if (*cases_next_count == PATTERN_LIMIT) {
+        error_limit(parser, "pattern elements", PATTERN_LIMIT);
+        return;
+    }
+
+    switch (parser->current.type)
+    {
+    case TOKEN_IDENTIFIER: {
+        Token token = parser->current;
+
+        if (token.length == 1 && token.lexeme[0] == '_') {
+            advance(parser); // consume the wildcard '_'
+
+            // Check if it's a pair Pattern (e.g., `_ :: <pattern>`).
+            if (match(parser, TOKEN_COLON_COLON)) {
+                // Check if the recent match value is pair.
+                emit_bytes(parser, OP_IS_PAIR, OP_NOT);
+
+                // Skip to the error handling, if the value is a pair.
+                int pair_jump = emit_jump(parser, OP_JMP_POP_FALSE);
+
+                // Unwind the binding introduced by this failed pattern.
+                emit_bytes(parser, OP_POPN, (uint8_t)(bindings_count + 1));
+
+                // Jump to the next case, if the value is not a pair.
+                cases_next[*cases_next_count] = emit_jump(parser, OP_JMP);
+                *cases_next_count += 1;
+
+                patch_jump(parser, pair_jump);
+
+                // Pop the cons value into the X register.
+                emit_byte(parser, OP_SAVE_X);
+
+                // Compile the right side pattern.
+                emit_byte(parser, OP_CDR_X);
+                pattern(parser, cases_next, cases_next_count, bindings_count);
+            }
+        } else {
+            uint8_t index = variable(parser, "");
+
+            // Check if it's a pair Pattern (e.g., `foo :: <pattern>`).
+            if (match(parser, TOKEN_COLON_COLON)) {
+                // Check if the recent match value is pair.
+                emit_bytes(parser, OP_IS_PAIR, OP_NOT);
+
+                // Skip to the error handling, if the value is a pair.
+                int pair_jump = emit_jump(parser, OP_JMP_POP_FALSE);
+
+                // Unwind the binding introduced by this failed pattern.
+                emit_bytes(parser, OP_POPN, (uint8_t)(bindings_count + 1));
+
+                // Jump to the next case, if the value is not a pair.
+                cases_next[*cases_next_count] = emit_jump(parser, OP_JMP);
+                *cases_next_count += 1;
+
+                patch_jump(parser, pair_jump);
+
+                // Pop the cons value into the X register.
+                emit_byte(parser, OP_SAVE_X);
+
+                // Bind car(x) to the left pattern identifier (`foo`).
+                emit_byte(parser, OP_CAR_X);
+                define_variable(parser, index);
+                bindings_count++;
+
+                // Compile the right side pattern.
+                emit_byte(parser, OP_CDR_X);
+                pattern(parser, cases_next, cases_next_count, bindings_count);
+            } else {
+                // Identifier Pattern
+                define_variable(parser, index);
+            }
+        }
+        break;
+    }
+    default:
+        error_current(parser, "expect a pattern");
+        break;
+    }
+}
+
+static void match_(Parser* parser) {
+    Debug_Log(parser);
+
+    expression(parser); // Value
+    consume(parser, TOKEN_DO, "expect 'do' after match value");
+
+    int cases_exit[MATCH_LIMIT];
+    int cases_count = 0;
+
+    do {
+        if (cases_count == MATCH_LIMIT) {
+            error_limit(parser, "match cases", MATCH_LIMIT);
+            break;
+        }
+
+        begin_scope(parser);
+
+        // A copy of the match value is always present in the Y register
+        emit_byte(parser, OP_DUP);
+        add_dummy_local(parser);
+
+        int cases_next[PATTERN_LIMIT] = {0};
+        int cases_next_count = 0;
+
+        pattern(parser, cases_next, &cases_next_count, 0);
+        consume(parser, TOKEN_ARROW, "expect '->' after pattern");
+
+        // Match succeeded.
+        expression(parser);
+
+        // Save the expression value in X and rewind the stack.
+        emit_byte(parser, OP_SAVE_X);
+        unwind_stack(parser, parser->context->scope_depth);
+        emit_byte(parser, OP_PUSH_X);
+        cases_exit[cases_count++] = emit_jump(parser, OP_JMP);
+
+        // Match failed.
+        for (int i = 0; i < cases_next_count; ++i) {
+            patch_jump(parser, cases_next[i]);
+        }
+
+        // Discard the case scope.
+        parser->context->scope_depth--;
+    } while (match(parser, TOKEN_COMMA));
+
+    // If all patterns didn't match.
+    emit_byte(parser, OP_PUSH_NIL);
+
+    for (int i = 0; i < cases_count; i++) {
+        patch_jump(parser, cases_exit[i]);
+    }
+
+    consume(parser, TOKEN_END, "expect 'end' after match cases");
+
+    Debug_Exit(parser);
+}
+
 static void while_(Parser *parser) {
     // While Control Flow
     //
@@ -1185,7 +1345,7 @@ static ParseRule rules[] = {
     { if_,                  NULL,       PREC_NONE },         // TOKEN_IF
     { NULL,                 NULL,       PREC_NONE },         // TOKEN_IN
     { NULL,                 NULL,       PREC_NONE },         // TOKEN_LET
-    { NULL,                 NULL,       PREC_NONE },         // TOKEN_MATCH
+    { match_,               NULL,       PREC_NONE },         // TOKEN_MATCH
     { nil,                  NULL,       PREC_NONE },         // TOKEN_NIL
     { NULL,                 NULL,       PREC_NONE },         // TOKEN_RETURN
     { while_,               NULL,       PREC_NONE },         // TOKEN_WHILE

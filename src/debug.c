@@ -94,6 +94,9 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     case OP_SAVE_X:
         return basic_instruction("SAVE_X", offset);
 
+    case OP_DUP:
+        return basic_instruction("DUP", offset);
+
     case OP_POP:
         return basic_instruction("POP", offset);
 
@@ -204,6 +207,15 @@ int disassemble_instruction(Chunk *chunk, int offset) {
 
     case OP_CLOSE_UPVALUE:
         return basic_instruction("CLOSE_UPVALUE", offset);
+
+    case OP_CAR_X:
+        return basic_instruction("CAR_X", offset);
+
+    case OP_CDR_X:
+        return basic_instruction("CDR_X", offset);
+
+    case OP_IS_PAIR:
+        return basic_instruction("IS_PAIR", offset);
 
     case OP_RETURN:
         return basic_instruction("RETURN", offset);

@@ -313,6 +313,11 @@ static InterpretResult run_vm(register VM *vm) {
         Dispatch();
     }
 
+    Case(OP_DUP): {
+        Push(Peek(0));
+        Dispatch();
+    }
+
     Case(OP_POP): Pop(); Dispatch();
     Case(OP_POPN): {
         uint8_t count = Read_Byte();
@@ -653,6 +658,24 @@ static InterpretResult run_vm(register VM *vm) {
     Case(OP_CLOSE_UPVALUE): {
         close_upvalues(vm, vm->stack_top - 1);
         Pop();
+        Dispatch();
+    }
+
+    Case(OP_CAR_X): {
+        assert(Is_Pair(vm->x));
+        Push(As_Pair(vm->x)->head);
+        Dispatch();
+    }
+
+    Case(OP_CDR_X): {
+        assert(Is_Pair(vm->x));
+        Push(As_Pair(vm->x)->tail);
+        Dispatch();
+    }
+
+    Case(OP_IS_PAIR): {
+        Value value = Peek(0);
+        Push(Bool_Value(Is_Pair(value)));
         Dispatch();
     }
 

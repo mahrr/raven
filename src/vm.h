@@ -18,7 +18,7 @@ typedef struct {
     Allocator allocator;
     const char *path; // Name of the file being executed.
 
-    Value x;  // Register to store last evaluated expression.
+    Value x, y; // Registers
     Value stack[STACK_SIZE];
     Value *stack_top;
 

@@ -33,6 +33,7 @@ expression ::= prefix_expression
              | if_expression
              | while_expression
              | cond_expression
+             | match_expression
              | identifier_expression
              | literal_expression;
 
@@ -58,13 +59,17 @@ cond_expression ::= "cond:" expression -> expression
                       [{"," expression -> expression}]
                     "end";
 
+match_expression ::= "match" expression "do"
+                       pattern -> expression
+                       [{"," pattern -> expression}]
+                     "end";
+
 identifier_expression ::= name;
 
 literal_expression ::= lambda_literal
                      | array_literal
                      | map_literal
-                     | INTEGER
-                     | FLOAT
+                     | NUMBER
                      | STRING
                      | TRUE
                      | FALSE
@@ -76,15 +81,36 @@ array_literal ::= "[" [expression_list] "]";
 
 map_literal ::= "{" [map_field {"," map_field}] "}";
 
-map_field ::= map_key ":" expression
-             | name;
-
-map_key ::= "[" expression "]"
-           | name;
+map_field ::= name ":" expression;
 
 parameter_list ::= [name {',' name}];
 
 expression_list ::= expression {"," expression};
+
+pattern ::= wildcard_pattern
+          | identifier_pattern
+          | literal_pattern
+          | pair_pattern
+          | array_pattern
+          | map_pattern;
+
+wildcard_pattern ::= "_";
+
+identifier_pattern = name;
+
+literal_pattern ::= NUMBER
+                  | STRING
+                  | TRUE
+                  | FALSE
+                  | NIL;
+
+pair_pattern ::= pattern "::" pattern;
+
+array_pattern ::= "[" pattern {"," pattern} "]";
+
+map_pattern ::= "{" [map_pattern_field {"," map_pattern_field}] "}";
+
+map_pattern_field ::= name ":" pattern;
 
 prefix_operator ::= "-" | "not";
 

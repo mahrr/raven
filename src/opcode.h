@@ -11,6 +11,7 @@ Opcode(OP_PUSH_CONST)     // 1-byte constant index
 Opcode(OP_PUSH_X)
 Opcode(OP_SAVE_X)
 
+Opcode(OP_DUP)
 Opcode(OP_POP)
 Opcode(OP_POPN)           // 1-byte count
 
@@ -61,6 +62,13 @@ Opcode(OP_JMP_POP_FALSE)  // 2-bytes offset
 // Closure
 Opcode(OP_CLOSURE)        // 1-byte function index
 Opcode(OP_CLOSE_UPVALUE)
+
+// Cons Operations
+Opcode(OP_CAR_X)
+Opcode(OP_CDR_X)
+
+// Predicates
+Opcode(OP_IS_PAIR)
 
 Opcode(OP_RETURN)
 Opcode(OP_EXIT)
