@@ -551,6 +551,23 @@ static inline RavFunction *end_context(Parser *parser, bool toplevel) {
     return function;
 }
 
+// Initialize the most declared local variable.
+static inline void mark_initialized(Context *context) {
+    size_t last_index = context->local_count - 1;
+    context->locals[last_index].depth = context->scope_depth;
+}
+
+static void define_variable(Parser *parser, uint8_t name_index) {
+    // local scope
+    if (parser->context->scope_depth > 0) {
+        mark_initialized(parser->context);
+        return;
+    }
+
+    // global scope
+    emit_bytes(parser, OP_DEF_GLOBAL, name_index);
+}
+
 /** Parsing **/
 
 static void parse_precedence(Parser*, Precedence);
@@ -558,6 +575,37 @@ static void expression(Parser*);
 static void declaration(Parser*);
 static void function(Parser*, FunctionType);
 static inline ParseRule *token_rule(TokenType);
+
+static uint8_t variable(Parser *parser, const char *error) {
+    consume(parser, TOKEN_IDENTIFIER, error);
+
+    // global scope
+    if (parser->context->scope_depth <= 0) {
+        return identifier_constant(parser, &parser->previous);
+    }
+
+    // local scope
+    Context *context = parser->context;
+    Token *name = &parser->previous;
+
+    // Check if the variable was already declared, since raven doesn't
+    // support shadowing in local scopes.
+    for (int i = context->local_count - 1; i >= 0; i--) {
+        Local *local = &context->locals[i];
+
+        if (local->depth == -1 || local->depth < context->scope_depth) {
+            break; // Not previously declared in the current scope.
+        }
+
+        if (same_identifier(name, &local->name)) {
+            error_previous(parser, "name is already declared");
+        }
+    }
+
+    // Declare the local variable.
+    add_local(parser, *name);
+    return 0;
+}
 
 static void assignment(Parser *parser) {
     Debug_Log(parser);
@@ -885,9 +933,6 @@ static void if_(Parser *parser) {
 
     Debug_Exit(parser);
 }
-
-static void define_variable(Parser *parser, uint8_t name_index);
-static uint8_t variable(Parser *parser, const char *error);
 
 static void pattern(Parser* parser, int* cases_next, int* cases_next_count, int bindings_count) {
     if (parser->panic_mode) {
@@ -1419,55 +1464,6 @@ static void parse_precedence(Parser *parser, Precedence precedence) {
 
 static void expression(Parser *parser) {
     parse_precedence(parser, PREC_ASSIGNMENT);
-}
-
-static void declare_local_variable(Parser *parser) {
-    Context *context = parser->context;
-
-    Token *name = &parser->previous;
-    for (int i = context->local_count - 1; i >= 0; i--) {
-        Local *local = &context->locals[i];
-
-        if (local->depth == -1 || local->depth < context->scope_depth) {
-            break; // Not previously declared in the current scope.
-        }
-
-        if (same_identifier(name, &local->name)) {
-            error_previous(parser, "name is already declared");
-        }
-    }
-
-    add_local(parser, *name);
-}
-
-// Initialize the most declared local variable.
-static inline void mark_initialized(Context *context) {
-    size_t last_index = context->local_count - 1;
-    context->locals[last_index].depth = context->scope_depth;
-}
-
-static void define_variable(Parser *parser, uint8_t name_index) {
-    // local scope
-    if (parser->context->scope_depth > 0) {
-        mark_initialized(parser->context);
-        return;
-    }
-
-    // global scope
-    emit_bytes(parser, OP_DEF_GLOBAL, name_index);
-}
-
-static uint8_t variable(Parser *parser, const char *error) {
-    consume(parser, TOKEN_IDENTIFIER, error);
-
-    // local scope
-    if (parser->context->scope_depth > 0) {
-        declare_local_variable(parser);
-        return 0;
-    }
-
-    // global scope
-    return identifier_constant(parser, &parser->previous);
 }
 
 static void let_declaration(Parser *parser) {

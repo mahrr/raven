@@ -18,7 +18,8 @@ typedef struct {
     Allocator allocator;
     const char *path; // Name of the file being executed.
 
-    Value x, y; // Registers
+
+    Value x; // Register to store the last evaluated expression.
     Value stack[STACK_SIZE];
     Value *stack_top;
 
@@ -30,7 +31,6 @@ typedef struct {
     Table globals;
 
     // Intrusive linked list of all available open opvalues.
-    // TODO: experiment with using a hash table instead.
     RavUpvalue *open_upvalues;
 } VM;
 
