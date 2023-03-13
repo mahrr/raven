@@ -214,9 +214,6 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     case OP_CDR:
         return basic_instruction("CDR", offset);
 
-    case OP_IS_TRUE:
-        return basic_instruction("IS_TRUE", offset);
-
     case OP_IS_PAIR:
         return basic_instruction("IS_PAIR", offset);
 

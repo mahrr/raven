@@ -675,12 +675,6 @@ static InterpretResult run_vm(register VM *vm) {
         Dispatch();
     }
 
-    Case(OP_IS_TRUE): {
-        Value value = Peek(0);
-        Push(Bool_Value(value == True_Value));
-        Dispatch();
-    }
-
     Case(OP_IS_PAIR): {
         Value value = Peek(0);
         Push(Bool_Value(Is_Pair(value)));
