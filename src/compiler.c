@@ -962,6 +962,26 @@ static void pattern(Parser *parser, int *cases_next, int *cases_next_count, int 
         *bindings_count += 1;
         break;
     }
+    case TOKEN_TRUE: {
+        emit_bytes(parser, OP_IS_TRUE, OP_NOT);
+
+        // Skip to the failure handling, if the value is a true.
+        int true_jump = emit_jump(parser, OP_JMP_POP_FALSE);             // ---- false
+                                                                         //    |
+        // Unwind the binding introduced by this failed pattern.         //    |
+        // +1 is for the recent match value on top of the stack.         //    |
+        emit_bytes(parser, OP_POPN, (uint8_t)(*bindings_count + 0));     //    |
+                                                                         //    |
+        // Finally jump to the next case, as the pattern didn't match.   //    |
+        cases_next[*cases_next_count] = emit_jump(parser, OP_JMP);       // -------
+        *cases_next_count += 1;                                          //    |  |
+                                                                         //    |  :
+        patch_jump(parser, true_jump);                                   // <---  V
+                                                                         //   [next-case]
+        emit_byte(parser, OP_POP); // discard the match value
+        advance(parser);           // consume `true`
+        break;
+    }
     case TOKEN_LEFT_PAREN: {
         // Pair Pattern
         advance(parser); // consume '('
@@ -974,7 +994,7 @@ static void pattern(Parser *parser, int *cases_next, int *cases_next_count, int 
                                                                          //    |
         // Unwind the binding introduced by this failed pattern.         //    |
         // +1 is for the recent match value on top of the stack.         //    |
-        emit_bytes(parser, OP_POPN, (uint8_t)(*bindings_count + 1));     //    |
+        emit_bytes(parser, OP_POPN, (uint8_t)(*bindings_count + 0));     //    |
                                                                          //    |
         // Finally jump to the next case, as the pattern didn't match.   //    |
         cases_next[*cases_next_count] = emit_jump(parser, OP_JMP);       // -------
@@ -982,10 +1002,11 @@ static void pattern(Parser *parser, int *cases_next, int *cases_next_count, int 
                                                                          //    |  :
         patch_jump(parser, pair_jump);                                   // <---  V
                                                                          //   [next-case]
-        // Save a copy of the match value on stack for the right hand
-        // side pattern.
+        // Save a copy of the match value on stack.
         emit_byte(parser, OP_DUP);
         add_dummy_local(parser);
+        *bindings_count += 1;
+
         uint8_t match_value_index = parser->context->local_count - 1;
 
         // Compile the left side pattern.
@@ -1053,7 +1074,7 @@ static void match_(Parser *parser) {
     } while (match(parser, TOKEN_COMMA));
 
     // If all patterns didn't match.
-    emit_byte(parser, OP_PUSH_NIL);
+    emit_bytes(parser, OP_POP, OP_PUSH_NIL);
 
     for (int i = 0; i < cases_count; i++) {
         patch_jump(parser, cases_exit[i]);

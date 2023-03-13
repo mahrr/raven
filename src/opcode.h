@@ -68,6 +68,7 @@ Opcode(OP_CAR)
 Opcode(OP_CDR)
 
 // Predicates
+Opcode(OP_IS_TRUE)
 Opcode(OP_IS_PAIR)
 
 Opcode(OP_RETURN)
