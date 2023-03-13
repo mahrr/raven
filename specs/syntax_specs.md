@@ -104,7 +104,7 @@ literal_pattern ::= NUMBER
                   | FALSE
                   | NIL;
 
-pair_pattern ::= pattern "::" pattern;
+pair_pattern ::= "(" pattern "::" pattern ")";
 
 array_pattern ::= "[" pattern {"," pattern} "]";
 

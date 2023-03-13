@@ -661,15 +661,17 @@ static InterpretResult run_vm(register VM *vm) {
         Dispatch();
     }
 
-    Case(OP_CAR_X): {
-        assert(Is_Pair(vm->x));
-        Push(As_Pair(vm->x)->head);
+    Case(OP_CAR): {
+        Value value = Pop();
+        assert(Is_Pair(value));
+        Push(As_Pair(value)->head);
         Dispatch();
     }
 
-    Case(OP_CDR_X): {
-        assert(Is_Pair(vm->x));
-        Push(As_Pair(vm->x)->tail);
+    Case(OP_CDR): {
+        Value value = Pop();
+        assert(Is_Pair(value));
+        Push(As_Pair(value)->tail);
         Dispatch();
     }
 

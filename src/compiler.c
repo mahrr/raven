@@ -934,7 +934,7 @@ static void if_(Parser *parser) {
     Debug_Exit(parser);
 }
 
-static void pattern(Parser* parser, int* cases_next, int* cases_next_count, int bindings_count) {
+static void pattern(Parser *parser, int *cases_next, int *cases_next_count, int *bindings_count) {
     if (parser->panic_mode) {
         return;
     }
@@ -949,78 +949,68 @@ static void pattern(Parser* parser, int* cases_next, int* cases_next_count, int 
     case TOKEN_IDENTIFIER: {
         Token token = parser->current;
 
+        // Wildcard Pattern (No Binding)
         if (token.length == 1 && token.lexeme[0] == '_') {
-            advance(parser); // consume the wildcard '_'
-
-            // Check if it's a pair Pattern (e.g., `_ :: <pattern>`).
-            if (match(parser, TOKEN_COLON_COLON)) {
-                // Check if the recent match value is pair.
-                emit_bytes(parser, OP_IS_PAIR, OP_NOT);
-
-                // Skip to the error handling, if the value is a pair.
-                int pair_jump = emit_jump(parser, OP_JMP_POP_FALSE);
-
-                // Unwind the binding introduced by this failed pattern.
-                emit_bytes(parser, OP_POPN, (uint8_t)(bindings_count + 1));
-
-                // Jump to the next case, if the value is not a pair.
-                cases_next[*cases_next_count] = emit_jump(parser, OP_JMP);
-                *cases_next_count += 1;
-
-                patch_jump(parser, pair_jump);
-
-                // Pop the cons value into the X register.
-                emit_byte(parser, OP_SAVE_X);
-
-                // Compile the right side pattern.
-                emit_byte(parser, OP_CDR_X);
-                pattern(parser, cases_next, cases_next_count, bindings_count);
-            }
-        } else {
-            uint8_t index = variable(parser, "");
-
-            // Check if it's a pair Pattern (e.g., `foo :: <pattern>`).
-            if (match(parser, TOKEN_COLON_COLON)) {
-                // Check if the recent match value is pair.
-                emit_bytes(parser, OP_IS_PAIR, OP_NOT);
-
-                // Skip to the error handling, if the value is a pair.
-                int pair_jump = emit_jump(parser, OP_JMP_POP_FALSE);
-
-                // Unwind the binding introduced by this failed pattern.
-                emit_bytes(parser, OP_POPN, (uint8_t)(bindings_count + 1));
-
-                // Jump to the next case, if the value is not a pair.
-                cases_next[*cases_next_count] = emit_jump(parser, OP_JMP);
-                *cases_next_count += 1;
-
-                patch_jump(parser, pair_jump);
-
-                // Pop the cons value into the X register.
-                emit_byte(parser, OP_SAVE_X);
-
-                // Bind car(x) to the left pattern identifier (`foo`).
-                emit_byte(parser, OP_CAR_X);
-                define_variable(parser, index);
-                bindings_count++;
-
-                // Compile the right side pattern.
-                emit_byte(parser, OP_CDR_X);
-                pattern(parser, cases_next, cases_next_count, bindings_count);
-            } else {
-                // Identifier Pattern
-                define_variable(parser, index);
-            }
+            emit_byte(parser, OP_POP); // discard the match value
+            advance(parser);           // consume the wildcard '_'
+            break;
         }
+
+        // Identifier Pattern
+        uint8_t index = variable(parser, "");
+        define_variable(parser, index);
+        *bindings_count += 1;
+        break;
+    }
+    case TOKEN_LEFT_PAREN: {
+        // Pair Pattern
+        advance(parser); // consume '('
+
+        // Check if the recent match value is of type pair.
+        emit_bytes(parser, OP_IS_PAIR, OP_NOT);
+
+        // Skip to the failure handling, if the value is a pair.         // ---- false
+        int pair_jump = emit_jump(parser, OP_JMP_POP_FALSE);             //    |
+                                                                         //    |
+        // Unwind the binding introduced by this failed pattern.         //    |
+        // +1 is for the recent match value on top of the stack.         //    |
+        emit_bytes(parser, OP_POPN, (uint8_t)(*bindings_count + 1));     //    |
+                                                                         //    |
+        // Finally jump to the next case, as the pattern didn't match.   //    |
+        cases_next[*cases_next_count] = emit_jump(parser, OP_JMP);       // -------
+        *cases_next_count += 1;                                          //    |  |
+                                                                         //    |  :
+        patch_jump(parser, pair_jump);                                   // <---  V
+                                                                         //   [next-case]
+        // Save a copy of the match value on stack for the right hand
+        // side pattern.
+        emit_byte(parser, OP_DUP);
+        add_dummy_local(parser);
+        uint8_t match_value_index = parser->context->local_count - 1;
+
+        // Compile the left side pattern.
+        emit_byte(parser, OP_CAR);
+        pattern(parser, cases_next, cases_next_count, bindings_count);
+
+        consume(parser, TOKEN_COLON_COLON, "expect '::' in pair pattern");
+
+        // Retrieve the match value to the stack top.
+        emit_bytes(parser, OP_GET_LOCAL, match_value_index);
+
+        // Compile the right side pattern.
+        emit_byte(parser, OP_CDR);
+        pattern(parser, cases_next, cases_next_count, bindings_count);
+
+        consume(parser, TOKEN_RIGHT_PAREN, "expect closing ')' in pair pattern");
         break;
     }
     default:
-        error_current(parser, "expect a pattern");
+        error_current(parser, "expect beginning of a pattern");
         break;
     }
 }
 
-static void match_(Parser* parser) {
+static void match_(Parser *parser) {
     Debug_Log(parser);
 
     expression(parser); // Value
@@ -1037,14 +1027,11 @@ static void match_(Parser* parser) {
 
         begin_scope(parser);
 
-        // A copy of the match value is always present in the Y register
-        emit_byte(parser, OP_DUP);
-        add_dummy_local(parser);
-
         int cases_next[PATTERN_LIMIT] = {0};
         int cases_next_count = 0;
+        int bindings_count = 0;
 
-        pattern(parser, cases_next, &cases_next_count, 0);
+        pattern(parser, cases_next, &cases_next_count, &bindings_count);
         consume(parser, TOKEN_ARROW, "expect '->' after pattern");
 
         // Match succeeded.

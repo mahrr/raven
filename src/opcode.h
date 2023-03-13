@@ -64,8 +64,8 @@ Opcode(OP_CLOSURE)        // 1-byte function index
 Opcode(OP_CLOSE_UPVALUE)
 
 // Cons Operations
-Opcode(OP_CAR_X)
-Opcode(OP_CDR_X)
+Opcode(OP_CAR)
+Opcode(OP_CDR)
 
 // Predicates
 Opcode(OP_IS_PAIR)
