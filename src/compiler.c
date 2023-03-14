@@ -570,6 +570,8 @@ static void define_variable(Parser *parser, uint8_t name_index) {
 
 /** Parsing **/
 
+static void number(Parser*);
+static void string(Parser*);
 static void parse_precedence(Parser*, Precedence);
 static void expression(Parser*);
 static void declaration(Parser*);
@@ -949,6 +951,8 @@ static void pattern_fail(Parser *parser, int *cases_next, int *cases_count, int 
 }                                                                    //   [next-case]
 
 static void pattern(Parser *parser, int *cases_next, int *cases_count, int *bindings_count) {
+    Debug_Log(parser);
+
     if (parser->panic_mode) {
         return;
     }
@@ -976,6 +980,13 @@ static void pattern(Parser *parser, int *cases_next, int *cases_count, int *bind
         *bindings_count += 1;
         break;
     }
+    case TOKEN_NIL: {
+        advance(parser);
+        emit_byte(parser, OP_PUSH_NIL);
+        emit_bytes(parser, OP_EQ, OP_NOT);
+        pattern_fail(parser, cases_next, cases_count, bindings_count);
+        break;
+    }
     case TOKEN_TRUE: {
         advance(parser);
         emit_byte(parser, OP_PUSH_TRUE);
@@ -986,6 +997,20 @@ static void pattern(Parser *parser, int *cases_next, int *cases_count, int *bind
     case TOKEN_FALSE: {
         advance(parser);
         emit_byte(parser, OP_PUSH_FALSE);
+        emit_bytes(parser, OP_EQ, OP_NOT);
+        pattern_fail(parser, cases_next, cases_count, bindings_count);
+        break;
+    }
+    case TOKEN_NUMBER: {
+        advance(parser);
+        number(parser);
+        emit_bytes(parser, OP_EQ, OP_NOT);
+        pattern_fail(parser, cases_next, cases_count, bindings_count);
+        break;
+    }
+    case TOKEN_STRING: {
+        advance(parser);
+        string(parser);
         emit_bytes(parser, OP_EQ, OP_NOT);
         pattern_fail(parser, cases_next, cases_count, bindings_count);
         break;
@@ -1025,6 +1050,8 @@ static void pattern(Parser *parser, int *cases_next, int *cases_count, int *bind
         error_current(parser, "expect beginning of a pattern");
         break;
     }
+
+    Debug_Exit(parser);
 }
 
 static void match_(Parser *parser) {
