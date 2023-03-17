@@ -936,12 +936,13 @@ static void if_(Parser *parser) {
     Debug_Exit(parser);
 }
 
-static void pattern_fail(Parser *parser, int *cases_next, int *cases_count, int *bindings_count) {
+static void pattern_fail_if_true(Parser *parser, int *cases_next, int *cases_count, int *bindings_count) {
     // Skip the failure handling, if the pattern matched the value.
     int success_jump = emit_jump(parser, OP_JMP_POP_FALSE);          // ---- false
                                                                      //    |
     // Unwind the binding introduced by the failed pattern.          //    |
-    emit_bytes(parser, OP_POPN, (uint8_t)(*bindings_count - 1));     //    |
+    // +1 for the match value caused the pattern to faile.           //    |
+    emit_bytes(parser, OP_POPN, (uint8_t)(*bindings_count + 1));     //    |
                                                                      //    |
     // Finally jump to the next case, as the pattern didn't match.   //    |
     cases_next[*cases_count] = emit_jump(parser, OP_JMP);            // -------
@@ -984,35 +985,35 @@ static void pattern(Parser *parser, int *cases_next, int *cases_count, int *bind
         advance(parser);
         emit_byte(parser, OP_PUSH_NIL);
         emit_bytes(parser, OP_EQ, OP_NOT);
-        pattern_fail(parser, cases_next, cases_count, bindings_count);
+        pattern_fail_if_true(parser, cases_next, cases_count, bindings_count);
         break;
     }
     case TOKEN_TRUE: {
         advance(parser);
         emit_byte(parser, OP_PUSH_TRUE);
         emit_bytes(parser, OP_EQ, OP_NOT);
-        pattern_fail(parser, cases_next, cases_count, bindings_count);
+        pattern_fail_if_true(parser, cases_next, cases_count, bindings_count);
         break;
     }
     case TOKEN_FALSE: {
         advance(parser);
         emit_byte(parser, OP_PUSH_FALSE);
         emit_bytes(parser, OP_EQ, OP_NOT);
-        pattern_fail(parser, cases_next, cases_count, bindings_count);
+        pattern_fail_if_true(parser, cases_next, cases_count, bindings_count);
         break;
     }
     case TOKEN_NUMBER: {
         advance(parser);
         number(parser);
         emit_bytes(parser, OP_EQ, OP_NOT);
-        pattern_fail(parser, cases_next, cases_count, bindings_count);
+        pattern_fail_if_true(parser, cases_next, cases_count, bindings_count);
         break;
     }
     case TOKEN_STRING: {
         advance(parser);
         string(parser);
         emit_bytes(parser, OP_EQ, OP_NOT);
-        pattern_fail(parser, cases_next, cases_count, bindings_count);
+        pattern_fail_if_true(parser, cases_next, cases_count, bindings_count);
         break;
     }
     case TOKEN_LEFT_PAREN: {
@@ -1021,17 +1022,14 @@ static void pattern(Parser *parser, int *cases_next, int *cases_count, int *bind
 
         // Check if the recent match value is of type pair.
         emit_bytes(parser, OP_IS_PAIR, OP_NOT);
-        pattern_fail(parser, cases_next, cases_count, bindings_count);
+        pattern_fail_if_true(parser, cases_next, cases_count, bindings_count);
 
-        // Save a copy of the match value on stack.
-        emit_byte(parser, OP_DUP);
+        // Index of the recent match value on stack.
         add_dummy_local(parser);
-        *bindings_count += 1;
-
         uint8_t match_value_index = parser->context->local_count - 1;
 
         // Compile the left side pattern.
-        emit_byte(parser, OP_CAR);
+        emit_bytes(parser, OP_DUP, OP_CAR);
         pattern(parser, cases_next, cases_count, bindings_count);
 
         consume(parser, TOKEN_COLON_COLON, "expect '::' in pair pattern");
@@ -1044,6 +1042,58 @@ static void pattern(Parser *parser, int *cases_next, int *cases_count, int *bind
         pattern(parser, cases_next, cases_count, bindings_count);
 
         consume(parser, TOKEN_RIGHT_PAREN, "expect closing ')' in pair pattern");
+        break;
+    }
+    case TOKEN_LEFT_BRACKET: {
+        // Array Pattern
+        advance(parser); // consume '['
+
+        // Check if the recent match value is of type array.
+        emit_bytes(parser, OP_IS_ARRAY, OP_NOT);
+        pattern_fail_if_true(parser, cases_next, cases_count, bindings_count);
+
+        // Index of the recent match value on stack.
+        add_dummy_local(parser);
+        uint8_t match_value_index = parser->context->local_count - 1;
+
+        // Save a copy of the array length on the stack.
+        emit_bytes(parser, OP_DUP, OP_LEN);
+        add_dummy_local(parser);
+        *bindings_count += 1;
+
+        uint8_t length_index = parser->context->local_count - 1;
+
+        // Check for empty array pattern.
+        if (match(parser, TOKEN_RIGHT_BRACKET)) {
+            emit_constant(parser, Num_Value(0));
+            emit_byte(parser, OP_NEQ);
+            pattern_fail_if_true(parser, cases_next, cases_count, bindings_count);
+            break; // switch
+        }
+
+        int array_subpatterns_count = 0;
+        do {
+            // Check that `array_length` >= `array_subpatterns_count`
+            emit_bytes(parser, OP_GET_LOCAL, length_index);
+            emit_constant(parser, Num_Value(array_subpatterns_count + 1));
+            emit_byte(parser, OP_LT);
+            pattern_fail_if_true(parser, cases_next, cases_count, bindings_count);
+
+            // Compile array element.
+            emit_bytes(parser, OP_GET_LOCAL, match_value_index);
+            emit_bytes(parser, OP_PUSH_ELEMENT, (uint8_t)array_subpatterns_count);
+            pattern(parser, cases_next, cases_count, bindings_count);
+
+            array_subpatterns_count++;
+        } while (match(parser, TOKEN_COMMA));
+
+        // Check that the pattern count equals the array element count.
+        emit_bytes(parser, OP_GET_LOCAL, length_index);
+        emit_constant(parser, Num_Value(array_subpatterns_count));
+        emit_byte(parser, OP_NEQ);
+        pattern_fail_if_true(parser, cases_next, cases_count, bindings_count);
+
+        consume(parser, TOKEN_RIGHT_BRACKET, "expected closing ']' for the array pattern");
         break;
     }
     default:

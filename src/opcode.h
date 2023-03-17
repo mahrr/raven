@@ -67,8 +67,13 @@ Opcode(OP_CLOSE_UPVALUE)
 Opcode(OP_CAR)
 Opcode(OP_CDR)
 
+// Array Operations
+Opcode(OP_LEN)
+Opcode(OP_PUSH_ELEMENT)   // 1-byte array index
+
 // Predicates
 Opcode(OP_IS_PAIR)
+Opcode(OP_IS_ARRAY)
 
 Opcode(OP_RETURN)
 Opcode(OP_EXIT)

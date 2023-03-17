@@ -214,8 +214,17 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     case OP_CDR:
         return basic_instruction("CDR", offset);
 
+    case OP_LEN:
+        return basic_instruction("LEN", offset);
+
+    case OP_PUSH_ELEMENT:
+        return byte_instruction("PUSH_ELEMENT", chunk, offset);
+
     case OP_IS_PAIR:
         return basic_instruction("IS_PAIR", offset);
+
+    case OP_IS_ARRAY:
+        return basic_instruction("IS_ARRAY", offset);
 
     case OP_RETURN:
         return basic_instruction("RETURN", offset);

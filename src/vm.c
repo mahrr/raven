@@ -675,9 +675,34 @@ static InterpretResult run_vm(register VM *vm) {
         Dispatch();
     }
 
+    Case(OP_LEN): {
+        Value value = Pop();
+        assert(Is_Array(value));
+        Push(Num_Value(As_Array(value)->count));
+        Dispatch();
+    }
+
+    Case(OP_PUSH_ELEMENT): {
+        uint8_t index = Read_Byte();
+        Value value = Pop();
+
+        assert(Is_Array(value));
+        RavArray *array = As_Array(value);
+
+        assert(index < array->count);
+        Push(array->values[(size_t)index]);
+        Dispatch();
+    }
+
     Case(OP_IS_PAIR): {
         Value value = Peek(0);
         Push(Bool_Value(Is_Pair(value)));
+        Dispatch();
+    }
+
+    Case(OP_IS_ARRAY): {
+        Value value = Peek(0);
+        Push(Bool_Value(Is_Array(value)));
         Dispatch();
     }
 
