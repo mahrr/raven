@@ -91,8 +91,8 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     case OP_PUSH_X:
         return basic_instruction("PUSH_X", offset);
 
-    case OP_SAVE_X:
-        return basic_instruction("SAVE_X", offset);
+    case OP_POP_X:
+        return basic_instruction("POP_X", offset);
 
     case OP_DUP:
         return basic_instruction("DUP", offset);
@@ -142,30 +142,6 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     case OP_NOT:
         return basic_instruction("NOT", offset);
 
-    case OP_CONCATENATE:
-        return basic_instruction("CONCATENATE", offset);
-
-    case OP_CONS:
-        return basic_instruction("CONS", offset);
-
-    case OP_ARRAY_8:
-        return byte_instruction("ARRAY_8", chunk, offset);
-
-    case OP_ARRAY_16:
-        return short_instruction("ARRAY_16", chunk, offset);
-
-    case OP_MAP_8:
-        return byte_instruction("MAP_8", chunk, offset);
-
-    case OP_MAP_16:
-        return short_instruction("MAP_16", chunk, offset);
-
-    case OP_INDEX_SET:
-        return basic_instruction("INDEX_SET", offset);
-
-    case OP_INDEX_GET:
-        return basic_instruction("INDEX_GET", offset);
-
     case OP_DEF_GLOBAL:
         return byte_instruction("DEF_GLOBAL", chunk, offset);
 
@@ -208,17 +184,41 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     case OP_CLOSE_UPVALUE:
         return basic_instruction("CLOSE_UPVALUE", offset);
 
+    case OP_CONCAT:
+        return basic_instruction("CONCAT", offset);
+
+    case OP_CONS:
+        return basic_instruction("CONS", offset);
+
+    case OP_ARRAY_8:
+        return byte_instruction("ARRAY_8", chunk, offset);
+
+    case OP_ARRAY_16:
+        return short_instruction("ARRAY_16", chunk, offset);
+
+    case OP_MAP_8:
+        return byte_instruction("MAP_8", chunk, offset);
+
+    case OP_MAP_16:
+        return short_instruction("MAP_16", chunk, offset);
+
+    case OP_SET_ELEMENT:
+        return basic_instruction("SET_ELEMENT", offset);
+
+    case OP_GET_ELEMENT:
+        return basic_instruction("GET_ELEMENT", offset);
+
     case OP_CAR:
         return basic_instruction("CAR", offset);
 
     case OP_CDR:
         return basic_instruction("CDR", offset);
 
-    case OP_LEN:
-        return basic_instruction("LEN", offset);
+    case OP_ARRAY_LEN:
+        return basic_instruction("ARRAY_LEN", offset);
 
-    case OP_PUSH_ELEMENT:
-        return byte_instruction("PUSH_ELEMENT", chunk, offset);
+    case OP_ARRAY_PUSH_ELEMENT:
+        return byte_instruction("ARRAY_PUSH_ELEMENT", chunk, offset);
 
     case OP_IS_PAIR:
         return basic_instruction("IS_PAIR", offset);

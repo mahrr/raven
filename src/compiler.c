@@ -367,7 +367,7 @@ static void end_scope(Parser *parser, bool loading) {
         Chunk *chunk = parser_chunk(parser);
 
         // If possible optimize out OP_SAVE_X/OP_PUSH_X pattern.
-        if (chunk->opcodes[chunk->count - 1] == OP_SAVE_X) {
+        if (chunk->opcodes[chunk->count - 1] == OP_POP_X) {
             chunk->count--;
         } else {
             emit_byte(parser, OP_PUSH_X);
@@ -619,10 +619,10 @@ static void assignment(Parser *parser) {
     }
 
     // Special case of indexing
-    if (chunk->opcodes[chunk->count - 1] == OP_INDEX_GET) {
+    if (chunk->opcodes[chunk->count - 1] == OP_GET_ELEMENT) {
         chunk->count--;
         parse_precedence(parser, PREC_ASSIGNMENT);
-        emit_byte(parser, OP_INDEX_SET);
+        emit_byte(parser, OP_SET_ELEMENT);
         return;
     }
 
@@ -664,7 +664,7 @@ static void concat(Parser *parser) {
     Debug_Log(parser);
 
     parse_precedence(parser, PREC_CONCAT + 1);
-    emit_byte(parser, OP_CONCATENATE);
+    emit_byte(parser, OP_CONCAT);
 
     Debug_Exit(parser);
 }
@@ -675,7 +675,7 @@ static void indexing(Parser *parser) {
     expression(parser);
     consume(parser, TOKEN_RIGHT_BRACKET, "expect ']' after index");
 
-    emit_byte(parser, OP_INDEX_GET);
+    emit_byte(parser, OP_GET_ELEMENT);
 
     Debug_Exit(parser);
 }
@@ -823,7 +823,7 @@ static void function_block(Parser *parser) {
     Chunk *chunk = parser_chunk(parser);
 
     // If possible optimize out OP_SAVE_X/OP_PUSH_X pattern.
-    if (chunk->opcodes[chunk->count - 1] == OP_SAVE_X) {
+    if (chunk->opcodes[chunk->count - 1] == OP_POP_X) {
         chunk->count--;
     } else {
         emit_byte(parser, OP_PUSH_X);
@@ -1057,7 +1057,7 @@ static void pattern(Parser *parser, int *cases_next, int *cases_count, int *bind
         uint8_t match_value_index = parser->context->local_count - 1;
 
         // Save a copy of the array length on the stack.
-        emit_bytes(parser, OP_DUP, OP_LEN);
+        emit_bytes(parser, OP_DUP, OP_ARRAY_LEN);
         add_dummy_local(parser);
         *bindings_count += 1;
 
@@ -1081,7 +1081,7 @@ static void pattern(Parser *parser, int *cases_next, int *cases_count, int *bind
 
             // Compile array element.
             emit_bytes(parser, OP_GET_LOCAL, match_value_index);
-            emit_bytes(parser, OP_PUSH_ELEMENT, (uint8_t)array_subpatterns_count);
+            emit_bytes(parser, OP_ARRAY_PUSH_ELEMENT, (uint8_t)array_subpatterns_count);
             pattern(parser, cases_next, cases_count, bindings_count);
 
             array_subpatterns_count++;
@@ -1132,7 +1132,7 @@ static void match_(Parser *parser) {
         expression(parser);
 
         // Save the expression value in X and rewind the stack.
-        emit_byte(parser, OP_SAVE_X);
+        emit_byte(parser, OP_POP_X);
         unwind_stack(parser, parser->context->scope_depth);
         emit_byte(parser, OP_PUSH_X);
         cases_exit[cases_count++] = emit_jump(parser, OP_JMP);
@@ -1302,7 +1302,7 @@ static void string_interpolated(Parser *parser) {
 
     while (parser->previous.type != TOKEN_STRING_END) {
         expression(parser);
-        emit_byte(parser, OP_CONCATENATE);
+        emit_byte(parser, OP_CONCAT);
 
         bool string_part = match(parser, TOKEN_STRING_PART);
         bool string_end = match(parser, TOKEN_STRING_END);
@@ -1323,7 +1323,7 @@ static void string_interpolated(Parser *parser) {
             if (length != 0) {
                 RavString *part = object_string(allocator, chars, length);
                 emit_constant(parser, Obj_Value(part));
-                emit_byte(parser, OP_CONCATENATE);
+                emit_byte(parser, OP_CONCAT);
             }
         } else {
             error_current(parser, "ill-formed interpolated string");
@@ -1692,7 +1692,7 @@ static void declaration(Parser *parser) {
         continue_statement(parser);
     } else {
         expression(parser);
-        emit_byte(parser, OP_SAVE_X);
+        emit_byte(parser, OP_POP_X);
     }
 
     if (parser->panic_mode) {
