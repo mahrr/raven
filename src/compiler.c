@@ -278,6 +278,10 @@ static inline void advance(Parser *parser) {
     }
 }
 
+static inline bool current_is(Parser *parser, TokenType type) {
+    return parser->current.type == type;
+}
+
 static inline void consume(Parser *parser, TokenType type, const char *message) {
     if (parser->current.type == type) {
         advance(parser);
@@ -286,12 +290,8 @@ static inline void consume(Parser *parser, TokenType type, const char *message) 
     }
 }
 
-static inline bool check(Parser *parser, TokenType type) {
-    return parser->current.type == type;
-}
-
-static inline bool match(Parser *parser, TokenType type) {
-    if (!check(parser, type)) {
+static inline bool consume_if(Parser *parser, TokenType type) {
+    if (!current_is(parser, type)) {
         return false;
     }
 
@@ -763,13 +763,13 @@ static void if_block(Parser *parser) {
 
     begin_scope(parser);
 
-    while (!check(parser, TOKEN_END) &&
-           !check(parser, TOKEN_EOF) &&
-           !check(parser, TOKEN_ELSE)) {
+    while (!current_is(parser, TOKEN_END) &&
+           !current_is(parser, TOKEN_EOF) &&
+           !current_is(parser, TOKEN_ELSE)) {
         declaration(parser);
     }
 
-    if (!match(parser, TOKEN_ELSE)) {
+    if (!consume_if(parser, TOKEN_ELSE)) {
         consume(parser, TOKEN_END, "expect closing 'end' after if block");
     }
 
@@ -783,7 +783,7 @@ static void loop_block(Parser *parser) {
 
     begin_scope(parser);
 
-    while (!check(parser, TOKEN_END) && !check(parser, TOKEN_EOF)) {
+    while (!current_is(parser, TOKEN_END) && !current_is(parser, TOKEN_EOF)) {
         declaration(parser);
     }
 
@@ -799,7 +799,7 @@ static void block(Parser *parser) {
 
     begin_scope(parser);
 
-    while (!check(parser, TOKEN_END) && !check(parser, TOKEN_EOF)) {
+    while (!current_is(parser, TOKEN_END) && !current_is(parser, TOKEN_EOF)) {
         declaration(parser);
     }
 
@@ -813,7 +813,7 @@ static void block(Parser *parser) {
 static void function_block(Parser *parser) {
     Debug_Log(parser);
 
-    while (!check(parser, TOKEN_END) && !check(parser, TOKEN_EOF)) {
+    while (!current_is(parser, TOKEN_END) && !current_is(parser, TOKEN_EOF)) {
         declaration(parser);
     }
 
@@ -887,7 +887,7 @@ static void cond(Parser *parser) {
         cases_exit[cases_count++] = emit_jump(parser, OP_JMP);
 
         patch_jump(parser, next_case);
-    } while (match(parser, TOKEN_COMMA));
+    } while (consume_if(parser, TOKEN_COMMA));
 
     // If all conditions evaluate to false.
     emit_byte(parser, OP_PUSH_NIL);
@@ -1064,7 +1064,7 @@ static void pattern(Parser *parser, int *cases_next, int *cases_count, int *bind
         uint8_t length_index = parser->context->local_count - 1;
 
         // Check for empty array pattern.
-        if (match(parser, TOKEN_RIGHT_BRACKET)) {
+        if (consume_if(parser, TOKEN_RIGHT_BRACKET)) {
             emit_constant(parser, Num_Value(0));
             emit_byte(parser, OP_NEQ);
             pattern_fail_if_true(parser, cases_next, cases_count, bindings_count);
@@ -1085,7 +1085,7 @@ static void pattern(Parser *parser, int *cases_next, int *cases_count, int *bind
             pattern(parser, cases_next, cases_count, bindings_count);
 
             array_subpatterns_count++;
-        } while (match(parser, TOKEN_COMMA));
+        } while (consume_if(parser, TOKEN_COMMA));
 
         // Check that the pattern count equals the array element count.
         emit_bytes(parser, OP_GET_LOCAL, length_index);
@@ -1096,6 +1096,14 @@ static void pattern(Parser *parser, int *cases_next, int *cases_count, int *bind
         consume(parser, TOKEN_RIGHT_BRACKET, "expected closing ']' for the array pattern");
         break;
     }
+    case TOKEN_LEFT_BRACE: {
+        // Map Pattern
+        advance(parser); // consume '{'
+
+        // TODO
+
+        break;
+    }
     default:
         error_current(parser, "expect beginning of a pattern");
         break;
@@ -1104,7 +1112,7 @@ static void pattern(Parser *parser, int *cases_next, int *cases_count, int *bind
     Debug_Exit(parser);
 }
 
-static void match_(Parser *parser) {
+static void match(Parser *parser) {
     Debug_Log(parser);
 
     expression(parser); // Value
@@ -1144,7 +1152,7 @@ static void match_(Parser *parser) {
 
         // Discard the case scope.
         parser->context->scope_depth--;
-    } while (match(parser, TOKEN_COMMA));
+    } while (consume_if(parser, TOKEN_COMMA));
 
     // If all patterns didn't match.
     emit_bytes(parser, OP_POP, OP_PUSH_NIL);
@@ -1207,7 +1215,7 @@ static void while_(Parser *parser) {
 }
 
 static uint8_t arguments(Parser *parser) {
-    if (match(parser, TOKEN_RIGHT_PAREN)) return 0;
+    if (consume_if(parser, TOKEN_RIGHT_PAREN)) return 0;
 
     int count = 0;
     do {
@@ -1219,7 +1227,7 @@ static uint8_t arguments(Parser *parser) {
         }
 
         count++;
-    } while (match(parser, TOKEN_COMMA));
+    } while (consume_if(parser, TOKEN_COMMA));
 
     consume(parser, TOKEN_RIGHT_PAREN, "expect ')' after arguments");
     return (uint8_t)count;
@@ -1304,8 +1312,8 @@ static void string_interpolated(Parser *parser) {
         expression(parser);
         emit_byte(parser, OP_CONCAT);
 
-        bool string_part = match(parser, TOKEN_STRING_PART);
-        bool string_end = match(parser, TOKEN_STRING_END);
+        bool string_part = consume_if(parser, TOKEN_STRING_PART);
+        bool string_end = consume_if(parser, TOKEN_STRING_END);
 
         if (string_part || string_end) {
             const char *chars = parser->previous.lexeme + 2; // +2 advances '}}'
@@ -1354,7 +1362,7 @@ static void nil(Parser *parser) {
 static void map(Parser* parser) {
     Debug_Log(parser);
 
-    if (match(parser, TOKEN_RIGHT_BRACE)) {
+    if (consume_if(parser, TOKEN_RIGHT_BRACE)) {
         emit_bytes(parser, OP_MAP_8, 0);
         Debug_Exit(parser);
         return;
@@ -1383,7 +1391,7 @@ static void map(Parser* parser) {
         expression(parser);
 
         count++;
-    } while (match(parser, TOKEN_COMMA));
+    } while (consume_if(parser, TOKEN_COMMA));
 
     if (count > UINT8_MAX) {
         emit_byte(parser, OP_MAP_16);
@@ -1400,7 +1408,7 @@ static void map(Parser* parser) {
 static void array(Parser *parser) {
     Debug_Log(parser);
 
-    if (match(parser, TOKEN_RIGHT_BRACKET)) {
+    if (consume_if(parser, TOKEN_RIGHT_BRACKET)) {
         emit_bytes(parser, OP_ARRAY_8, 0);
         Debug_Exit(parser);
         return;
@@ -1416,7 +1424,7 @@ static void array(Parser *parser) {
         }
 
         count++;
-    } while (match(parser, TOKEN_COMMA));
+    } while (consume_if(parser, TOKEN_COMMA));
 
     if (count > UINT8_MAX) {
         emit_byte(parser, OP_ARRAY_16);
@@ -1471,7 +1479,7 @@ static ParseRule rules[] = {
     { if_,                  NULL,       PREC_NONE },         // TOKEN_IF
     { NULL,                 NULL,       PREC_NONE },         // TOKEN_IN
     { NULL,                 NULL,       PREC_NONE },         // TOKEN_LET
-    { match_,               NULL,       PREC_NONE },         // TOKEN_MATCH
+    { match,                NULL,       PREC_NONE },         // TOKEN_MATCH
     { nil,                  NULL,       PREC_NONE },         // TOKEN_NIL
     { NULL,                 NULL,       PREC_NONE },         // TOKEN_RETURN
     { while_,               NULL,       PREC_NONE },         // TOKEN_WHILE
@@ -1552,7 +1560,7 @@ static void let_declaration(Parser *parser) {
 
     uint8_t index = variable(parser, "expect a variable name");
 
-    if (match(parser, TOKEN_EQUAL)) {
+    if (consume_if(parser, TOKEN_EQUAL)) {
         expression(parser);
     } else {
         emit_byte(parser, OP_PUSH_NIL);
@@ -1564,7 +1572,7 @@ static void let_declaration(Parser *parser) {
 }
 
 static void parameters(Parser *parser, TokenType closing_token) {
-    if (match(parser, closing_token)) return;
+    if (consume_if(parser, closing_token)) return;
 
     RavFunction *function = parser->context->function;
     do {
@@ -1576,7 +1584,7 @@ static void parameters(Parser *parser, TokenType closing_token) {
 
         uint8_t index = variable(parser, "expect parameter name");
         define_variable(parser, index);
-    } while (match(parser, TOKEN_COMMA));
+    } while (consume_if(parser, TOKEN_COMMA));
 
     consume(parser, closing_token, "expect a closing pararmeters token");
 }
@@ -1631,7 +1639,7 @@ static void return_statement(Parser *parser) {
         error_previous(parser, "cannot return in a top-level code");
     }
 
-    if (match(parser, TOKEN_SEMICOLON)) {
+    if (consume_if(parser, TOKEN_SEMICOLON)) {
         emit_bytes(parser, OP_PUSH_NIL, OP_RETURN);
         return;
     }
@@ -1682,13 +1690,13 @@ static void recover(Parser *parser) {
 static void declaration(Parser *parser) {
     Debug_Log(parser);
 
-    if (match(parser, TOKEN_LET)) {
+    if (consume_if(parser, TOKEN_LET)) {
         let_declaration(parser);
-    } else if (match(parser, TOKEN_FN)) {
+    } else if (consume_if(parser, TOKEN_FN)) {
         fn_declaration(parser);
-    } else if (match(parser, TOKEN_RETURN)) {
+    } else if (consume_if(parser, TOKEN_RETURN)) {
         return_statement(parser);
-    } else if (match(parser, TOKEN_CONTINUE)) {
+    } else if (consume_if(parser, TOKEN_CONTINUE)) {
         continue_statement(parser);
     } else {
         expression(parser);
@@ -1712,7 +1720,7 @@ RavFunction *compile(VM *vm, const char *source, const char *file) {
     Context context;
     init_context(&context, &parser, FunctionToplevel);
 
-    while (!match(&parser, TOKEN_EOF)) {
+    while (!consume_if(&parser, TOKEN_EOF)) {
         declaration(&parser);
     }
 
