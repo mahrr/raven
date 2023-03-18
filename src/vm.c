@@ -656,7 +656,6 @@ static InterpretResult run_vm(register VM *vm) {
             Value value = Nil_Value;
             RavString* key = As_String(offset);
             table_get(&map->table, key, &value);
-
             Push(value);
         } else {
             Runtime_Error("index a non-collection type");
@@ -699,6 +698,25 @@ static InterpretResult run_vm(register VM *vm) {
         Dispatch();
     }
 
+    Case(OP_MAP_PUSH_ELEMENT): {
+        Value map_value = Pop();
+        assert(Is_Map(map_value));
+
+        Value key_value = Read_Constant();
+        assert(Is_String(key_value));
+
+        RavMap *map = As_Map(map_value);
+        RavString *key = As_String(key_value);
+
+        Value value;
+        bool has_key = table_get(&map->table, key, &value);
+
+        vm->x = Bool_Value(has_key);
+        if (has_key) Push(value);
+
+        Dispatch();
+    }
+
     Case(OP_IS_PAIR): {
         Value value = Peek(0);
         Push(Bool_Value(Is_Pair(value)));
@@ -708,6 +726,12 @@ static InterpretResult run_vm(register VM *vm) {
     Case(OP_IS_ARRAY): {
         Value value = Peek(0);
         Push(Bool_Value(Is_Array(value)));
+        Dispatch();
+    }
+
+    Case(OP_IS_MAP): {
+        Value value = Peek(0);
+        Push(Bool_Value(Is_Map(value)));
         Dispatch();
     }
 

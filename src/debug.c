@@ -11,7 +11,7 @@ static int basic_instruction(const char *tag, int offset) {
 
 static int const_instruction(const char *tag, Chunk *chunk, int offset) {
     uint8_t constant_index = chunk->opcodes[offset + 1];
-    printf("%-16s %4d ", tag, constant_index);
+    printf("%-16s %4x = ", tag, constant_index);
     value_print(chunk->constants[constant_index]);
     printf("\n");
     return offset + 2;
@@ -220,11 +220,17 @@ int disassemble_instruction(Chunk *chunk, int offset) {
     case OP_ARRAY_PUSH_ELEMENT:
         return byte_instruction("ARRAY_PUSH_ELEMENT", chunk, offset);
 
+    case OP_MAP_PUSH_ELEMENT:
+        return const_instruction("MAP_PUSH_ELEMENT", chunk, offset);
+
     case OP_IS_PAIR:
         return basic_instruction("IS_PAIR", offset);
 
     case OP_IS_ARRAY:
         return basic_instruction("IS_ARRAY", offset);
+
+    case OP_IS_MAP:
+        return basic_instruction("IS_MAP", offset);
 
     case OP_RETURN:
         return basic_instruction("RETURN", offset);

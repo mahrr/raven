@@ -72,9 +72,13 @@ Opcode(OP_CDR)
 Opcode(OP_ARRAY_LEN)
 Opcode(OP_ARRAY_PUSH_ELEMENT)   // 1-byte array index
 
+// Map Operations (Unchecked)
+Opcode(OP_MAP_PUSH_ELEMENT)     // 1-byte name constant index
+
 // Predicates
 Opcode(OP_IS_PAIR)
 Opcode(OP_IS_ARRAY)
+Opcode(OP_IS_MAP)
 
 Opcode(OP_RETURN)
 Opcode(OP_EXIT)

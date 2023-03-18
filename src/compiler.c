@@ -1093,15 +1093,48 @@ static void pattern(Parser *parser, int *cases_next, int *cases_count, int *bind
         emit_byte(parser, OP_NEQ);
         pattern_fail_if_true(parser, cases_next, cases_count, bindings_count);
 
-        consume(parser, TOKEN_RIGHT_BRACKET, "expected closing ']' for the array pattern");
+        consume(parser, TOKEN_RIGHT_BRACKET, "expect closing ']' for the array pattern");
         break;
     }
     case TOKEN_LEFT_BRACE: {
         // Map Pattern
         advance(parser); // consume '{'
 
-        // TODO
+        // Check if the recent match value is of type map.
+        emit_bytes(parser, OP_IS_MAP, OP_NOT);
+        pattern_fail_if_true(parser, cases_next, cases_count, bindings_count);
 
+        // Check for empty map pattern, it matches all maps.
+        if (consume_if(parser, TOKEN_RIGHT_BRACE)) {
+            break; // switch
+        }
+
+        // The recent match value
+        add_dummy_local(parser);
+        uint8_t match_value_index = parser->context->local_count - 1;
+
+        do {
+            consume(parser, TOKEN_IDENTIFIER, "expect key name for the map pattern");
+
+            RavString *key = object_string(
+                &parser->vm->allocator,
+                parser->previous.lexeme,
+                parser->previous.length
+            );
+
+            // OP_MAP_GET sets the X register to true or false depending
+            // on whether the map has the key or not
+            uint8_t constant_index = make_constant(parser, Obj_Value(key));
+            emit_bytes(parser, OP_GET_LOCAL, match_value_index);
+            emit_bytes(parser, OP_MAP_PUSH_ELEMENT, constant_index);
+            emit_bytes(parser, OP_PUSH_X, OP_NOT);
+            pattern_fail_if_true(parser, cases_next, cases_count, bindings_count);
+
+            consume(parser, TOKEN_COLON, "expect ':' after the key name");
+            pattern(parser, cases_next, cases_count, bindings_count);
+        } while (consume_if(parser, TOKEN_COMMA));
+
+        consume(parser, TOKEN_RIGHT_BRACE, "expect closing '}' after the map pattern");
         break;
     }
     default:
