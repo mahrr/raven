@@ -2,7 +2,7 @@
 
 fn cons(head, tail)
    \which ->
-      cond:
+      cond
         which == 0 -> head,
         which == 1 -> tail
       end

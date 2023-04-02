@@ -55,7 +55,7 @@ if_expression ::= "if" expression "do" chunk ["else" chunk] "end";
 
 while_expression ::= "while" expression "do" chunk "end";
 
-cond_expression ::= "cond:" expression -> expression
+cond_expression ::= "cond" expression -> expression
                       [{"," expression -> expression}]
                     "end";
 

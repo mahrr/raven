@@ -3,7 +3,7 @@
 fn square(x) x * x end
 
 fn pow(x, exp)
-   cond:
+   cond
      exp == 0     -> 1,
      exp % 2 == 0 -> square(pow(x, exp / 2)),
      true         -> x * pow(x, exp - 1)
@@ -15,14 +15,14 @@ fn cons(head, tail)
 end
 
 fn head(pair)
-   cond:
+   cond
      pair % 2 != 0 -> 0,
      true          -> 1 + head(pair / 2)
    end
 end
 
 fn tail(pair)
-   cond:
+   cond
      pair % 3 != 0 -> 0,
      true          -> 1 + tail(pair / 3)
    end

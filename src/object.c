@@ -317,6 +317,11 @@ void string_buf_push(StringBuffer *self, Value value) {
         assert(written > 0);
         value_string = buffer;
         value_length = written;
+    } else if (Is_Closure(value)) {
+        int written = snprintf(buffer, sizeof buffer, "<closure %p>", As_Closure(value));
+        assert(written > 0);
+        value_string = buffer;
+        value_length = written;
     } else if (Is_CFunction(value)) {
         int written = snprintf(buffer, sizeof buffer, "<native @ %p>", As_Obj(value));
         assert(written > 0);

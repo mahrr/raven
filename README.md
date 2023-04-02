@@ -89,6 +89,44 @@ cond
     true -> "bigger than three"
 end
 
+# Pattern Matching
+
+# Matches `x` with the given patterns, it evaluates to the right
+# side of the first matched pattern in an environment where the
+# the names in the id patterns are binded recursively to the
+# corresponding values in `x`
+
+# literal patterns
+match x do
+    nil   -> "nil",
+    true  -> "true",
+    false -> "false,
+    1     -> "int",
+    "one" -> "string",
+end
+
+# wildcard pattern and id pattern (always matches)
+match x do
+    _   -> "wild card pattern",
+    foo -> "id pattern",
+end
+
+# compound patterns
+match x do
+    (head :: tail) -> "pair pattern",
+    [first, second, third] -> "array pattern",
+    {key1: foo, key2: 1} -> "map pattern"
+end
+
+# patterns can be nested
+let object = {foo: [1, 2, 3], bar: 4 :: 5}
+
+# this evaluates to 6
+match object
+    {foo: [_, x, 3], bar: (y :: 5)} -> x + y, # 2 + 4
+    _ -> "no match"
+end
+
 # Functions
 
 # Very naive way to implement the Fibonacci function

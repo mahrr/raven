@@ -10,7 +10,7 @@
 
 // Debugging flags
 #ifdef DEBUG
-# define DEBUG_TRACE_PARSING   // Dump the parsing functions call stack
+//# define DEBUG_TRACE_PARSING   // Dump the parsing functions call stack
 # define DEBUG_TRACE_EXECUTION // Dump the vm state on every instruction
 //# define DEBUG_TRACE_MEMORY    // Dump the memory info on GC/Alloc/Free
 //# define DEBUG_STRESS_GC       // Trigger the GC on every allocation

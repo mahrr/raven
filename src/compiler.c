@@ -866,7 +866,6 @@ static void cond(Parser *parser) {
     // ....        <--------------
 
     Debug_Log(parser);
-    consume(parser, TOKEN_COLON, "expect ':' after cond");
 
     int cases_exit[COND_LIMIT];
     int cases_count = 0;
