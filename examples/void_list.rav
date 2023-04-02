@@ -2,9 +2,9 @@
 
 fn cons(head, tail)
    \which ->
-      cond
-        which == 0 -> head,
-        which == 1 -> tail
+      match which do
+        0 -> head,
+        1 -> tail
       end
 end
 
@@ -13,8 +13,8 @@ fn tail(list) list(1) end
 
 # Example
 
-let primes = cons(2, cons(3, cons(5, cons(7, cons(11, nil)))));
-let sum = 0;
+let primes = cons(2, cons(3, cons(5, cons(7, cons(11, nil)))))
+let sum = 0
 
 while primes do
     sum = sum + head(primes)
